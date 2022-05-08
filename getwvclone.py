@@ -28,7 +28,7 @@ def post_request(arg, challenge):
 # Do Not Change Anything in this class
 class GetwvCloneApi:
     def __init__(self, arg) -> None:
-        self.baseurl = "http://34.163.142.75:5000/"
+        self.baseurl = "" # i.e http://getwvkeys.cc/ 
         self.api_url = self.baseurl + "/api"
         self.args = arg
         self.args.headers = headers()
