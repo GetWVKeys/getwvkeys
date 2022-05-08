@@ -1,5 +1,5 @@
 {
-  "Passwords": ["Alienmaster"],
+  "Passwords": ["password"],
   "proxy": {},
   "default_cdms": ["Xiaomi/aosp_kenzo/kenzo:7.1.2/NZH54D/doveki08121232:userdebug/test-keys"]
 }
