@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+
+<body>
+    <h2>Cached PSSH</h2>
+
+    <p style="font-family:'Courier'">PSSH:{{cache['pssh']}}</p>
+    <p style="font-family:'Courier'">Time:{{cache['time']}}</p>
+    <ol>
+        {%for key in cache['keys']%}
+        <li style="font-family:'Courier'">{{key['key']}}</li>
+        {%endfor%}
+
+    </ol>
+
+</body>
+
+</html>
