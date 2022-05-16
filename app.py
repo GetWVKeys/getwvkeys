@@ -1,14 +1,18 @@
 import os
 
 from flask import Flask, render_template, request, send_from_directory
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 import base64
 import json
 import libraries
 
 app = Flask(__name__)
+limiter = Limiter(app, key_func=get_remote_address, default_limits=["200 per day", "5 per minute"], strategy="fixed-window-elastic-expiry", headers_enabled=True)
 
 
 @app.route('/')
+@limiter.exempt
 def home():
     return render_template("index.html", page_title='AlienMaster')
 
@@ -19,6 +23,7 @@ def count():
 
 
 @app.route('/favicon.ico')
+@limiter.exempt
 def favicon():
     return send_from_directory(os.path.join(app.root_path, 'static'),
                                'favicon.ico', mimetype='image/vnd.microsoft.icon')
@@ -74,6 +79,10 @@ def upload_file():
     elif request.method == 'GET':
         return render_template('upload.html')
 
+
+@app.errorhandler(429)
+def ratelimit_handler(_):
+    return render_template('error.html', page_title='Rate Limit Exceeded', error="Too many requests")
 
 if __name__ == "__main__":
     app.debug = True
