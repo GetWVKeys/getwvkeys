@@ -8,7 +8,7 @@ import json
 import libraries
 
 app = Flask(__name__)
-limiter = Limiter(app, key_func=get_remote_address, default_limits=["200 per day", "5 per minute"], strategy="fixed-window-elastic-expiry", headers_enabled=True)
+limiter = Limiter(app, key_func=get_remote_address, default_limits=["10 per minute", "1 per second"], strategy="fixed-window-elastic-expiry", headers_enabled=True)
 
 
 @app.route('/')
