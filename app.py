@@ -89,7 +89,7 @@ def upload_file():
         blob_base = base64.b64encode(blob.stream.read()).decode()
         key_base = base64.b64encode(key.stream.read()).decode()
         output = libraries.Library().update_cdm(blob_base, key_base)
-        return f"UPDATED: {output}"
+        return render_template('upload_complete.html', page_title="Success", buildinfo=output)
     elif request.method == 'GET':
         return render_template('upload.html')
 
