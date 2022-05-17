@@ -19,9 +19,9 @@ class Library:
     store_request = {}
 
     def __init__(self):
-        conn = sqlite3.connect('database.db')
+        conn = sqlite3.connect('database.db', isolation_level=None)
         self.database = conn.cursor()
-        conn = sqlite3.connect('cdms.db')
+        conn = sqlite3.connect('cdms.db', isolation_level=None)
         self.cdm = conn.cursor()
 
     def cached_number(self):
