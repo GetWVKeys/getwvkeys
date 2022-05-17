@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Upload Your Own CDM</title>
+    <link rel="stylesheet" href="{{url_for('static', filename='main.css')}}" />
+    <script defer src="{{url_for('static', filename='main.js')}}"></script>
+  </head>
+  <body>
+    <nav>
+      <ul class="nav-list">
+        <li class="nav-item"><a href="/">Home</a></li>
+        <li class="nav-item"><a href="./upload">Upload</a></li>
+        <li class="nav-item"><a href="./scripts">Scripts</a></li>
+        <li class="nav-item"><a href="./api">API</a></li>
+          <li class="nav-item"><a href="./findpssh">Find</a></li>
+        <li class="nav-item"><a href="./faq">FAQ</a></li>
+      </ul>
+    </nav>
+
+    <main>
+      <section class="upload">
+        <header>
+          <h1 class="section-title">
+            Upload your own CDM and use it with API and requests
+          </h1>
+        </header>
+        <div class="upload-container">
+            <form action="/upload" method="POST" enctype=multipart/form-data>
+                <div class="upload-form-item">
+                    <label for="blob">device_client_id_blob:</label>
+                    <input type="file" name="blob" id="blob"/>
+                </div>
+                <div class="upload-form-item">
+                    <label for="key">device_private_key:</label>
+                    <input type="file" name="key" id="key"/>
+                </div>
+                <input type="submit" value="Submit" />
+            </form>
+        </div>
+      </section>
+    </main>
+        <footer>
+      <p>© notaghost#9997 - 2022</p>
+    </footer>
+  </body>
+</html>

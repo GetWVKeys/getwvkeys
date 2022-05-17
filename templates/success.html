@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+
+<body>
+    <h2>SUCCESS</h2>
+    <p style="font-family:'Courier'">License:{{license}}</p>
+    <p style="font-family:'Courier'">PSSH:{{pssh}}</p>
+    <p style="font-family:'Courier'">Headers:{{headers}}</p>
+    <p style="font-family:'Courier'">Time:{{time}}</p>
+    <ol>
+        <!-- For loop logic of jinja template -->
+        {%for key in keys%}
+        <li style="font-family:'Courier'">{{key['key']}}</li>
+        {%endfor%}
+
+    </ol>
+
+</body>
+
+</html>

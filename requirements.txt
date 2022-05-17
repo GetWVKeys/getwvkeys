@@ -1,0 +1,5 @@
+Flask==2.0.3
+protobuf==3.20.1
+pycryptodomex==3.14.1
+PyYAML==6.0
+requests==2.27.1

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>API Request</title>
+    <link rel="stylesheet" href="{{url_for('static', filename='main.css')}}" />
+    <script defer src="{{url_for('static', filename='main.js')}}"></script>
+  </head>
+  <body>
+    <nav>
+      <ul class="nav-list">
+        <li class="nav-item"><a href="/">Home</a></li>
+        <li class="nav-item"><a href="./upload">Upload</a></li>
+        <li class="nav-item"><a href="./scripts">Scripts</a></li>
+        <li class="nav-item"><a href="./api">API</a></li>
+        <li class="nav-item"><a href="./findpssh">Find</a></li>
+        <li class="nav-item"><a href="./faq">FAQ</a></li>
+      </ul>
+    </nav>
+
+    <main>
+      <section class="faq">
+        <header>
+          <h1 class="section-title">Frequently Asked Questions</h1>
+        </header>
+        <div class="questions-container">
+          <details class="question">
+            <summary>What is this website?</summary>
+            <div><p>Workaround to get widevine content keys</p></div>
+          </details>
+          <details class="question">
+            <summary>What is PSSH?</summary>
+            <div><p>Protection Scheme Specific Header (PSSH)</p></div>
+          </details>
+          <details class="question">
+            <summary>Is it L1?</summary>
+            <div>
+              <p>No it is Generic L3 CDM system ID:[removed] to be precise</p>
+            </div>
+          </details>
+          <details class="question">
+            <summary>What does 'Error headers' means?</summary>
+            <div>
+              <p>
+                Your headers are not in yaml format or JSON Format. for Yaml
+                formate Validate your headers here:
+                http://yaml-online-parser.appspot.com
+              </p>
+            </div>
+          </details>
+          <details class="question">
+            <summary>What does 'Wrong PSSH' means?</summary>
+            <div>
+              <p>
+                Your PSSH is wrong. validate your PSSH here first on
+                https://integration.widevine.com/diagnostics under "View
+                Widevine PSSH"
+              </p>
+            </div>
+          </details>
+          <details class="question">
+            <summary>What to do when there is no PSSH in the mpd?</summary>
+            <div>
+              <p>
+                Get kid from ism/mpd/media then make pssh from kid on
+                https://integration.widevine.com/diagnostics under "Generate
+                widevine PSSH". Also read:
+                https://forum.videohelp.com/threads/401717-How-are-you-going-to-respond-to-widevine-l3-decryptor-s-death-at-May-31st/page15#post2639870
+              </p>
+            </div>
+          </details>
+          <details class="question">
+            <summary>Need Help?</summary>
+            <div>
+              <p>Share them on our discord https://discord.gg/sMBEwDEGQg</p>
+            </div>
+          </details>
+          <details class="question">
+            <summary>
+              Can it support x site? How can i request to add a new site?
+            </summary>
+            <div>
+              <p>I do not take requests thank you.</p>
+            </div>
+          </details>
+          <details class="question">
+            <summary>
+              How can i get PSSH from ism manifest with ProtectionHeader?
+            </summary>
+            <div>
+              <p>
+                https://forum.videohelp.com/threads/404024-Get-PSSH-from-ism-manifest-with-ProtectionHeader
+              </p>
+            </div>
+          </details>
+          <details class="question">
+            <summary>Why?</summary>
+            <div>
+              <p>Leaked</p>
+            </div>
+          </details>
+        </div>
+      </section>
+    </main>
+    <footer>
+      <p>© notaghost#9997 - 2022</p>
+    </footer>
+  </body>
+</html>
