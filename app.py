@@ -1,4 +1,5 @@
 import os
+from sqlite3 import DatabaseError
 
 from flask import Flask, render_template, request, send_from_directory, send_file
 from flask_limiter import Limiter
@@ -150,7 +151,13 @@ def downloadfile(file):
 
 @app.errorhandler(429)
 def ratelimit_handler(_):
-    return render_template('error.html', page_title='Rate Limit Exceeded', error="Too many requests")
+    return render_template('error.html', page_title='Rate Limit Exceeded', error="Too many requests. Please try again later.")
+
+@app.errorhandler(DatabaseError)
+def database_error(_):
+    return render_template('error.html', page_title='Internal Server Error', error="Internal Server Error. Please try again later.")
+
+
 
 
 if __name__ == "__main__":
