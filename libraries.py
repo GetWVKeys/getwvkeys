@@ -144,7 +144,7 @@ class Pywidevine:
         r = requests.post(url=license_url, data=challenge,
                           headers=headers, proxies=proxy, timeout=10, verify=False)
         if r.status_code != 200:
-            raise Exception("Error404:\n" + r.text)
+            raise Exception(f"Error {r.status_code}:\n" + r.text)
 
         return base64.b64encode(r.content)
 
