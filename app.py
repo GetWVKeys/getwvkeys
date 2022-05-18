@@ -3,14 +3,20 @@ from sqlite3 import DatabaseError
 
 from flask import Flask, render_template, request, send_from_directory, send_file
 from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 import base64
 import json
 import libraries
 
+def get_remote_address():
+    return request.headers.get("CF-Connecting-IP", request.remote_addr)
+
 app = Flask(__name__)
 limiter = Limiter(app, key_func=get_remote_address, default_limits=["10 per minute"],
                   strategy="fixed-window-elastic-expiry", headers_enabled=True)
+
+@limiter.request_filter
+def ip_whitelist():
+    return request.remote_addr == ""
 
 
 @app.route('/')
@@ -25,11 +31,6 @@ def get_ip():  # InCase Request IP Needed
     else:
         ip = request.environ['HTTP_X_FORWARDED_FOR']
     return ip
-
-
-@limiter.request_filter
-def ip_whitelist():
-    return request.remote_addr == "188.114.97.18" or request.remote_addr == "127.0.0.1" or request.remote_addr == ""
 
 
 @app.route('/scripts')
