@@ -19,7 +19,7 @@ def home():
     return render_template("index.html", page_title='GetWVkeys')
 
 
-def get_ip():  # InCase IP Needed
+def get_ip():  # InCase Request IP Needed
     if request.environ.get('HTTP_X_FORWARDED_FOR') is None:
         ip = request.environ['REMOTE_ADDR']
     else:
@@ -27,9 +27,14 @@ def get_ip():  # InCase IP Needed
     return ip
 
 
+@limiter.request_filter
+def ip_whitelist():
+    return request.remote_addr == "188.114.97.18" or request.remote_addr == "127.0.0.1" or request.remote_addr == ""
+
+
 @app.route('/scripts')
 def scripts():
-    files = os.listdir(os.getcwd() + '/download')
+    files = os.listdir(os.path.dirname(os.path.abspath(__file__)) + '/download')
     return render_template("scripts.html", script_names=files)
 
 
@@ -55,7 +60,7 @@ def find():
             return ""
         data = libraries.Library().match(pssh)
         if data == {}:
-            pass
+            return render_template("error.html", page_title='ERROR', error="Not Found")
         else:
             return render_template("cache.html", cache=data)
     else:
@@ -151,13 +156,14 @@ def downloadfile(file):
 
 @app.errorhandler(429)
 def ratelimit_handler(_):
-    return render_template('error.html', page_title='Rate Limit Exceeded', error="Too many requests. Please try again later.")
+    return render_template('error.html', page_title='Rate Limit Exceeded',
+                           error="Too many requests. Please try again later.")
+
 
 @app.errorhandler(DatabaseError)
 def database_error(_):
-    return render_template('error.html', page_title='Internal Server Error', error="Internal Server Error. Please try again later.")
-
-
+    return render_template('error.html', page_title='Internal Server Error',
+                           error="Internal Server Error. Please try again later.")
 
 
 if __name__ == "__main__":
