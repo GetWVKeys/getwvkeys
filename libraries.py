@@ -19,21 +19,50 @@ class Library:
     store_request = {}
 
     def __init__(self):
+        pass
+
+    @staticmethod
+    def connect_database():
         conn = sqlite3.connect('database.db', isolation_level=None)
-        self.database = conn.cursor()
+        return conn.cursor()
+
+    @staticmethod
+    def close_database(conn):
+        conn.close()
+
+    @staticmethod
+    def connect_cdm():
         conn = sqlite3.connect('cdms.db', isolation_level=None)
-        self.cdm = conn.cursor()
+        return conn.cursor()
+
+    @staticmethod
+    def close_cdm(conn):
+        conn.close()
+
+    def cache_keys(self, data):
+        database = self.connect_database()
+        for keys in data['keys']:
+            for key in keys:
+                # self.database[keys[key].split(':')[0]] = data
+                database.execute(
+                    "INSERT OR IGNORE INTO DATABASE (pssh,headers,KID,proxy,time,license,keys) VALUES (?,?,?,?,?,?,?)",
+                    (data['pssh'], json.dumps(data['headers']), key,
+                     json.dumps(data['proxy']), data['time'], data['license'], json.dumps(data['keys'])))
+        self.close_database(database)
 
     def cached_number(self):
-        database_result = self.database.execute("SELECT COUNT(*) FROM DATABASE ")
+        database = self.connect_database()
+        database_result = database.execute("SELECT COUNT(*) FROM DATABASE ")
         cache = database_result.fetchall()
+        self.close_database(database)
         return cache[0][0]
 
     def match(self, pssh):
+        database = self.connect_database()
         if "-" in pssh:
             pssh = pssh.replace("-", "")
         sql = f'SELECT * FROM DATABASE WHERE PSSH = "{pssh}" or KID = "{pssh}"'
-        database_result = self.database.execute(sql)
+        database_result = database.execute(sql)
         result = database_result.fetchall()
         if result:
             data = {
@@ -46,12 +75,13 @@ class Library:
             }
         else:
             data = {}
-
+        self.close_database(database)
         return data
 
     def cdm_selector(self, blob_id):
+        cdm = self.connect_cdm()
         sql = f'SELECT * FROM CDMS WHERE CODE = "{blob_id}"'
-        database = self.cdm.execute(sql)
+        database = cdm.execute(sql)
         data_result = database.fetchall()
         if not data_result:
             raise Exception("NO CDM FOUND")
@@ -61,6 +91,7 @@ class Library:
             "client_id_blob_filename": data_result[0][2],
             "device_private_key": data_result[0][3]
         }
+        self.close_cdm(cdm)
         return data
 
     def update_cdm(self, blobs, key):
@@ -73,19 +104,12 @@ class Library:
             return str(ci.ClientInfo[5]).split("Value: ")[1].replace("\n", "").replace('"', "")
 
         ID = get_blob_id(blobs)
-        self.cdm.execute(
+        cdm = self.connect_cdm()
+        cdm.execute(
             "INSERT OR IGNORE INTO CDMS (client_id_blob_filename,device_private_key,CODE) VALUES (?,?,?)",
             (blobs, key, ID))
+        self.close_cdm(cdm)
         return ID
-
-    def cache_keys(self, data):
-        for keys in data['keys']:
-            for key in keys:
-                # self.database[keys[key].split(':')[0]] = data
-                self.database.execute(
-                    "INSERT OR IGNORE INTO DATABASE (pssh,headers,KID,proxy,time,license,keys) VALUES (?,?,?,?,?,?,?)",
-                    (data['pssh'], json.dumps(data['headers']), key,
-                     json.dumps(data['proxy']), data['time'], data['license'], json.dumps(data['keys'])))
 
 
 class Pywidevine:
