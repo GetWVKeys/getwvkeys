@@ -110,7 +110,7 @@ def curl():
             (proxy, license_, pssh, headers, buildinfo, cache) = (
                 event_data['proxy'] if "proxy" in event_data else '', event_data['license'],
                 event_data['pssh'], event_data['headers'] if 'headers' in event_data else '',
-                event_data['buildInfo'] if 'buildinfo' in event_data else '',
+                event_data['buildInfo'] if 'buildInfo' in event_data else '',
                 event_data['cache'] if 'cache' in event_data else True)
             magic = libraries.Pywidevine(proxy, license_, pssh, headers, buildinfo, cache=cache)
             return magic.main(curl=True)
