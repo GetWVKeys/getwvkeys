@@ -122,7 +122,7 @@ main {
 .form-item > label {
   min-width: 120px;
 }
-.form-item > input[type='text'] {
+.form-item > input[type="text"] {
   border-radius: 4px;
   border: 0;
   padding: 12px 16px;
@@ -132,7 +132,7 @@ main {
   margin-left: 24px;
 }
 
-.form-item > input[type='password'] {
+.form-item > input[type="password"] {
   border-radius: 4px;
   border: 0;
   padding: 12px 16px;
@@ -152,17 +152,17 @@ main {
   margin-left: 24px;
 }
 
-.form-item > input[type='checkbox'] {
+.form-item > input[type="checkbox"] {
   margin-left: 16px;
   margin-right: auto;
   width: 16px;
   height: 16px;
 }
-.form-item > label[for='cache'] {
+.form-item > label[for="cache"] {
   min-width: 0;
 }
 
-input[type='submit'] {
+input[type="submit"] {
   border-radius: 4px;
   color: #fffffe;
   font-size: 1.125rem;
@@ -174,15 +174,15 @@ input[type='submit'] {
   margin-right: auto;
   transition: transform 0.2s ease-in;
 }
-input[type='submit']:disabled {
+input[type="submit"]:disabled {
   background-color: #6146b1;
 }
-input[type='submit']:hover {
+input[type="submit"]:hover {
   transform: scale(1.02);
   cursor: pointer;
   background-color: #6146b1;
 }
-input[type='submit']:focus {
+input[type="submit"]:focus {
   transform: scale(1.05);
   outline: 1px solid rgb(255, 255, 255);
   outline-offset: 2px;
@@ -300,4 +300,48 @@ footer {
 }
 footer > p {
   text-align: center;
+}
+.login-container {
+  display: flex;
+  justify-content: center;
+}
+
+.login-info {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  padding: 32px 0;
+}
+
+.login-info > p {
+  font-size: 12px;
+}
+
+.flashes {
+  position: fixed;
+  right: 0;
+  padding: 16px;
+}
+
+.flash {
+  padding: 16px;
+}
+
+.flash-info {
+  color: #00529b;
+  background-color: #bde5f8;
+}
+.flash-success {
+  color: #4f8a10;
+  background-color: #dff2bf;
+}
+
+.flash-warning {
+  color: #9f6000;
+  background-color: #feefb3;
+}
+
+.flash-error {
+  color: #d8000c;
+  background-color: #ffd2d2;
 }

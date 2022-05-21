@@ -6,7 +6,7 @@ from flask import render_template, Response
 import time
 import yaml
 import random
-
+import secrets
 
 try:
     requests.packages.urllib3.disable_warnings()
@@ -291,3 +291,40 @@ class WvDecrypt:
 
                 signing_key = '{}:{}'.format(kid, key)
                 return signing_key
+
+
+from flask_login import UserMixin
+
+class User(UserMixin):
+    def __init__(self, id, username, discriminator, avatar, public_flags, api_key):
+        self.id = id
+        self.username = username
+        self.discriminator = discriminator
+        self.avatar = avatar
+        self.public_flags = public_flags
+        self.api_key = api_key
+
+    @staticmethod
+    def get(user_id):
+        db = Library.connect_database()
+        user = db.execute(
+            "SELECT * FROM USERS WHERE id = ?", (user_id,)
+        ).fetchone()
+        if not user:
+            return None
+
+        user = User(
+            id=user[0], username=user[1], discriminator=user[2], avatar=user[3], public_flags=user[4], api_key=user[5]
+        )
+        Library.close_database(db)
+        return user
+
+    @staticmethod
+    def create(userinfo):
+        db = Library.connect_database()
+        api_key = secrets.token_hex(32)
+        db.execute(
+            "INSERT INTO users (id, username, discriminator, avatar, public_flags, api_key) VALUES (?, ?, ?, ?, ?, ?)",
+            (userinfo.get("id"), userinfo.get("username"), userinfo.get("discriminator"), userinfo.get("avatar"), userinfo.get("public_flags"), api_key)
+        )
+        Library.close_database(db)
