@@ -5,6 +5,8 @@ import json
 from flask import render_template, Response
 import time
 import yaml
+import random
+
 
 try:
     requests.packages.urllib3.disable_warnings()
@@ -19,7 +21,8 @@ class Library:
     store_request = {}
 
     def __init__(self):
-        pass
+        self.database = self.connect_database()
+        self.cdm = self.connect_cdm()
 
     @staticmethod
     def connect_database():
@@ -40,48 +43,40 @@ class Library:
         conn.close()
 
     def cache_keys(self, data):
-        database = self.connect_database()
         for keys in data['keys']:
             for key in keys:
+
                 # self.database[keys[key].split(':')[0]] = data
-                database.execute(
+                self.database.execute(
                     "INSERT OR IGNORE INTO DATABASE (pssh,headers,KID,proxy,time,license,keys) VALUES (?,?,?,?,?,?,?)",
                     (data['pssh'], json.dumps(data['headers']), key,
                      json.dumps(data['proxy']), data['time'], data['license'], json.dumps(data['keys'])))
-        self.close_database(database)
 
     def cached_number(self):
-        database = self.connect_database()
-        database_result = database.execute("SELECT COUNT(*) FROM DATABASE ")
+        database_result = self.database.execute("SELECT COUNT(*) FROM DATABASE ")
         cache = database_result.fetchall()
-        self.close_database(database)
         return cache[0][0]
 
     def match(self, pssh):
-        database = self.connect_database()
         if "-" in pssh:
             pssh = pssh.replace("-", "")
         sql = f'SELECT * FROM DATABASE WHERE PSSH = "{pssh}" or KID = "{pssh}"'
-        database_result = database.execute(sql)
+        database_result = self.database.execute(sql)
         result = database_result.fetchall()
         if result:
             data = {
                 "pssh": result[0][1],
                 "time": result[0][4],
                 "keys": eval(result[0][6]),
-                # "headers": result[0][2],
-                # "proxy": result[0][3],
-                # "license": result[0][5]
             }
         else:
             data = {}
-        self.close_database(database)
         return data
 
     def cdm_selector(self, blob_id):
-        cdm = self.connect_cdm()
+
         sql = f'SELECT * FROM CDMS WHERE CODE = "{blob_id}"'
-        database = cdm.execute(sql)
+        database = self.cdm.execute(sql)
         data_result = database.fetchall()
         if not data_result:
             raise Exception("NO CDM FOUND")
@@ -91,7 +86,6 @@ class Library:
             "client_id_blob_filename": data_result[0][2],
             "device_private_key": data_result[0][3]
         }
-        self.close_cdm(cdm)
         return data
 
     def update_cdm(self, blobs, key):
@@ -104,12 +98,41 @@ class Library:
             return str(ci.ClientInfo[5]).split("Value: ")[1].replace("\n", "").replace('"', "")
 
         ID = get_blob_id(blobs)
-        cdm = self.connect_cdm()
-        cdm.execute(
+        self.cdm.execute(
             "INSERT OR IGNORE INTO CDMS (client_id_blob_filename,device_private_key,CODE) VALUES (?,?,?)",
             (blobs, key, ID))
-        self.close_cdm(cdm)
         return ID
+
+    def dev_append(self, pssh, keys: dict, access):
+        # testing PSSH
+        config = Pywidevine.config()
+
+        if access not in config['appenders']:
+            raise Exception("You are not allowed to add to database")
+
+        try:
+            base64.b64decode(pssh)
+            from pywidevine.cdm import deviceconfig
+            WvDecrypt(pssh, deviceconfig.DeviceConfig(random.choice(Pywidevine.config()['default_cdms'])))
+        except Exception as e:
+            raise Exception(f"PSSH ERROR {str(e)}")
+        data = {
+            "pssh": pssh,
+            "time": str(time.ctime()),
+            "keys": json.dumps(keys),
+        }
+
+        for key in keys:
+            if len(key['key'].split(":")[0]) != 32:
+                raise Exception("wrong key length")
+            self.database.execute(
+                "INSERT OR IGNORE INTO DATABASE (pssh,headers,KID,proxy,time,license,keys) VALUES (?,?,?,?,?,?,?)",
+                (data['pssh'], "", key['key'].split(":")[0], "", data['time'], "", json.dumps(data['keys']))
+            )
+        response = {
+            "response": "added"
+        }
+        return json.dumps(response)
 
 
 class Pywidevine:

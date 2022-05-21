@@ -6,21 +6,27 @@ from flask_limiter import Limiter
 import base64
 import json
 import libraries
+import sys
+
 
 def get_remote_address():
     return request.headers.get("CF-Connecting-IP", request.remote_addr)
 
-app = Flask(__name__)
-limiter = Limiter(app, key_func=get_remote_address, default_limits=["10 per minute"],
-                  strategy="fixed-window-elastic-expiry", headers_enabled=True)
 
-@limiter.request_filter
-def ip_whitelist():
-    return request.remote_addr == ""
+app = Flask(__name__)
+
+
+# limiter = Limiter(app, key_func=get_remote_address, default_limits=["10 per minute"],
+#                   strategy="fixed-window-elastic-expiry", headers_enabled=True)
+#
+#
+# @limiter.request_filter
+# def ip_whitelist():
+#     return request.remote_addr == ""
 
 
 @app.route('/')
-@limiter.exempt
+# @limiter.exempt
 def home():
     return render_template("index.html", page_title='GetWVkeys')
 
@@ -40,20 +46,20 @@ def scripts():
 
 
 @app.route('/count')
-@limiter.exempt
+# # @limiter.exempt
 def count():
     return str(libraries.Library().cached_number())
 
 
 @app.route('/favicon.ico')
-@limiter.exempt
+# @limiter.exempt
 def favicon():
     return send_from_directory(os.path.join(app.root_path, 'static'),
                                'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
 
 @app.route('/findpssh', methods=['POST', 'GET'])
-@limiter.exempt
+# @limiter.exempt
 def find():
     if request.method == 'POST':
         pssh = request.stream.read().decode()
@@ -69,7 +75,7 @@ def find():
 
 
 @app.route('/wv', methods=['POST', 'GET'])
-@limiter.limit("1 per sec")
+# @limiter.limit("1 per sec")
 def wv():
     try:
         if request.method == 'POST':
@@ -88,6 +94,22 @@ def wv():
         return render_template("error.html", page_title='ERROR', error=str(e))
 
 
+@app.route('/dev', methods=['POST'])
+# @limiter.limit("1 per sec")
+def dev():
+    try:
+        event_data = request.get_json(force=True)
+        (pssh, keys, access) = (event_data['pssh'], event_data['keys'], event_data['access'])
+        magic = libraries.Library().dev_append(pssh, keys, access)
+        return magic
+    except (Exception,):
+        type, value, traceback = sys.exc_info()
+        resp = {
+            "error": str(type) + str(value)
+        }
+        return json.dumps(resp)
+
+
 @app.route('/upload', methods=['GET', 'POST'])
 def upload_file():
     if request.method == 'POST':
@@ -102,7 +124,7 @@ def upload_file():
 
 
 @app.route('/api', methods=['POST', 'GET'])
-@limiter.limit("1 per sec")
+# @limiter.limit("1 per sec")
 def curl():
     if request.method == 'POST':
         try:
@@ -110,7 +132,7 @@ def curl():
             (proxy, license_, pssh, headers, buildinfo, cache) = (
                 event_data['proxy'] if "proxy" in event_data else '', event_data['license'],
                 event_data['pssh'], event_data['headers'] if 'headers' in event_data else '',
-                event_data['buildInfo'] if 'buildInfo' in event_data else '',
+                event_data['buildInfo'] if 'buildinfo' in event_data else '',
                 event_data['cache'] if 'cache' in event_data else True)
             magic = libraries.Pywidevine(proxy, license_, pssh, headers, buildinfo, cache=cache)
             return magic.main(curl=True)
@@ -123,7 +145,7 @@ def curl():
 
 
 @app.route('/pywidevine', methods=['POST'])
-@limiter.limit("2 per sec")
+# @limiter.limit("2 per sec")
 def pywidevine():
     try:
         event_data = request.get_json(force=True)
@@ -131,7 +153,7 @@ def pywidevine():
             event_data['password'] if 'password' in event_data else '', event_data['license'] if 'license' in event_data
             else '', event_data['pssh'] if 'pssh' in event_data else '',
             event_data['headers'] if 'headers' in event_data
-            else '', event_data['buildInfo'] if 'buildInfo' in event_data else '', event_data['cache'] if 'cache' in
+            else '', event_data['buildInfo'] if 'buildinfo' in event_data else '', event_data['cache'] if 'cache' in
                                                                                                           event_data else True,
             True if 'challege' in event_data else False, event_data['response'] if 'response' in
                                                                                    event_data else None)
@@ -169,4 +191,4 @@ def database_error(_):
 
 if __name__ == "__main__":
     app.debug = True
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5001)))
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
