@@ -8,6 +8,6 @@
     "AZ1122/aosp_kenzo/kenzo:7.1.2/NZH543/doveki08121232:userdebug/test-keys",
     "AZ1122/aosp_kenzo/kenzo:7.1.2/NZH544/doveki08121232:userdebug/test-keys",
     "AZ1122/aosp_kenzo/kenzo:7.1.2/NZH545/doveki08121232:userdebug/test-keys"
-],
-  "appenders": ["staff_getwvkeys","seopsta0197123"]
+  ],
+  "appenders": ["staff_getwvkeys", "seopsta0197123"]
 }
