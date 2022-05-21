@@ -2,31 +2,16 @@ import os
 from sqlite3 import DatabaseError
 
 from flask import Flask, render_template, request, send_from_directory, send_file
-from flask_limiter import Limiter
 import base64
 import json
 import libraries
 import sys
 
 
-def get_remote_address():
-    return request.headers.get("CF-Connecting-IP", request.remote_addr)
-
-
 app = Flask(__name__)
 
 
-# limiter = Limiter(app, key_func=get_remote_address, default_limits=["10 per minute"],
-#                   strategy="fixed-window-elastic-expiry", headers_enabled=True)
-#
-#
-# @limiter.request_filter
-# def ip_whitelist():
-#     return request.remote_addr == ""
-
-
 @app.route('/')
-# @limiter.exempt
 def home():
     return render_template("index.html", page_title='GetWVkeys')
 
@@ -46,20 +31,17 @@ def scripts():
 
 
 @app.route('/count')
-# # @limiter.exempt
 def count():
     return str(libraries.Library().cached_number())
 
 
 @app.route('/favicon.ico')
-# @limiter.exempt
 def favicon():
     return send_from_directory(os.path.join(app.root_path, 'static'),
                                'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
 
 @app.route('/findpssh', methods=['POST', 'GET'])
-# @limiter.exempt
 def find():
     if request.method == 'POST':
         pssh = request.stream.read().decode()
@@ -75,7 +57,6 @@ def find():
 
 
 @app.route('/wv', methods=['POST', 'GET'])
-# @limiter.limit("1 per sec")
 def wv():
     try:
         if request.method == 'POST':
@@ -124,7 +105,6 @@ def upload_file():
 
 
 @app.route('/api', methods=['POST', 'GET'])
-# @limiter.limit("1 per sec")
 def curl():
     if request.method == 'POST':
         try:
@@ -145,7 +125,6 @@ def curl():
 
 
 @app.route('/pywidevine', methods=['POST'])
-# @limiter.limit("2 per sec")
 def pywidevine():
     try:
         event_data = request.get_json(force=True)
@@ -175,13 +154,6 @@ def downloadfile(file):
     if not os.path.isfile(path):
         return "FILE NOT FOUND"
     return send_file(path, as_attachment=True)
-
-
-@app.errorhandler(429)
-def ratelimit_handler(_):
-    return render_template('error.html', page_title='Rate Limit Exceeded',
-                           error="Too many requests. Please try again later.")
-
 
 @app.errorhandler(DatabaseError)
 def database_error(_):
