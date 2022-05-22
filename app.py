@@ -179,8 +179,6 @@ def downloadfile(file):
     return send_file(path, as_attachment=True)
 
 # auth endpoints
-
-
 @app.route("/login")
 def login():
     if current_user.is_authenticated:
@@ -233,7 +231,12 @@ def logout():
     logout_user()
     return redirect("/")
 
+@app.route("/me")
+@login_required
+def user_profile():
+    return render_template("profile.html", current_user=current_user)
 
+# error handlers
 @app.errorhandler(DatabaseError)
 def database_error(e):
     print(e)
