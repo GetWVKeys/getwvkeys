@@ -1,7 +1,7 @@
 import os
 from sqlite3 import DatabaseError
 
-from flask import Flask, flash, redirect, render_template, request, send_from_directory, send_file, url_for
+from flask import Flask, flash, redirect, render_template, request, send_from_directory, send_file
 from flask_login import (
     LoginManager,
     current_user,
@@ -12,23 +12,19 @@ from flask_login import (
 from oauthlib.oauth2 import WebApplicationClient
 import base64
 import json
-
 import requests
 import libraries
 import sys
 
-from dotenv import load_dotenv
-
-# load .env file
-load_dotenv()
-
-app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY") or os.urandom(24)
+app = Flask(__name__, instance_relative_config=True)
+app.config.from_object('config')
+app.config.from_pyfile('config.py')
 
 login_manager = LoginManager()
 login_manager.init_app(app)
 
 client = WebApplicationClient(os.environ.get("OAUTH2_CLIENT_ID"))
+
 
 def get_ip():  # InCase Request IP Needed
     if request.environ.get('HTTP_X_FORWARDED_FOR') is None:
@@ -37,20 +33,23 @@ def get_ip():  # InCase Request IP Needed
         ip = request.environ['HTTP_X_FORWARDED_FOR']
     return ip
 
+
 @login_manager.user_loader
 def load_user(user_id):
     return libraries.User.get(user_id)
 
+
 @app.route('/')
 @login_required
 def home():
-    return render_template("index.html", page_title='GetWVkeys', is_authenticated=current_user.is_authenticated)
+    return render_template("index.html", page_title='GetWVkeys', current_user=current_user)
 
 
 @app.route('/scripts')
 def scripts():
-    files = os.listdir(os.path.dirname(os.path.abspath(__file__)) + '/download')
-    return render_template("scripts.html", script_names=files, is_authenticated=current_user.is_authenticated)
+    files = os.listdir(os.path.dirname(
+        os.path.abspath(__file__)) + '/download')
+    return render_template("scripts.html", script_names=files, current_user=current_user)
 
 
 @app.route('/count')
@@ -77,7 +76,7 @@ def find():
         else:
             return render_template("cache.html", cache=data)
     else:
-        return render_template("find.html", page_title='SEARCH DATABASE', is_authenticated=current_user.is_authenticated)
+        return render_template("find.html", page_title='SEARCH DATABASE', current_user=current_user)
 
 
 @app.route('/wv', methods=['POST'])
@@ -86,18 +85,18 @@ def wv():
     try:
         event_data = request.get_json(force=True)
         (proxy, license_, pssh, headers, buildinfo, cache) = (event_data['proxy'], event_data['license'],
-                                                                event_data['pssh'],
-                                                                event_data['headers'], event_data['buildInfo'],
-                                                                event_data['cache'])
+                                                              event_data['pssh'],
+                                                              event_data['headers'], event_data['buildInfo'],
+                                                              event_data['cache'])
 
-        magic = libraries.Pywidevine(proxy, license_, pssh, headers, buildinfo, cache=cache)
+        magic = libraries.Pywidevine(
+            proxy, license_, pssh, headers, buildinfo, cache=cache)
         return magic.main()
     except Exception as e:
         return render_template("error.html", page_title='ERROR', error=str(e))
 
 
 @app.route('/dev', methods=['POST'])
-# @limiter.limit("1 per sec")
 def dev():
     try:
         event_data = request.get_json(force=True)
@@ -123,7 +122,7 @@ def upload_file():
         output = libraries.Library().update_cdm(blob_base, key_base)
         return render_template('upload_complete.html', page_title="Success", buildinfo=output)
     elif request.method == 'GET':
-        return render_template('upload.html', is_authenticated=current_user.is_authenticated)
+        return render_template('upload.html', current_user=current_user)
 
 
 @app.route('/api', methods=['POST', 'GET'])
@@ -136,13 +135,14 @@ def curl():
                 event_data['pssh'], event_data['headers'] if 'headers' in event_data else '',
                 event_data['buildInfo'] if 'buildinfo' in event_data else '',
                 event_data['cache'] if 'cache' in event_data else True)
-            magic = libraries.Pywidevine(proxy, license_, pssh, headers, buildinfo, cache=cache)
+            magic = libraries.Pywidevine(
+                proxy, license_, pssh, headers, buildinfo, cache=cache)
             return magic.main(curl=True)
 
         except Exception as e:
             return json.dumps({"error": str(e)})
     else:
-        return render_template("api.html", is_authenticated=current_user.is_authenticated)
+        return render_template("api.html", current_user=current_user)
 
 
 @app.route('/pywidevine', methods=['POST'])
@@ -158,7 +158,8 @@ def pywidevine():
                                                                                                           event_data else True,
             True if 'challege' in event_data else False, event_data['response'] if 'response' in
                                                                                    event_data else None)
-        magic = libraries.Pywidevine(password, license_, pssh, headers, buildinfo, cache=cache, response=response)
+        magic = libraries.Pywidevine(
+            password, license_, pssh, headers, buildinfo, cache=cache, response=response)
         return magic.api()
     except Exception as e:
         error = {"Error": f"{str(e)}"}
@@ -167,7 +168,7 @@ def pywidevine():
 
 @app.route('/faq')
 def faq():
-    return render_template("faq.html", page_title='FAQ', is_authenticated=current_user.is_authenticated)
+    return render_template("faq.html", page_title='FAQ', current_user=current_user)
 
 
 @app.route('/download/<file>')
@@ -178,13 +179,17 @@ def downloadfile(file):
     return send_file(path, as_attachment=True)
 
 # auth endpoints
+
+
 @app.route("/login")
 def login():
     if current_user.is_authenticated:
         flash("You are already logged in.", "warning")
         return redirect("/")
-    request_uri = client.prepare_request_uri("https://discord.com/api/oauth2/authorize", redirect_uri=request.base_url + "/callback", scope=["guilds", "guilds.join", "guilds.members.read", "identify"])
-    return render_template("login.html", auth_url=request_uri, is_authenticated=current_user.is_authenticated)
+    request_uri = client.prepare_request_uri("https://discord.com/api/oauth2/authorize", redirect_uri=request.base_url +
+                                             "/callback", scope=["guilds", "guilds.join", "guilds.members.read", "identify"])
+    return render_template("login.html", auth_url=request_uri, current_user=current_user)
+
 
 @app.route("/login/callback")
 def login_callback():
@@ -201,7 +206,8 @@ def login_callback():
         token_url,
         headers=headers,
         data=body,
-        auth=(os.environ.get("OAUTH2_CLIENT_ID"), os.environ.get("OAUTH2_CLIENT_SECRET")),
+        auth=(os.environ.get("OAUTH2_CLIENT_ID"),
+              os.environ.get("OAUTH2_CLIENT_SECRET")),
     )
     client.parse_request_body_response(json.dumps(token_response.json()))
     uri, headers, body = client.add_token("https://discord.com/api/oauth2/@me")
@@ -220,11 +226,13 @@ def login_callback():
     flash("Welcome, {}!".format(user.username), "success")
     return redirect("/")
 
+
 @app.route("/logout")
 @login_required
 def logout():
     logout_user()
     return redirect("/")
+
 
 @app.errorhandler(DatabaseError)
 def database_error(e):
@@ -232,15 +240,17 @@ def database_error(e):
     return render_template('error.html', page_title='Internal Server Error',
                            error="Internal Server Error. Please try again later.")
 
+
 @app.errorhandler(405)
 def method_not_allowed(_):
     return render_template('error.html', page_title='Method Not Allowed',
                            error="Method Not Allowed.")
 
+
 @login_manager.unauthorized_handler
 def unauthorized_callback():
     return redirect('/login?next=' + request.path)
 
+
 if __name__ == "__main__":
-    app.debug = True
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5001)))

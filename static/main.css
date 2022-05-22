@@ -345,3 +345,59 @@ footer > p {
   color: #d8000c;
   background-color: #ffd2d2;
 }
+
+input[name="login"] {
+  border-radius: 4px;
+  color: #fffffe;
+  font-size: 1.125rem;
+  background-color: #5865f2;
+  border: 0;
+  margin-top: 24px;
+  padding: 12px 48px;
+  margin-left: auto;
+  margin-right: auto;
+  transition: transform 0.2s ease-in;
+}
+input[name="login"]:disabled {
+  background-color: #6146b1;
+}
+input[name="login"]:hover {
+  transform: scale(1.02);
+  cursor: pointer;
+  background-color: #4752c4;
+}
+input[name="login"]:focus {
+  transform: scale(1.05);
+  background-color: #3c45a5;
+  outline: none;
+}
+.img-pfp {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+.dropdown-button {
+  display: flex;
+  flex-direction: row;
+}
+.dropdown-content {
+  display: none;
+  position: absolute;
+  background-color: #f9f9f9;
+  min-width: 160px;
+  box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+  z-index: 1;
+}
+.dropdown-content a {
+  color: black;
+  padding: 12px 16px;
+  text-decoration: none;
+  display: block;
+}
+.dropdown:hover .dropdown-content {
+  display: block;
+}
