@@ -8,13 +8,22 @@
     <li class="nav-item"><a href="./findpssh">Find</a></li>
     <li class="nav-item"><a href="./faq">FAQ</a></li>
     <div class="dropdown">
-      <div class="dropdown-button">
-        <img class="image-pfp" src="https://cdn.discordapp.com/avatars/{{current_user.id}}/{{current_user.avatar}}.png?size=2048" alt="Avatar" />
-        <button class="button-dropdown">{{current_user.username}}</button>
-        <i class="fa-solid fa-caret-down"></i>
+      <div class="dropdown-item">
+        <img
+          class="avatar"
+          src="https://cdn.discordapp.com/avatars/{{current_user.id}}/{{current_user.avatar}}.png?size=2048"
+          alt="Avatar"
+          width="40px"
+          height="40px"
+        />
+        <div class="dropdown-label">
+          <div class="dropdown-label-text">{{current_user.username}}</div>
+          <i class="fa-solid fa-caret-down"></i>
+        </div>
       </div>
-      <div class="dropdown-content">
+      <div class="dropdown-menu">
         <a href="/me">Profile</a>
+        <hr />
         <a href="/logout">Logout</a>
       </div>
     </div>
