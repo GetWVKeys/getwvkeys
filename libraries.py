@@ -1,3 +1,4 @@
+from flask_login import UserMixin
 import sqlite3
 import requests
 import base64
@@ -7,6 +8,8 @@ import time
 import yaml
 import random
 import secrets
+
+from config import APPENDERS, DEFAULT_CDMS
 
 try:
     requests.packages.urllib3.disable_warnings()
@@ -21,8 +24,7 @@ class Library:
     store_request = {}
 
     def __init__(self):
-        self.database = self.connect_database()
-        self.cdm = self.connect_cdm()
+        pass
 
     @staticmethod
     def connect_database():
@@ -43,40 +45,48 @@ class Library:
         conn.close()
 
     def cache_keys(self, data):
+        database = self.connect_database()
         for keys in data['keys']:
             for key in keys:
-
                 # self.database[keys[key].split(':')[0]] = data
-                self.database.execute(
-                    "INSERT OR REPLACE INTO DATABASE (pssh,headers,KID,proxy,time,license,keys) VALUES (?,?,?,?,?,?,?)",
+                database.execute(
+                    "INSERT OR IGNORE INTO DATABASE (pssh,headers,KID,proxy,time,license,keys) VALUES (?,?,?,?,?,?,?)",
                     (data['pssh'], json.dumps(data['headers']), key,
                      json.dumps(data['proxy']), data['time'], data['license'], json.dumps(data['keys'])))
+        self.close_database(database)
 
     def cached_number(self):
-        database_result = self.database.execute("SELECT COUNT(*) FROM DATABASE ")
+        database = self.connect_database()
+        database_result = database.execute("SELECT COUNT(*) FROM DATABASE ")
         cache = database_result.fetchall()
+        self.close_database(database)
         return cache[0][0]
 
     def match(self, pssh):
+        database = self.connect_database()
         if "-" in pssh:
             pssh = pssh.replace("-", "")
         sql = f'SELECT * FROM DATABASE WHERE PSSH = "{pssh}" or KID = "{pssh}"'
-        database_result = self.database.execute(sql)
+        database_result = database.execute(sql)
         result = database_result.fetchall()
         if result:
             data = {
                 "pssh": result[0][1],
                 "time": result[0][4],
                 "keys": eval(result[0][6]),
+                # "headers": result[0][2],
+                # "proxy": result[0][3],
+                # "license": result[0][5]
             }
         else:
             data = {}
+        self.close_database(database)
         return data
 
     def cdm_selector(self, blob_id):
-
+        cdm = self.connect_cdm()
         sql = f'SELECT * FROM CDMS WHERE CODE = "{blob_id}"'
-        database = self.cdm.execute(sql)
+        database = cdm.execute(sql)
         data_result = database.fetchall()
         if not data_result:
             raise Exception("NO CDM FOUND")
@@ -86,6 +96,7 @@ class Library:
             "client_id_blob_filename": data_result[0][2],
             "device_private_key": data_result[0][3]
         }
+        self.close_cdm(cdm)
         return data
 
     def update_cdm(self, blobs, key):
@@ -98,22 +109,22 @@ class Library:
             return str(ci.ClientInfo[5]).split("Value: ")[1].replace("\n", "").replace('"', "")
 
         ID = get_blob_id(blobs)
-        self.cdm.execute(
-            "INSERT OR REPLACE INTO CDMS (client_id_blob_filename,device_private_key,CODE) VALUES (?,?,?)",
+        cdm = self.connect_cdm()
+        cdm.execute(
+            "INSERT OR IGNORE INTO CDMS (client_id_blob_filename,device_private_key,CODE) VALUES (?,?,?)",
             (blobs, key, ID))
+        self.close_cdm(cdm)
         return ID
-
+    
     def dev_append(self, pssh, keys: dict, access):
         # testing PSSH
-        config = Pywidevine.config()
-
-        if access not in config['appenders']:
+        if access not in APPENDERS:
             raise Exception("You are not allowed to add to database")
 
         try:
             base64.b64decode(pssh)
             from pywidevine.cdm import deviceconfig
-            WvDecrypt(pssh, deviceconfig.DeviceConfig(random.choice(Pywidevine.config()['default_cdms'])))
+            WvDecrypt(pssh, deviceconfig.DeviceConfig(random.choice(DEFAULT_CDMS)))
         except Exception as e:
             raise Exception(f"PSSH ERROR {str(e)}")
         data = {
@@ -146,22 +157,11 @@ class Pywidevine:
         self.content_key = []
         self.challenge = challenge
         self.response = response
-        self.config = self.config()
         if isinstance(proxy, dict):
             self.proxy = proxy
         else:
             self.proxy = {}
         self.store_request = {}
-
-    @staticmethod
-    def config():
-        config = open('config.json', 'r')
-        return json.loads(config.read())
-
-    @staticmethod
-    def defaul_cdms():
-        config = json.loads(open('config.json', 'r').read())
-        return config['default_cdms']
 
     def logs(self):
         data = {
@@ -212,10 +212,12 @@ class Pywidevine:
             self.headers = self.yamldomagic(self.headers)
 
         from pywidevine.cdm import deviceconfig
-        wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(self.buildinfo))
+        wvdecrypt = WvDecrypt(
+            self.pssh, deviceconfig.DeviceConfig(self.buildinfo))
         challenge = wvdecrypt.create_challenge()
 
-        decode = self.post_data(self.license, self.headers, challenge, self.proxy)
+        decode = self.post_data(
+            self.license, self.headers, challenge, self.proxy)
 
         wvdecrypt.decrypt_license(decode)
         for x, y in enumerate(wvdecrypt.get_content_key()):
@@ -236,7 +238,8 @@ class Pywidevine:
             return resp
         if self.response is None:
             from pywidevine.cdm import deviceconfig
-            wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(self.buildinfo))
+            wvdecrypt = WvDecrypt(
+                self.pssh, deviceconfig.DeviceConfig(self.buildinfo))
             challenge = wvdecrypt.create_challenge()
             if len(Library.store_request) > 30:
                 self.store_request = {}
@@ -293,8 +296,6 @@ class WvDecrypt:
                 return signing_key
 
 
-from flask_login import UserMixin
-
 class User(UserMixin):
     def __init__(self, id, username, discriminator, avatar, public_flags, api_key):
         self.id = id
@@ -325,6 +326,7 @@ class User(UserMixin):
         api_key = secrets.token_hex(32)
         db.execute(
             "INSERT INTO users (id, username, discriminator, avatar, public_flags, api_key) VALUES (?, ?, ?, ?, ?, ?)",
-            (userinfo.get("id"), userinfo.get("username"), userinfo.get("discriminator"), userinfo.get("avatar"), userinfo.get("public_flags"), api_key)
+            (userinfo.get("id"), userinfo.get("username"), userinfo.get(
+                "discriminator"), userinfo.get("avatar"), userinfo.get("public_flags"), api_key)
         )
         Library.close_database(db)

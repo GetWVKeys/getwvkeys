@@ -1,13 +1,23 @@
 <nav>
   <ul class="nav-list">
-    {% if is_authenticated %}
+    {% if current_user.is_authenticated %}
     <li class="nav-item"><a href="/">Home</a></li>
     <li class="nav-item"><a href="./upload">Upload</a></li>
     <li class="nav-item"><a href="./scripts">Scripts</a></li>
     <li class="nav-item"><a href="./api">API</a></li>
     <li class="nav-item"><a href="./findpssh">Find</a></li>
     <li class="nav-item"><a href="./faq">FAQ</a></li>
-    <li class="nav-item"><a href="./logout">Logout</a></li>
+    <div class="dropdown">
+      <div class="dropdown-button">
+        <img class="image-pfp" src="https://cdn.discordapp.com/avatars/{{current_user.id}}/{{current_user.avatar}}.png?size=2048" alt="Avatar" />
+        <button class="button-dropdown">{{current_user.username}}</button>
+        <i class="fa-solid fa-caret-down"></i>
+      </div>
+      <div class="dropdown-content">
+        <a href="/me">Profile</a>
+        <a href="/logout">Logout</a>
+      </div>
+    </div>
     {% else %}
     <li class="nav-item"><a href="/">Home</a></li>
     <li class="nav-item"><a href="./scripts">Scripts</a></li>

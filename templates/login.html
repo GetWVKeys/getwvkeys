@@ -1,27 +1,14 @@
-{% extends "base.html" %} {% block title %}Login{% endblock %} {% block content
-%}
+{% extends "base.html" %} {% block title %}Login{% endblock %} {% block content %}
 <header>
   <h1 class="section-title">Login to continue</h1>
 </header>
 <div class="login-container">
-  <input
-    type="submit"
-    value="Login with Discord"
-    onclick="window.location.href = '{{auth_url}}'"
-  />
+  <input type="button" name="login" value="Login with Discord" onclick="window.location.href = '{{auth_url}}'" />
 </div>
 <div class="login-info">
-  <p>
-    You will be redirected to Discord to authorize GetWVKeys to access your
-    account.
-  </p>
-  <p>
-    We only check that you are in our support server and have been verified.
-  </p>
+  <p>You will be redirected to Discord to authorize GetWVKeys to access your account.</p>
+  <p>We only check that you are in our support server and have been verified.</p>
   <p>We also store your Discord ID, Username, and Discriminator.</p>
-  <p>
-    By clicking the button above and continuing to use this site, you agree to
-    let us access and store the data mentioned above.
-  </p>
+  <p>By clicking the button above and continuing to use this site, you agree to let us access and store the data mentioned above.</p>
 </div>
 {% endblock %}

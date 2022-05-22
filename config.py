@@ -1,6 +1,6 @@
-{
-  "proxy": {},
-  "default_cdms": [
+DEBUG = True  # Flask debugging, is auto loaded by flask
+PROXY = {}
+DEFAULT_CDMS = [
     "xiaomi/whyred/whyred:9/PKQ1.180904.001/V10.3.1.0.PEIMIXM:user/release-keys",
     "Xiaomi/nitrogen/nitrogen:10/QKQ1.190910.002/V12.0.1.0.QEDMIXM:user/release-keys",
     "AZ1122/aosp_kenzo/kenzo:7.1.2/NZH541/doveki08121232:userdebug/test-keys",
@@ -8,6 +8,5 @@
     "AZ1122/aosp_kenzo/kenzo:7.1.2/NZH543/doveki08121232:userdebug/test-keys",
     "AZ1122/aosp_kenzo/kenzo:7.1.2/NZH544/doveki08121232:userdebug/test-keys",
     "AZ1122/aosp_kenzo/kenzo:7.1.2/NZH545/doveki08121232:userdebug/test-keys"
-  ],
-  "appenders": ["staff_getwvkeys", "seopsta0197123"]
-}
+]
+APPENDERS = ["staff_getwvkeys", "seopsta0197123"]

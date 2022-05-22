@@ -1,12 +1,13 @@
 from libraries import Library
 import random
 from libraries import Pywidevine
+from ...config import DEFAULT_CDMS
 
 
 class DeviceConfig:
     def __init__(self, device):
         if device == "" or device is None:
-            device = random.choice(Pywidevine.defaul_cdms())
+            device = random.choice(DEFAULT_CDMS)
         loaded = Library().cdm_selector(device)
 
         if loaded is not None:
