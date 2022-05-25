@@ -100,7 +100,8 @@ def wv():
 def dev():
     try:
         event_data = request.get_json(force=True)
-        (pssh, keys, access) = (event_data['pssh'], event_data['keys'], event_data['access'])
+        (pssh, keys, access) = (
+            event_data['pssh'], event_data['keys'], event_data['access'])
         magic = libraries.Library().dev_append(pssh, keys, access)
         return magic
     except (Exception,):
