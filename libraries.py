@@ -323,9 +323,9 @@ class User(UserMixin):
 
     @staticmethod
     def get(user_id):
-        db = Library.connect_database()
+        db = Library.connect_cdm()
         user = db.execute(
-            "SELECT * FROM USERS WHERE id = ?", (user_id,)
+            "SELECT * FROM users WHERE id = ?", (user_id,)
         ).fetchone()
         if not user:
             return None
@@ -333,26 +333,26 @@ class User(UserMixin):
         user = User(
             id=user[0], username=user[1], discriminator=user[2], avatar=user[3], public_flags=user[4], api_key=user[5]
         )
-        Library.close_database(db)
+        Library.close_cdm(db)
         return user
 
     @staticmethod
     def create(userinfo):
-        db = Library.connect_database()
+        db = Library.connect_cdm()
         api_key = secrets.token_hex(32)
         db.execute(
             "INSERT INTO users (id, username, discriminator, avatar, public_flags, api_key) VALUES (?, ?, ?, ?, ?, ?)",
             (userinfo.get("id"), userinfo.get("username"), userinfo.get(
                 "discriminator"), userinfo.get("avatar"), userinfo.get("public_flags"), api_key)
         )
-        Library.close_database(db)
+        Library.close_cdm(db)
 
     @staticmethod
     def update(userinfo):
-        db = Library.connect_database()
+        db = Library.connect_cdm()
         db.execute("UPDATE users SET username = ?, discriminator = ?, avatar = ?, public_flags = ? WHERE id = ?", (userinfo.get(
             "username"), userinfo.get("discriminator"), userinfo.get("avatar"), userinfo.get("public_flags"), userinfo.get("id")))
-        Library.close_database(db)
+        Library.close_cdm(db)
 
     @staticmethod
     def user_is_in_guild(token):
@@ -380,3 +380,12 @@ class User(UserMixin):
                 f"Failed to get guild member: [{r.status_code}] {r.text}")
         data = r.json()
         return any(role == VERIFIED_ROLE_ID for role in data.get("roles"))
+
+    @staticmethod
+    def api_key_is_valid(api_key):
+        db = Library.connect_cdm()
+        user = db.execute(
+            "SELECT id FROM users WHERE api_key = ?", (api_key,)
+        ).fetchone()
+        Library.close_cdm(db)
+        return user != None

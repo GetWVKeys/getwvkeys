@@ -1,20 +1,25 @@
 ## GET WV KEYS
 
-- create database.db and cdms.db
+e
 
-```sh
-python create_databases.py
-```
+# Setup
 
-or manually:
+- Install requirements: `pip install -r requirements.txt`
+- Run database migrations
+- Setup `instance\config.py` by either copying the example or using an existing one.
 
-```sql
-CREATE TABLE "DATABASE" ( "KID" TEXT, "pssh" TEXT, "headers" TEXT, "proxy" TEXT, "time" TEXT, "license" TEXT, "keys" TEXT, PRIMARY KEY("KID") )
-```
+# Local Development
 
-```sql
-CREATE TABLE "CDMS" ( "session_id_type" TEXT DEFAULT 'android', "security_level" INTEGER DEFAULT 3, "client_id_blob_filename" TEXT, "device_private_key" TEXT, "CODE" TEXT )
-```
+## Run database migrations
+
+- `python migrate.py up database.db`
+- `python migrate.py up cdms.db`
+
+## Create database migration
+
+- `python migrate.py create <database file.db> <migration name> <direction - up or down>`
+
+  This will create a new migration file with a filename in the form of: `<unix timestamp>.<migration name>.<direction>.<database name>.sql`
 
 # oauthlib.oauth2.rfc6749.errors.InsecureTransportError
 
