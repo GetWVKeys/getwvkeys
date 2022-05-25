@@ -1,7 +1,6 @@
+from config import DEFAULT_CDMS
 from libraries import Library
 import random
-from libraries import Pywidevine
-from ...config import DEFAULT_CDMS
 
 
 class DeviceConfig:
