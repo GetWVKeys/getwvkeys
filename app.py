@@ -23,7 +23,7 @@ app.config.from_pyfile('config.py')
 login_manager = LoginManager()
 login_manager.init_app(app)
 
-client = WebApplicationClient(os.environ.get("OAUTH2_CLIENT_ID"))
+client = WebApplicationClient(app.config.get("OAUTH2_CLIENT_ID"))
 
 
 def get_ip():  # InCase Request IP Needed
@@ -178,6 +178,7 @@ def downloadfile(file):
         return "FILE NOT FOUND"
     return send_file(path, as_attachment=True)
 
+
 # auth endpoints
 @app.route("/login")
 def login():
@@ -185,7 +186,7 @@ def login():
         flash("You are already logged in.", "warning")
         return redirect("/")
     request_uri = client.prepare_request_uri("https://discord.com/api/oauth2/authorize", redirect_uri=request.base_url +
-                                             "/callback", scope=["guilds", "guilds.join", "guilds.members.read", "identify"])
+                                             "/callback", scope=["guilds", "guilds.members.read", "identify"])
     return render_template("login.html", auth_url=request_uri, current_user=current_user)
 
 
@@ -204,8 +205,8 @@ def login_callback():
         token_url,
         headers=headers,
         data=body,
-        auth=(os.environ.get("OAUTH2_CLIENT_ID"),
-              os.environ.get("OAUTH2_CLIENT_SECRET")),
+        auth=(app.config.get("OAUTH2_CLIENT_ID"),
+              app.config.get("OAUTH2_CLIENT_SECRET")),
     )
     client.parse_request_body_response(json.dumps(token_response.json()))
     uri, headers, body = client.add_token("https://discord.com/api/oauth2/@me")
@@ -216,10 +217,16 @@ def login_callback():
     if not user:
         libraries.User.create(userinfo)
         user = libraries.User.get(userinfo.get("id"))
-    # TODO: get users guilds
-    # TODO: check if user is in getwvkeys server
-    # TODO: add user to getwvkeys server if they're not in it
-    # TODO: check if user has verified role in getwvkeys server
+    # update the user info in the database as some fields can change like username
+    libraries.User.update(userinfo)
+    # check if the user is in the getwvkeys server
+    is_in_guild = libraries.User.user_is_in_guild(client.access_token)
+    if not is_in_guild:
+        return render_template("error.html", page_title="Error", error="You must be in our Discord support server and be verified to use this service. You can join our server here: https://discord.gg/sMBEwDEGQg")
+    # check if the user is verified
+    user_is_verified = libraries.User.user_is_verified(client.access_token)
+    if not user_is_verified:
+        return render_template("error.html", page_title="Error", error="You must be verified to use this service. Please read the #rules channel.")
     login_user(user, True)
     flash("Welcome, {}!".format(user.username), "success")
     return redirect("/")
@@ -231,10 +238,12 @@ def logout():
     logout_user()
     return redirect("/")
 
+
 @app.route("/me")
 @login_required
 def user_profile():
     return render_template("profile.html", current_user=current_user)
+
 
 # error handlers
 @app.errorhandler(DatabaseError)

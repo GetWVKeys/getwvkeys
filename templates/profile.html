@@ -4,5 +4,20 @@ content %}
   <header>
     <h1 class="section-title">Profile</h1>
   </header>
+  <div class="form-container">
+    <div class="profile-container">
+      <div class="form-item">
+        <label for="apikey">API Key:</label>
+        <input
+          data-lpignore="true"
+          type="text"
+          id="apikey"
+          name="apikey"
+          value="{{ current_user.api_key }}"
+          disabled
+        />
+      </div>
+    </div>
+  </div>
 </section>
 {% endblock %}

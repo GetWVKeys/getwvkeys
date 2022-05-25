@@ -10,3 +10,5 @@ DEFAULT_CDMS = [
     "AZ1122/aosp_kenzo/kenzo:7.1.2/NZH545/doveki08121232:userdebug/test-keys"
 ]
 APPENDERS = ["staff_getwvkeys", "seopsta0197123"]
+GUILD_ID = "948675767754174465"
+VERIFIED_ROLE_ID = "970332150891155607"
