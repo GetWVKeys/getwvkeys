@@ -9,7 +9,7 @@ import yaml
 import random
 import secrets
 
-from config import APPENDERS, DEFAULT_CDMS
+from config import APPENDERS, DEFAULT_CDMS, GUILD_ID, VERIFIED_ROLE_ID
 
 try:
     requests.packages.urllib3.disable_warnings()
@@ -115,7 +115,7 @@ class Library:
             (blobs, key, ID))
         self.close_cdm(cdm)
         return ID
-    
+
     def dev_append(self, pssh, keys: dict, access):
         # testing PSSH
         if access not in APPENDERS:
@@ -130,14 +130,15 @@ class Library:
         data = {
             "pssh": pssh,
             "time": str(time.ctime()),
-            "keys": keys,
+            "keys": json.dumps(keys),
         }
+
         for key in keys:
             if len(key['key'].split(":")[0]) != 32:
                 raise Exception("wrong key length")
             self.database.execute(
-                "INSERT OR REPLACE INTO DATABASE (pssh,headers,KID,proxy,time,license,keys) VALUES (?,?,?,?,?,?,?)",
-                (data['pssh'], "", key['key'].split(":")[0], "", data['time'], "", str(data['keys']))
+                "INSERT OR IGNORE INTO DATABASE (pssh,headers,KID,proxy,time,license,keys) VALUES (?,?,?,?,?,?,?)",
+                (data['pssh'], "", key['key'].split(":")[0], "", data['time'], "", json.dumps(data['keys']))
             )
         response = {
             "response": "added"
@@ -305,6 +306,19 @@ class User(UserMixin):
         self.public_flags = public_flags
         self.api_key = api_key
 
+    # def add_user_to_guild(self, token):
+    #     url = f"https://discord.com/api/guilds/{GUILD_ID}/members/{self.id}"
+    #     headers = {
+    #         "Authorization": f"Bot {BOT_TOKEN}",
+    #     }
+    #     data = {
+    #         "access_token": token,
+    #     }
+    #     r = requests.post(url, json=data, headers=headers)
+    #     if not r.ok:
+    #         raise Exception(
+    #             f"Failed to add user to support server: [{r.status_code}] {r.text}")
+
     @staticmethod
     def get(user_id):
         db = Library.connect_database()
@@ -330,3 +344,37 @@ class User(UserMixin):
                 "discriminator"), userinfo.get("avatar"), userinfo.get("public_flags"), api_key)
         )
         Library.close_database(db)
+
+    @staticmethod
+    def update(userinfo):
+        db = Library.connect_database()
+        db.execute("UPDATE users SET username = ?, discriminator = ?, avatar = ?, public_flags = ? WHERE id = ?", (userinfo.get(
+            "username"), userinfo.get("discriminator"), userinfo.get("avatar"), userinfo.get("public_flags"), userinfo.get("id")))
+        Library.close_database(db)
+
+    @staticmethod
+    def user_is_in_guild(token):
+        url = "https://discord.com/api/users/@me/guilds"
+        headers = {
+            "Authorization": f"Bearer {token}"
+        }
+        r = requests.get(url, headers=headers)
+        if not r.ok:
+            raise Exception(
+                f"Failed to get user guilds: [{r.status_code}] {r.text}")
+        guilds = r.json()
+        is_in_guild = any(guild.get("id") == GUILD_ID for guild in guilds)
+        return is_in_guild
+
+    @staticmethod
+    def user_is_verified(token):
+        url = f"https://discord.com/api/users/@me/guilds/{GUILD_ID}/member"
+        headers = {
+            "Authorization": f"Bearer {token}",
+        }
+        r = requests.get(url, headers=headers)
+        if not r.ok:
+            raise Exception(
+                f"Failed to get guild member: [{r.status_code}] {r.text}")
+        data = r.json()
+        return any(role == VERIFIED_ROLE_ID for role in data.get("roles"))
