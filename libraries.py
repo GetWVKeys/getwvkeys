@@ -48,7 +48,7 @@ class Library:
 
                 # self.database[keys[key].split(':')[0]] = data
                 self.database.execute(
-                    "INSERT OR IGNORE INTO DATABASE (pssh,headers,KID,proxy,time,license,keys) VALUES (?,?,?,?,?,?,?)",
+                    "INSERT OR REPLACE INTO DATABASE (pssh,headers,KID,proxy,time,license,keys) VALUES (?,?,?,?,?,?,?)",
                     (data['pssh'], json.dumps(data['headers']), key,
                      json.dumps(data['proxy']), data['time'], data['license'], json.dumps(data['keys'])))
 
@@ -99,7 +99,7 @@ class Library:
 
         ID = get_blob_id(blobs)
         self.cdm.execute(
-            "INSERT OR IGNORE INTO CDMS (client_id_blob_filename,device_private_key,CODE) VALUES (?,?,?)",
+            "INSERT OR REPLACE INTO CDMS (client_id_blob_filename,device_private_key,CODE) VALUES (?,?,?)",
             (blobs, key, ID))
         return ID
 
@@ -119,15 +119,14 @@ class Library:
         data = {
             "pssh": pssh,
             "time": str(time.ctime()),
-            "keys": json.dumps(keys),
+            "keys": keys,
         }
-
         for key in keys:
             if len(key['key'].split(":")[0]) != 32:
                 raise Exception("wrong key length")
             self.database.execute(
-                "INSERT OR IGNORE INTO DATABASE (pssh,headers,KID,proxy,time,license,keys) VALUES (?,?,?,?,?,?,?)",
-                (data['pssh'], "", key['key'].split(":")[0], "", data['time'], "", json.dumps(data['keys']))
+                "INSERT OR REPLACE INTO DATABASE (pssh,headers,KID,proxy,time,license,keys) VALUES (?,?,?,?,?,?,?)",
+                (data['pssh'], "", key['key'].split(":")[0], "", data['time'], "", str(data['keys']))
             )
         response = {
             "response": "added"
