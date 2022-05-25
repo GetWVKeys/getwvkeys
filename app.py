@@ -261,7 +261,7 @@ def method_not_allowed(_):
 
 @login_manager.unauthorized_handler
 def unauthorized_callback():
-    return redirect('/login?next=' + request.path, 401)
+    return redirect('/login?next=' + request.path)
 
 
 # routes that are removed
