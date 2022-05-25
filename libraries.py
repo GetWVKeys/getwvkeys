@@ -124,7 +124,8 @@ class Library:
         try:
             base64.b64decode(pssh)
             from pywidevine.cdm import deviceconfig
-            WvDecrypt(pssh, deviceconfig.DeviceConfig(random.choice(DEFAULT_CDMS)))
+            WvDecrypt(pssh, deviceconfig.DeviceConfig(
+                random.choice(DEFAULT_CDMS)))
         except Exception as e:
             raise Exception(f"PSSH ERROR {str(e)}")
         data = {
@@ -138,7 +139,8 @@ class Library:
                 raise Exception("wrong key length")
             self.database.execute(
                 "INSERT OR IGNORE INTO DATABASE (pssh,headers,KID,proxy,time,license,keys) VALUES (?,?,?,?,?,?,?)",
-                (data['pssh'], "", key['key'].split(":")[0], "", data['time'], "", json.dumps(data['keys']))
+                (data['pssh'], "", key['key'].split(":")[0],
+                 "", data['time'], "", json.dumps(data['keys']))
             )
         response = {
             "response": "added"
