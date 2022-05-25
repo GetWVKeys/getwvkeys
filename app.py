@@ -72,7 +72,7 @@ def find():
             return ""
         data = libraries.Library().match(pssh)
         if data == {}:
-            return render_template("error.html", page_title='ERROR', error="Not Found")
+            return render_template("error.html", page_title='Error', error="Not Found")
         else:
             return render_template("cache.html", cache=data)
     else:
@@ -93,7 +93,7 @@ def wv():
             proxy, license_, pssh, headers, buildinfo, cache=cache)
         return magic.main()
     except Exception as e:
-        return render_template("error.html", page_title='ERROR', error=str(e))
+        return render_template("error.html", page_title='Error', error=str(e))
 
 
 @app.route('/dev', methods=['POST'])
@@ -194,7 +194,7 @@ def login():
 def login_callback():
     code = request.args.get("code")
     if not code:
-        return render_template("error.html", page_title='ERROR', error="No code provided")
+        return render_template("error.html", page_title='Error', error="No code provided")
     token_url, headers, body = client.prepare_token_request(
         "https://discord.com/api/oauth2/token",
         authorization_response=request.url,
@@ -222,11 +222,11 @@ def login_callback():
     # check if the user is in the getwvkeys server
     is_in_guild = libraries.User.user_is_in_guild(client.access_token)
     if not is_in_guild:
-        return render_template("error.html", page_title="Error", error="You must be in our Discord support server and be verified to use this service. You can join our server here: https://discord.gg/sMBEwDEGQg")
+        return render_template("error.html", page_title="Error", error="You must be in our Discord support server and be verified to use this service. You can join our server here: https://discord.gg/sMBEwDEGQg"), 403
     # check if the user is verified
     user_is_verified = libraries.User.user_is_verified(client.access_token)
     if not user_is_verified:
-        return render_template("error.html", page_title="Error", error="You must be verified to use this service. Please read the #rules channel.")
+        return render_template("error.html", page_title="Error", error="You must be verified to use this service. Please read the #rules channel."), 403
     login_user(user, True)
     flash("Welcome, {}!".format(user.username), "success")
     return redirect("/")
@@ -250,18 +250,24 @@ def user_profile():
 def database_error(e):
     print(e)
     return render_template('error.html', page_title='Internal Server Error',
-                           error="Internal Server Error. Please try again later.")
+                           error="Internal Server Error. Please try again later."), 500
 
 
 @app.errorhandler(405)
 def method_not_allowed(_):
     return render_template('error.html', page_title='Method Not Allowed',
-                           error="Method Not Allowed.")
+                           error="Method Not Allowed."), 405
 
 
 @login_manager.unauthorized_handler
 def unauthorized_callback():
-    return redirect('/login?next=' + request.path)
+    return redirect('/login?next=' + request.path, 401)
+
+
+# routes that are removed
+@app.route('/pssh')
+def pssh():
+    return render_template("error.html", page_title='Gone', error="This page is no longer available."), 410
 
 
 if __name__ == "__main__":
