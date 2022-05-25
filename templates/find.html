@@ -1,5 +1,6 @@
-{% extends "base.html" %} {% block title %}Search{% endblock %} {% block content
-%}
+{% extends "base.html" %} {% block title %}Search{% endblock %} {% block js %}
+<script defer src="{{url_for('static', filename='search.js')}}"></script>
+{% endblock %} {% block content %}
 <section class="wdvn-request">
   <header>
     <h1 class="section-title">Send Widevine Request</h1>
@@ -8,13 +9,7 @@
     <form>
       <div class="form-item">
         <label for="pssh">PSSH/KID:</label>
-        <input
-          data-lpignore="true"
-          type="text"
-          id="pssh"
-          name="pssh"
-          value="a5c03409fcca515485218595ee15602c"
-        />
+        <input data-lpignore="true" type="text" id="pssh" name="pssh" value="a5c03409fcca515485218595ee15602c" />
       </div>
       <input type="submit" value="Search" />
     </form>
@@ -41,9 +36,7 @@
         </tr>
         <tr>
           <td>ETH&nbsp;&nbsp;</td>
-          <td>
-            &nbsp;&nbsp;0x91af349007877eb1528e5aed186f740febae68f3&nbsp;&nbsp;
-          </td>
+          <td>&nbsp;&nbsp;0x91af349007877eb1528e5aed186f740febae68f3&nbsp;&nbsp;</td>
           <td>&nbsp;&nbsp;Ethereum</td>
         </tr>
         <tr>

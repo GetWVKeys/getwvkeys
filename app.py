@@ -1,7 +1,8 @@
+from functools import wraps
 import os
 from sqlite3 import DatabaseError
 
-from flask import Flask, flash, redirect, render_template, request, send_from_directory, send_file
+from flask import Flask, flash, make_response, redirect, render_template, request, send_from_directory, send_file
 from flask_login import (
     LoginManager,
     current_user,
@@ -26,12 +27,30 @@ login_manager.init_app(app)
 client = WebApplicationClient(app.config.get("OAUTH2_CLIENT_ID"))
 
 
+# Utilities
 def get_ip():  # InCase Request IP Needed
     if request.environ.get('HTTP_X_FORWARDED_FOR') is None:
         ip = request.environ['REMOTE_ADDR']
     else:
         ip = request.environ['HTTP_X_FORWARDED_FOR']
     return ip
+
+
+def api_key_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if request.method != "POST":
+            return f(*args, **kwargs)
+        api_key = request.headers.get(
+            "X-API-Key") or request.form.get("X-API-Key")
+        print(request.headers)
+        if not api_key:
+            return "API Key Required", 401
+        is_valid = libraries.User.api_key_is_valid(api_key)
+        if not is_valid:
+            return "Invalid API Key", 403
+        return f(*args, **kwargs)
+    return decorated_function
 
 
 @login_manager.user_loader
@@ -65,6 +84,7 @@ def favicon():
 
 @app.route('/findpssh', methods=['POST', 'GET'])
 @login_required
+@api_key_required
 def find():
     if request.method == 'POST':
         pssh = request.stream.read().decode()
@@ -72,7 +92,7 @@ def find():
             return ""
         data = libraries.Library().match(pssh)
         if data == {}:
-            return render_template("error.html", page_title='Error', error="Not Found")
+            return render_template("error.html", page_title='Error', error="No Matches Found")
         else:
             return render_template("cache.html", cache=data)
     else:
@@ -80,7 +100,7 @@ def find():
 
 
 @app.route('/wv', methods=['POST'])
-@login_required
+@api_key_required
 def wv():
     try:
         event_data = request.get_json(force=True)
@@ -97,6 +117,7 @@ def wv():
 
 
 @app.route('/dev', methods=['POST'])
+@api_key_required
 def dev():
     try:
         event_data = request.get_json(force=True)
@@ -114,6 +135,7 @@ def dev():
 
 @app.route('/upload', methods=['GET', 'POST'])
 @login_required
+@api_key_required
 def upload_file():
     if request.method == 'POST':
         blob = request.files['blob']
@@ -127,6 +149,7 @@ def upload_file():
 
 
 @app.route('/api', methods=['POST', 'GET'])
+@api_key_required
 def curl():
     if request.method == 'POST':
         try:
@@ -147,7 +170,7 @@ def curl():
 
 
 @app.route('/pywidevine', methods=['POST'])
-@login_required
+@api_key_required
 def pywidevine():
     try:
         event_data = request.get_json(force=True)
@@ -229,8 +252,10 @@ def login_callback():
     if not user_is_verified:
         return render_template("error.html", page_title="Error", error="You must be verified to use this service. Please read the #rules channel."), 403
     login_user(user, True)
-    flash("Welcome, {}!".format(user.username), "success")
-    return redirect("/")
+    # flash("Welcome, {}!".format(user.username), "success")
+    resp = make_response(redirect("/"))
+    resp.set_cookie("api_key", user.api_key)
+    return resp
 
 
 @app.route("/logout")
