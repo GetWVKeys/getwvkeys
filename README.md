@@ -26,4 +26,5 @@ e
 For local development testing, you will need to disable the https requirement with an evironment variable:
 
 For Unix: `export OAUTHLIB_INSECURE_TRANSPORT=1`<br>
-For Windows: `set OAUTHLIB_INSECURE_TRANSPORT=1`
+For Windows (CMD): `set OAUTHLIB_INSECURE_TRANSPORT=1`
+For Windows (Powershell): `$env:OAUTHLIB_INSECURE_TRANSPORT=1`

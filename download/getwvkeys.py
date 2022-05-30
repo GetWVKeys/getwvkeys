@@ -4,7 +4,7 @@ import sys
 
 import requests
 
-version = "2.0"
+version = "3.0"
 
 
 # Change your headers here
@@ -43,14 +43,17 @@ class GetwvCloneApi:
             "Challenge": True,
             "cache": self.args.cache
         }
-        r = requests.post(self.api_url, json=data)
+        header = {
+            'X-API-Key': args.auth
+        }
+        r = requests.post(self.api_url, json=data, headers=header)
         r.raise_for_status()
 
         if 'cached' in r.headers:
             print(r.json())
             input('Press Enter To Continue with request')
             self.args.cache = False
-            self.generate_request()
+            return self.generate_request()
         if self.args.verbose:
             print("License Request Generated ")
 
@@ -60,14 +63,16 @@ class GetwvCloneApi:
         if self.args.verbose:
             print("Decrypting with License Request and Response ")
         data = {
-
             "pssh": self.args.pssh,
             "response": license_response,
             "license": self.args.url,
             "headers": self.args.headers,
             "buildInfo": self.args.buildinfo
         }
-        r = requests.post(self.api_url, json=data)
+        header = {
+            'X-API-Key': args.auth
+        }
+        r = requests.post(self.api_url, json=data, headers=header)
         r.raise_for_status()
         return r.text
 
@@ -85,6 +90,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-url', help='LICENSE URL')
     parser.add_argument('-pssh', help='PSSH')
+    parser.add_argument('-auth', help='Auth Key from getwvkeys.cc')
     parser.add_argument('--verbose', "-v", help="increase output verbosity", action="store_true")
     parser.add_argument("--cache", "-c", help="Cache On. default is OFF", default=False, action="store_true")
     parser.add_argument('--buildinfo', '-b', default="", help='Buildinfo', required=False)
@@ -97,6 +103,7 @@ if __name__ == "__main__":
         while (args.url is None and args.pssh is None) or (args.url == "" and args.pssh == ""):
             args.url = input('Enter LICENSE URL:')
             args.pssh = input('Enter PSSH:')
+            args.auth = input('Enter Auth:')
         args.buildinfo = ""
         args.cache = True
         args.verbose = False

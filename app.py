@@ -209,8 +209,7 @@ def login():
     if current_user.is_authenticated:
         flash("You are already logged in.", "warning")
         return redirect("/")
-    request_uri = client.prepare_request_uri("https://discord.com/api/oauth2/authorize", redirect_uri=request.base_url +
-                                             "/callback", scope=["guilds", "guilds.members.read", "identify"])
+    request_uri = client.prepare_request_uri("https://discord.com/api/oauth2/authorize", redirect_uri=app.config.get("OAUTH2_REDIRECT_URL"), scope=["guilds", "guilds.members.read", "identify"])
     return render_template("login.html", auth_url=request_uri, current_user=current_user)
 
 
@@ -222,7 +221,7 @@ def login_callback():
     token_url, headers, body = client.prepare_token_request(
         "https://discord.com/api/oauth2/token",
         authorization_response=request.url,
-        redirect_url=request.base_url,
+        redirect_url=app.config.get("OAUTH2_REDIRECT_URL"),
         code=code
     )
     token_response = requests.post(
@@ -297,4 +296,4 @@ def pssh():
 
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5001)))
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))

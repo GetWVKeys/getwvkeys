@@ -1,4 +1,4 @@
-CREATE TABLE "users" (
+CREATE TABLE IF NOT EXISTS "users" (
     "id" INTEGER NOT NULL,
     "username" TEXT NOT NULL,
     "discriminator" INTEGER NOT NULL,
