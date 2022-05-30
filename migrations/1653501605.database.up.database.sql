@@ -1,6 +1,6 @@
 -- Creates the database table for database.db
 
-CREATE TABLE "DATABASE" (
+CREATE TABLE IF NOT EXISTS "DATABASE" (
     "KID" TEXT,
     "pssh" TEXT,
     "headers" TEXT,

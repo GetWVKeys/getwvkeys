@@ -13,3 +13,4 @@ APPENDERS = ["staff_getwvkeys", "seopsta0197123"]
 GUILD_ID = "948675767754174465"
 VERIFIED_ROLE_ID = "970332150891155607"
 LOGIN_DISABLED = False
+OAUTH2_REDIRECT_URL = "http://getwvkeys.cc/login/callback"
