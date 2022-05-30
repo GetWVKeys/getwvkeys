@@ -1,6 +1,6 @@
 -- Creates the CDMS table for cdms.db
 
-CREATE TABLE "CDMS" (
+CREATE TABLE IF NOT EXISTS "CDMS" (
     "session_id_type" TEXT DEFAULT 'android',
     "security_level" INTEGER DEFAULT 3,
     "client_id_blob_filename" TEXT,
