@@ -4,3 +4,4 @@ __pycache__/
 .vscode/
 instance/*.py
 !instance/config.example.py
+logs/

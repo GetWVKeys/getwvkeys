@@ -56,11 +56,10 @@ class Library:
         self.close_database(database)
 
     def cached_number(self):
-        database = self.connect_database()
-        database_result = database.execute("SELECT COUNT(*) FROM DATABASE ")
-        cache = database_result.fetchall()
-        self.close_database(database)
-        return cache[0][0]
+        db = self.connect_database()
+        count = db.execute("SELECT COUNT(*) FROM DATABASE").fetchone()[0]
+        self.close_database(db)
+        return count
 
     def match(self, pssh):
         database = self.connect_database()
@@ -401,3 +400,16 @@ class User(UserMixin):
         ).fetchone()
         Library.close_cdm(db)
         return user != None
+
+    @staticmethod
+    def delete_user(user_id):
+        db = Library.connect_cdm()
+        db.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        Library.close_cdm(db)
+
+    @staticmethod
+    def get_user_count():
+        db = Library.connect_cdm()
+        count = db.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        Library.close_cdm(db)
+        return count

@@ -1,5 +1,10 @@
-from functools import wraps
+from functools import partial, wraps
+import logging
 import os
+import time
+from typing import Union
+import discord
+from discord.ext import commands
 import git
 from sqlite3 import DatabaseError
 
@@ -15,11 +20,24 @@ from oauthlib.oauth2 import WebApplicationClient
 import base64
 import json
 import requests
+from config import ADMIN_USERS, BOT_PREFIX, LOG_CHANNEL_ID, LOG_DATE_FORMAT, LOG_FORMAT, WZ_LOG_FILE_PATH
+from instance.config import BOT_TOKEN
 import libraries
+
+from utils import StoppableThread, construct_logger
+
 
 app = Flask(__name__, instance_relative_config=True)
 app.config.from_object('config')
 app.config.from_pyfile('config.py')
+
+# Logger setup
+logger = construct_logger()
+
+
+intents = discord.Intents.default()
+intents.message_content = True
+bot = commands.Bot(command_prefix=BOT_PREFIX, intents=intents)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -31,9 +49,8 @@ repo = git.Repo(search_parent_directories=True)
 sha = repo.git.rev_parse(repo.head.object.hexsha,
                          short=7) if repo else "unknown"
 
+
 # Utilities
-
-
 def get_ip():  # InCase Request IP Needed
     if request.environ.get('HTTP_X_FORWARDED_FOR') is None:
         ip = request.environ['REMOTE_ADDR']
@@ -49,7 +66,6 @@ def api_key_required(f):
             return f(*args, **kwargs)
         api_key = request.headers.get(
             "X-API-Key") or request.form.get("X-API-Key")
-        print(request.headers)
         if not api_key:
             return "API Key Required", 401
         is_valid = libraries.User.api_key_is_valid(api_key)
@@ -282,7 +298,7 @@ def user_profile():
 # error handlers
 @app.errorhandler(DatabaseError)
 def database_error(e):
-    print(e)
+    logger.error("[Database] {}".format(e))
     return render_template('error.html', page_title='Internal Server Error',
                            error="Internal Server Error. Please try again later."), 500
 
@@ -304,5 +320,112 @@ def pssh():
     return render_template("error.html", page_title='Gone', error="This page is no longer available."), 410
 
 
+# Discord bot stuff
+@bot.event
+async def on_ready():
+    logger.info("[Discord] Logged in as {}:{}".format(
+        bot.user.name, bot.user.discriminator))
+    # create a partial function for the flask server
+    partial_run = partial(app.run, host=os.getenv(
+        "API_HOST"), port=os.getenv("API_PORT", 8080), use_reloader=False)
+    # start the flask server in a thread
+    bot.flask_thread = StoppableThread(target=partial_run, daemon=True)
+    bot.flask_thread.start()
+
+
+@bot.event
+async def on_member_ban(guild: discord.Guild, user: Union[discord.User, discord.Member]):
+    # ignore bots
+    if user.bot:
+        return
+    logger.info("[Discord] User {} was banned from {}".format(
+        user.name, guild.name))
+
+    try:
+        # remove the user from the database
+        libraries.User.delete_user(user.id)
+        # get the log channel and send the message
+        log_channel = await bot.fetch_channel(LOG_CHANNEL_ID)
+        await log_channel.send("User {}#{} (`{}`) was banned and has been removed from the database.".format(user.name, user.discriminator, user.id))
+    except Exception as e:
+        logger.error("[Discord] {}".format(e))
+
+
+@bot.event
+async def on_command_error(ctx: commands.Context, e: Exception):
+    if isinstance(e, commands.CommandNotFound):
+        return
+    if isinstance(e, commands.MissingRequiredArgument):
+        await ctx.send("You are missing a required argument. Please check the command's syntax.")
+        return
+    if isinstance(e, commands.BadArgument):
+        await ctx.send("Please check the argument you provided. It is invalid.")
+        return
+    if isinstance(e, commands.CheckFailure):
+        await ctx.send("You are not allowed to use this command.")
+        return
+    if isinstance(e, commands.CommandOnCooldown):
+        await ctx.send("You are on cooldown. Please wait {} seconds before using this command again.".format(
+            round(e.retry_after)))
+        return
+    if isinstance(e, commands.CommandInvokeError):
+        logger.error("[Discord] {}".format(e))
+        await ctx.send("An error occurred while executing the command. Please try again later.")
+        return
+    if isinstance(e, commands.CommandError):
+        logger.error("[Discord] {}".format(e))
+        await ctx.send("An error occurred while executing the command. Please try again later.")
+        return
+    logger.error("[Discord] An error occurred while executing the command {}".format(
+        ctx.command.name))
+    logger.error("[Discord] {}".format(e))
+
+
+@bot.command()
+async def ping(ctx):
+    await ctx.send(f'Pong! {round(bot.latency * 1000)}ms')
+
+
+@bot.command()
+@commands.cooldown(1, 3600, commands.BucketType.guild)
+async def sync(ctx: commands.Context):
+    # only allow admins to use command
+    if not str(ctx.author.id) in ADMIN_USERS:
+        return await ctx.send("You're not elite enough, try harder.")
+    m = await ctx.send("Syncing the banned users with the database might take a while. Please be patient.")
+    # sync the banned users with the database
+    try:
+        banned_users = [entry async for entry in ctx.guild.bans()]
+        for ban in banned_users:
+            libraries.User.delete_user(ban.user.id)
+        await m.reply("{} guild bans have been synced with the database.".format(len(banned_users)))
+    except Exception as e:
+        logger.error("[Discord] {}".format(e))
+        await m.reply(content="An error occurred while syncing the guild bans.")
+
+
+@bot.command(name="usercount")
+async def user_count(ctx):
+    count = libraries.User.get_user_count()
+    await ctx.send("There are currently {} users in the database.".format(count))
+
+
+@bot.command(name="keycount")
+async def key_count(ctx):
+    count = libraries.Library().cached_number()
+    await ctx.send("There are currently {} cached keys in the database.".format(count))
+
+
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
+    try:
+        logger.info("Starting up...")
+        # Start the discord bot
+        bot.run(BOT_TOKEN)
+    except KeyboardInterrupt:
+        # close discord connection
+        bot.close()
+        # stop the flask server thread
+        bot.flask_thread.stop()
+        exit(0)
+    finally:
+        logger.info("Shutting down...")

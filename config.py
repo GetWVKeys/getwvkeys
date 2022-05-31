@@ -1,4 +1,7 @@
+import logging
 import os
+import pathlib
+import time
 
 DEBUG = True  # Flask debugging, is auto loaded by flask
 PROXY = {}
@@ -14,6 +17,19 @@ DEFAULT_CDMS = [
 APPENDERS = ["staff_getwvkeys", "seopsta0197123"]
 GUILD_ID = "948675767754174465"
 VERIFIED_ROLE_ID = "970332150891155607"
+ELITE_ROLE_ID = "956263275887218808"
+LOG_CHANNEL_ID = "971335086609936384"
 LOGIN_DISABLED = False
-OAUTH2_REDIRECT_URL = "http://localhost:8080/login/callback" if os.environ.get(
-    "DEVELOPMENT") else "http://getwvkeys.cc/login/callback"
+IS_DEVELOPMENT = os.environ.get("DEVELOPMENT")
+OAUTH2_REDIRECT_URL = "http://localhost:8080/login/callback" if IS_DEVELOPMENT else "http://getwvkeys.cc/login/callback"
+LOG_LEVEL = logging.DEBUG if IS_DEVELOPMENT else logging.INFO
+LOG_FORMAT = '[%(asctime)s] [%(name)s] [%(funcName)s:%(lineno)d] %(levelname)s: %(message)s'
+LOG_DATE_FORMAT = '%I:%M:%S'
+WVK_LOG_FILE_PATH = pathlib.Path(
+    os.getcwd(), "logs", f"GWVK_{time.strftime('%Y-%m-%d')}.log")
+WZ_LOG_FILE_PATH = pathlib.Path(
+    os.getcwd(), "logs", f"ACCESS_{time.strftime('%Y-%m-%d')}.log")
+API_HOST = "0.0.0.0"
+API_PORT = 8080
+BOT_PREFIX = "wv!"
+ADMIN_USERS = ["756153425682497536", "213247101314924545"]
