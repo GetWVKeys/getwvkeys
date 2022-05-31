@@ -1,5 +1,6 @@
 from functools import wraps
 import os
+import git
 from sqlite3 import DatabaseError
 
 from flask import Flask, flash, make_response, redirect, render_template, request, send_from_directory, send_file, session
@@ -15,7 +16,6 @@ import base64
 import json
 import requests
 import libraries
-import sys
 
 app = Flask(__name__, instance_relative_config=True)
 app.config.from_object('config')
@@ -26,8 +26,14 @@ login_manager.init_app(app)
 
 client = WebApplicationClient(app.config.get("OAUTH2_CLIENT_ID"))
 
+# get current git commit sha
+repo = git.Repo(search_parent_directories=True)
+sha = repo.git.rev_parse(repo.head.object.hexsha,
+                         short=7) if repo else "unknown"
 
 # Utilities
+
+
 def get_ip():  # InCase Request IP Needed
     if request.environ.get('HTTP_X_FORWARDED_FOR') is None:
         ip = request.environ['REMOTE_ADDR']
@@ -61,14 +67,14 @@ def load_user(user_id):
 @app.route('/')
 @login_required
 def home():
-    return render_template("index.html", page_title='GetWVkeys', current_user=current_user)
+    return render_template("index.html", page_title='GetWVkeys', current_user=current_user, website_version=sha)
 
 
 @app.route('/scripts')
 def scripts():
     files = os.listdir(os.path.dirname(
         os.path.abspath(__file__)) + '/download')
-    return render_template("scripts.html", script_names=files, current_user=current_user)
+    return render_template("scripts.html", script_names=files, current_user=current_user, website_version=sha)
 
 
 @app.route('/count')
@@ -96,7 +102,7 @@ def find():
         else:
             return render_template("cache.html", cache=data)
     else:
-        return render_template("find.html", page_title='SEARCH DATABASE', current_user=current_user)
+        return render_template("find.html", page_title='SEARCH DATABASE', current_user=current_user, website_version=sha)
 
 
 @app.route('/wv', methods=['POST'])
@@ -143,9 +149,9 @@ def upload_file():
         blob_base = base64.b64encode(blob.stream.read()).decode()
         key_base = base64.b64encode(key.stream.read()).decode()
         output = libraries.Library().update_cdm(blob_base, key_base, user)
-        return render_template('upload_complete.html', page_title="Success", buildinfo=output)
+        return render_template('upload_complete.html', page_title="Success", buildinfo=output, website_version=sha)
     elif request.method == 'GET':
-        return render_template('upload.html', current_user=current_user)
+        return render_template('upload.html', current_user=current_user, website_version=sha)
 
 
 @app.route('/api', methods=['POST', 'GET'])
@@ -166,7 +172,7 @@ def curl():
         except Exception as e:
             return json.dumps({"error": str(e)})
     else:
-        return render_template("api.html", current_user=current_user)
+        return render_template("api.html", current_user=current_user, website_version=sha)
 
 
 @app.route('/pywidevine', methods=['POST'])
@@ -192,7 +198,7 @@ def pywidevine():
 
 @app.route('/faq')
 def faq():
-    return render_template("faq.html", page_title='FAQ', current_user=current_user)
+    return render_template("faq.html", page_title='FAQ', current_user=current_user, website_version=sha)
 
 
 @app.route('/download/<file>')
@@ -211,7 +217,7 @@ def login():
         return redirect("/")
     request_uri = client.prepare_request_uri("https://discord.com/api/oauth2/authorize", redirect_uri=app.config.get(
         "OAUTH2_REDIRECT_URL"), scope=["guilds", "guilds.members.read", "identify"])
-    return render_template("login.html", auth_url=request_uri, current_user=current_user)
+    return render_template("login.html", auth_url=request_uri, current_user=current_user, website_version=sha)
 
 
 @app.route("/login/callback")
@@ -271,7 +277,7 @@ def logout():
 @login_required
 def user_profile():
     user_cdms = current_user.get_user_cdms()
-    return render_template("profile.html", current_user=current_user, cdms=user_cdms)
+    return render_template("profile.html", current_user=current_user, cdms=user_cdms, website_version=sha)
 
 
 # error handlers
