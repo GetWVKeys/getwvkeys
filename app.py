@@ -89,7 +89,6 @@ def favicon():
 
 
 @app.route('/findpssh', methods=['POST', 'GET'])
-@login_required
 @api_key_required
 def find():
     if request.method == 'POST':
