@@ -1,4 +1,5 @@
 import logging
+import logging.handlers
 import threading
 from coloredlogs import ColoredFormatter
 
@@ -18,14 +19,16 @@ def construct_logger():
     stream = logging.StreamHandler()
     stream.setLevel(LOG_LEVEL)
     stream.setFormatter(console_formatter)
-    # create a handler for file logging
-    file_handler = logging.FileHandler(WVK_LOG_FILE_PATH)
+    # create a handler for file logging, 5 mb max size, with 5 backup files
+    file_handler = logging.handlers.RotatingFileHandler(
+        WVK_LOG_FILE_PATH, maxBytes=(1024*1024) * 5, backupCount=5)
     file_handler.setFormatter(file_formatter)
 
     # configure werkzeug and flask logger
     wzlogger = logging.getLogger('werkzeug')
     wzlogger.setLevel(logging.DEBUG)
-    file_handler = logging.FileHandler(WZ_LOG_FILE_PATH)
+    file_handler = logging.logging.handlers.RotatingFileHandler(
+        WZ_LOG_FILE_PATH, maxBytes=(1024*1024) * 5, backupCount=5)
     # create a regular non-colored formatter for the log file
     file_formatter = logging.Formatter(LOG_FORMAT, datefmt=LOG_DATE_FORMAT)
     file_handler.setFormatter(file_formatter)
