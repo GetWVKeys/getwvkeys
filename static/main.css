@@ -430,3 +430,38 @@ input[name="login"]:focus {
   margin-right: auto;
   max-width: 1080px;
 }
+.flex-column {
+  display: flex;
+  flex-direction: column;
+}
+.apikey-container > label {
+  text-align: center;
+  font-size: 1.3rem;
+  margin: 0 0 16px 0;
+}
+.apikey-container > input {
+  text-align: center;
+}
+.cdms-container > label {
+  text-align: center;
+  font-size: 1.3rem;
+  margin-bottom: 12px;
+}
+.cdm-list-item {
+  padding-bottom: 16px;
+}
+.cdm-item {
+  min-width: 50rem;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+.section-divider {
+  margin: 32px 0 12px 0;
+}
+ul {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+}
