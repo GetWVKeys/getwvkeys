@@ -4,7 +4,7 @@ import sys
 
 import requests
 
-version = "3.0"
+version = "3.1"
 
 
 # Change your headers here
@@ -67,7 +67,8 @@ class GetwvCloneApi:
             "response": license_response,
             "license": self.args.url,
             "headers": self.args.headers,
-            "buildInfo": self.args.buildinfo
+            "buildInfo": self.args.buildinfo,
+            "cache": self.args.cache
         }
         header = {
             'X-API-Key': args.auth

@@ -157,7 +157,7 @@ def curl():
             (proxy, license_, pssh, headers, buildinfo, cache) = (
                 event_data['proxy'] if "proxy" in event_data else '', event_data['license'],
                 event_data['pssh'], event_data['headers'] if 'headers' in event_data else '',
-                event_data['buildInfo'] if 'buildinfo' in event_data else '',
+                event_data['buildInfo'] if 'buildInfo' in event_data else '',
                 event_data['cache'] if 'cache' in event_data else True)
             magic = libraries.Pywidevine(
                 proxy, license_, pssh, headers, buildinfo, cache=cache)
@@ -178,7 +178,7 @@ def pywidevine():
             event_data['password'] if 'password' in event_data else '', event_data['license'] if 'license' in event_data
             else '', event_data['pssh'] if 'pssh' in event_data else '',
             event_data['headers'] if 'headers' in event_data
-            else '', event_data['buildInfo'] if 'buildinfo' in event_data else '', event_data['cache'] if 'cache' in
+            else '', event_data['buildInfo'] if 'buildInfo' in event_data else '', event_data['cache'] if 'cache' in
                                                                                                           event_data else True,
             True if 'challege' in event_data else False, event_data['response'] if 'response' in
                                                                                    event_data else None)
