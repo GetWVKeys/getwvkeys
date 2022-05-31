@@ -99,7 +99,7 @@ class Library:
         self.close_cdm(cdm)
         return data
 
-    def update_cdm(self, blobs, key):
+    def update_cdm(self, blobs, key, uploader):
         from pywidevine.cdm.formats import wv_proto2_pb2
 
         def get_blob_id(blob):
@@ -111,8 +111,8 @@ class Library:
         ID = get_blob_id(blobs)
         cdm = self.connect_cdm()
         cdm.execute(
-            "INSERT OR IGNORE INTO CDMS (client_id_blob_filename,device_private_key,CODE) VALUES (?,?,?)",
-            (blobs, key, ID))
+            "INSERT OR IGNORE INTO CDMS (client_id_blob_filename,device_private_key,CODE, uploaded_by) VALUES (?,?,?, ?)",
+            (blobs, key, ID, uploader))
         self.close_cdm(cdm)
         return ID
 
@@ -137,7 +137,8 @@ class Library:
         for key in keys:
             if len(key['key'].split(":")[0]) != 32:
                 raise Exception("wrong key length")
-            self.database.execute(
+            database = self.connect_database()
+            database.execute(
                 "INSERT OR IGNORE INTO DATABASE (pssh,headers,KID,proxy,time,license,keys) VALUES (?,?,?,?,?,?,?)",
                 (data['pssh'], "", key['key'].split(":")[0],
                  "", data['time'], "", json.dumps(data['keys']))
@@ -320,6 +321,17 @@ class User(UserMixin):
     #     if not r.ok:
     #         raise Exception(
     #             f"Failed to add user to support server: [{r.status_code}] {r.text}")
+
+    def get_user_cdms(self):
+        cdms = []
+        cursor = Library.connect_cdm()
+        cursor.execute("SELECT * FROM cdms WHERE uploaded_by = ?", (self.id,))
+        results = cursor.fetchall()
+        Library.close_cdm(cursor)
+
+        for result in results:
+            cdms.append(result[4])
+        return cdms
 
     @staticmethod
     def get(user_id):

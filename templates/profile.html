@@ -1,21 +1,30 @@
-{% extends "base.html" %} {% block title %}Profile{% endblock %} {% block
-content %}
+{% extends "base.html" %} {% block title %}Profile{% endblock %} {% block content %}
 <section class="profile">
   <header>
     <h1 class="section-title">Profile</h1>
   </header>
   <div class="form-container">
     <div class="profile-container">
-      <div class="form-item">
-        <label for="apikey">API Key:</label>
-        <input
-          data-lpignore="true"
-          type="text"
-          id="apikey"
-          name="apikey"
-          value="{{ current_user.api_key }}"
-          disabled
-        />
+      <div class="form-item flex-column apikey-container">
+        <label for="apikey"><u>API Key</u></label>
+        <input data-lpignore="true" type="text" id="apikey" name="apikey" value="{{ current_user.api_key }}" disabled />
+      </div>
+      <hr class="section-divider" />
+      <div class="form-item flex-column cdms-container">
+        <label for="cdms"><u>Your CDMS</u></label>
+        {% if cdms|length == 0 %}
+        <span>So empty</span>
+        {% else %}
+        <ul id="cdms" name="cdms">
+          {% for cdm in cdms %}
+          <li class="cdm-list-item">
+            <div class="form-item cdm-item">
+              <input data-lpignore="true" type="text" value="{{ cdm }}" disabled />
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
       </div>
     </div>
   </div>

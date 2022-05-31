@@ -2,7 +2,7 @@ from functools import wraps
 import os
 from sqlite3 import DatabaseError
 
-from flask import Flask, flash, make_response, redirect, render_template, request, send_from_directory, send_file
+from flask import Flask, flash, make_response, redirect, render_template, request, send_from_directory, send_file, session
 from flask_login import (
     LoginManager,
     current_user,
@@ -125,10 +125,9 @@ def dev():
             event_data['pssh'], event_data['keys'], event_data['access'])
         magic = libraries.Library().dev_append(pssh, keys, access)
         return magic
-    except (Exception,):
-        type, value, traceback = sys.exc_info()
+    except Exception as e:
         resp = {
-            "error": str(type) + str(value)
+            "error": str(e)
         }
         return json.dumps(resp)
 
@@ -138,11 +137,12 @@ def dev():
 @api_key_required
 def upload_file():
     if request.method == 'POST':
+        user = current_user.id
         blob = request.files['blob']
         key = request.files['key']
         blob_base = base64.b64encode(blob.stream.read()).decode()
         key_base = base64.b64encode(key.stream.read()).decode()
-        output = libraries.Library().update_cdm(blob_base, key_base)
+        output = libraries.Library().update_cdm(blob_base, key_base, user)
         return render_template('upload_complete.html', page_title="Success", buildinfo=output)
     elif request.method == 'GET':
         return render_template('upload.html', current_user=current_user)
@@ -209,7 +209,8 @@ def login():
     if current_user.is_authenticated:
         flash("You are already logged in.", "warning")
         return redirect("/")
-    request_uri = client.prepare_request_uri("https://discord.com/api/oauth2/authorize", redirect_uri=app.config.get("OAUTH2_REDIRECT_URL"), scope=["guilds", "guilds.members.read", "identify"])
+    request_uri = client.prepare_request_uri("https://discord.com/api/oauth2/authorize", redirect_uri=app.config.get(
+        "OAUTH2_REDIRECT_URL"), scope=["guilds", "guilds.members.read", "identify"])
     return render_template("login.html", auth_url=request_uri, current_user=current_user)
 
 
@@ -245,10 +246,12 @@ def login_callback():
     # check if the user is in the getwvkeys server
     is_in_guild = libraries.User.user_is_in_guild(client.access_token)
     if not is_in_guild:
+        session.clear()
         return render_template("error.html", page_title="Error", error="You must be in our Discord support server and be verified to use this service. You can join our server here: https://discord.gg/sMBEwDEGQg"), 403
     # check if the user is verified
     user_is_verified = libraries.User.user_is_verified(client.access_token)
     if not user_is_verified:
+        session.clear()
         return render_template("error.html", page_title="Error", error="You must be verified to use this service. Please read the #rules channel."), 403
     login_user(user, True)
     # flash("Welcome, {}!".format(user.username), "success")
@@ -267,7 +270,8 @@ def logout():
 @app.route("/me")
 @login_required
 def user_profile():
-    return render_template("profile.html", current_user=current_user)
+    user_cdms = current_user.get_user_cdms()
+    return render_template("profile.html", current_user=current_user, cdms=user_cdms)
 
 
 # error handlers
