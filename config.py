@@ -20,7 +20,7 @@ VERIFIED_ROLE_ID = "970332150891155607"
 ELITE_ROLE_ID = "956263275887218808"
 LOG_CHANNEL_ID = "971335086609936384"
 LOGIN_DISABLED = False
-IS_DEVELOPMENT = os.environ.get("DEVELOPMENT")
+IS_DEVELOPMENT = os.environ.get("DEVELOPMENT", False)
 OAUTH2_REDIRECT_URL = "http://localhost:8080/login/callback" if IS_DEVELOPMENT else "http://getwvkeys.cc/login/callback"
 LOG_LEVEL = logging.DEBUG if IS_DEVELOPMENT else logging.INFO
 LOG_FORMAT = '[%(asctime)s] [%(name)s] [%(funcName)s:%(lineno)d] %(levelname)s: %(message)s'
@@ -31,5 +31,5 @@ WZ_LOG_FILE_PATH = pathlib.Path(
     os.getcwd(), "logs", f"ACCESS_{time.strftime('%Y-%m-%d')}.log")
 API_HOST = "0.0.0.0"
 API_PORT = 8080
-BOT_PREFIX = "wv!"
+BOT_PREFIX = "wvd!" if IS_DEVELOPMENT else "wv!"
 ADMIN_USERS = ["756153425682497536", "213247101314924545"]
