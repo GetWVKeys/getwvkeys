@@ -27,7 +27,7 @@ def construct_logger():
     # configure werkzeug and flask logger
     wzlogger = logging.getLogger('werkzeug')
     wzlogger.setLevel(logging.DEBUG)
-    file_handler = logging.logging.handlers.RotatingFileHandler(
+    file_handler = logging.handlers.RotatingFileHandler(
         WZ_LOG_FILE_PATH, maxBytes=(1024*1024) * 5, backupCount=5)
     # create a regular non-colored formatter for the log file
     file_formatter = logging.Formatter(LOG_FORMAT, datefmt=LOG_DATE_FORMAT)

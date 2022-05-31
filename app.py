@@ -323,7 +323,7 @@ def pssh():
 # Discord bot stuff
 @bot.event
 async def on_ready():
-    logger.info("[Discord] Logged in as {}:{}".format(
+    logger.info("[Discord] Logged in as {}#{}".format(
         bot.user.name, bot.user.discriminator))
     # create a partial function for the flask server
     partial_run = partial(app.run, host=os.getenv(
@@ -347,6 +347,24 @@ async def on_member_ban(guild: discord.Guild, user: Union[discord.User, discord.
         # get the log channel and send the message
         log_channel = await bot.fetch_channel(LOG_CHANNEL_ID)
         await log_channel.send("User {}#{} (`{}`) was banned and has been removed from the database.".format(user.name, user.discriminator, user.id))
+    except Exception as e:
+        logger.error("[Discord] {}".format(e))
+
+
+@bot.event
+async def on_member_kick(guild: discord.Guild, user: Union[discord.User, discord.Member]):
+    # ignore bots
+    if user.bot:
+        return
+    logger.info("[Discord] User {} was kicked from {}".format(
+        user.name, guild.name))
+
+    try:
+        # remove the user from the database
+        libraries.User.delete_user(user.id)
+        # get the log channel and send the message
+        log_channel = await bot.fetch_channel(LOG_CHANNEL_ID)
+        await log_channel.send("User {}#{} (`{}`) was kicked and has been removed from the database.".format(user.name, user.discriminator, user.id))
     except Exception as e:
         logger.error("[Discord] {}".format(e))
 
