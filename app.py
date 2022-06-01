@@ -8,7 +8,6 @@ from flask import Flask, flash, jsonify, make_response, redirect, render_templat
 from flask_login import (
     LoginManager,
     current_user,
-    login_required,
     login_user,
     logout_user,
 )
@@ -167,7 +166,7 @@ def upload_file():
 
 
 @app.route('/api', methods=['POST', 'GET'])
-@authentication_required()
+@authentication_required(exempt_methods=["GET"])
 def curl():
     if request.method == 'POST':
         try:
