@@ -4,5 +4,4 @@ pycryptodomex==3.14.1
 PyYAML==6.0
 requests==2.27.1
 gitpython
-git+https://github.com/Rapptz/discord.py
 coloredlogs

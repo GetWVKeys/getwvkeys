@@ -1,12 +1,22 @@
 import logging
 import logging.handlers
-import threading
 from coloredlogs import ColoredFormatter
+from discord import Enum
 
 from config import LOG_DATE_FORMAT, LOG_FORMAT, LOG_LEVEL, WVK_LOG_FILE_PATH, WZ_LOG_FILE_PATH
 
 
+class APIAction(Enum):
+    DISABLE_USER = "disable"
+    DISABLE_USER_BULK = "disable_bulk"
+    ENABLE_USER = "enable"
+    KEY_COUNT = "keycount"
+    USER_COUNT = "usercount"
+
+
 def construct_logger():
+    logging.root.setLevel(LOG_LEVEL)
+
     WVK_LOG_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
     WZ_LOG_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
 
@@ -35,30 +45,9 @@ def construct_logger():
     wzlogger.addHandler(file_handler)
     wzlogger.addHandler(stream)
 
-    # setup getwvkeys logger
-    logger = logging.getLogger(__name__)
-    logging.root.setLevel(LOG_LEVEL)
-
     # construct the logger
     logger = logging.getLogger("getwvkeys")
     logger.setLevel(LOG_LEVEL)
     logger.addHandler(stream)
     logger.addHandler(file_handler)
     return logger
-
-
-class StoppableThread(threading.Thread):
-    """
-    Thread class with a stop() method. The thread itself has to check
-    regularly for the stopped() condition.
-    """
-
-    def __init__(self,  *args, **kwargs):
-        super(StoppableThread, self).__init__(*args, **kwargs)
-        self._stop_event = threading.Event()
-
-    def stop(self):
-        self._stop_event.set()
-
-    def stopped(self):
-        return self._stop_event.is_set()
