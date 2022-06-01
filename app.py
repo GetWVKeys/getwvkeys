@@ -19,7 +19,7 @@ import requests
 from config import API_HOST, API_PORT
 import libraries
 from werkzeug.middleware.proxy_fix import ProxyFix
-from werkzeug.exceptions import HTTPException, Forbidden, BadRequest
+from werkzeug.exceptions import HTTPException, Forbidden, BadRequest, Unauthorized
 
 from utils import APIAction, construct_logger
 
@@ -57,7 +57,7 @@ def authentication_required(exempt_methods=[], admin_only=False):
                 api_key = request.headers.get(
                     "X-API-Key") or request.form.get("X-API-Key")
                 if not api_key:
-                    raise Forbidden("API Key Required")
+                    raise Unauthorized("API Key Required")
                 # check if the key is a valid user key
                 is_valid = libraries.User.is_api_key_valid(api_key)
                 if not is_valid:
@@ -362,6 +362,8 @@ def database_error(e):
 @app.errorhandler(HTTPException)
 def http_exception(e: HTTPException):
     if request.method == "GET":
+        if e.code == 401 or e.code == 403:
+            return app.login_manager.unauthorized()
         return render_template('error.html', page_title=e.name, error=e.description), e.code
     else:
         return jsonify({
