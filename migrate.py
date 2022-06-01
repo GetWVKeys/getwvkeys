@@ -44,7 +44,7 @@ c.execute('''
 
 
 def help():
-    print("Available commands: up, version")
+    print("Available commands: up, version, create")
 
 
 def version():

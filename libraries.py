@@ -1,3 +1,4 @@
+import logging
 from flask_login import UserMixin
 import sqlite3
 import requests
@@ -8,8 +9,10 @@ import time
 import yaml
 import random
 import secrets
+from werkzeug.exceptions import Forbidden, BadRequest
 
 from config import APPENDERS, DEFAULT_CDMS, GUILD_ID, VERIFIED_ROLE_ID
+from instance.config import OAUTH2_CLIENT_ID, OAUTH2_CLIENT_SECRET
 
 try:
     requests.packages.urllib3.disable_warnings()
@@ -300,26 +303,15 @@ class WvDecrypt:
 
 
 class User(UserMixin):
-    def __init__(self, id, username, discriminator, avatar, public_flags, api_key):
+    def __init__(self, id, username, discriminator, avatar, public_flags, api_key, status, is_admin):
         self.id = id
         self.username = username
         self.discriminator = discriminator
         self.avatar = avatar
         self.public_flags = public_flags
         self.api_key = api_key
-
-    # def add_user_to_guild(self, token):
-    #     url = f"https://discord.com/api/guilds/{GUILD_ID}/members/{self.id}"
-    #     headers = {
-    #         "Authorization": f"Bot {BOT_TOKEN}",
-    #     }
-    #     data = {
-    #         "access_token": token,
-    #     }
-    #     r = requests.post(url, json=data, headers=headers)
-    #     if not r.ok:
-    #         raise Exception(
-    #             f"Failed to add user to support server: [{r.status_code}] {r.text}")
+        self.status = status
+        self.is_admin = is_admin
 
     def get_user_cdms(self):
         cdms = []
@@ -332,6 +324,38 @@ class User(UserMixin):
             cdms.append(result[4])
         return cdms
 
+    def patch(self, data):
+        # loop keys in data dict and create a sql statement
+        disallowed_keys = ["id", "username", "discriminator",
+                           "avatar", "public_flags", "api_key"]
+        values = []
+        sql = "UPDATE users SET "
+        for key, value in data.items():
+            if key.lower() in disallowed_keys:
+                continue
+            sql += f"{key} = ?, "
+            values.append(value)
+        if len(values) == 0:
+            raise BadRequest("No data to update or update is not allowed")
+        sql = sql[:-2]
+        sql += f" WHERE id = {self.id}"
+
+        db = Library.connect_cdm()
+        db.execute(sql, values)
+        Library.close_cdm(db)
+
+    def to_json(self, api_key=False):
+        return {
+            "id": self.id,
+            "username": self.username,
+            "discriminator": self.discriminator,
+            "avatar": self.avatar,
+            "public_flags": self.public_flags,
+            "api_key": self.api_key if api_key else None,
+            "status": self.status,
+            "is_admin": self.is_admin
+        }
+
     @staticmethod
     def get(user_id):
         db = Library.connect_cdm()
@@ -342,7 +366,8 @@ class User(UserMixin):
             return None
 
         user = User(
-            id=user[0], username=user[1], discriminator=user[2], avatar=user[3], public_flags=user[4], api_key=user[5]
+            id=user[0], username=user[1], discriminator=user[2], avatar=user[
+                3], public_flags=user[4], api_key=user[5], status=user[6], is_admin=user[7]
         )
         Library.close_cdm(db)
         return user
@@ -393,18 +418,80 @@ class User(UserMixin):
         return any(role == VERIFIED_ROLE_ID for role in data.get("roles"))
 
     @staticmethod
-    def api_key_is_valid(api_key):
-        db = Library.connect_cdm()
-        user = db.execute(
-            "SELECT id FROM users WHERE api_key = ?", (api_key,)
-        ).fetchone()
-        Library.close_cdm(db)
-        return user != None
+    def is_api_key_bot(api_key):
+        """checks if the api key is from the bot"""
+        bot_key = base64.b64encode("{}:{}".format(
+            OAUTH2_CLIENT_ID, OAUTH2_CLIENT_SECRET).encode()).decode("utf8")
+        return api_key == bot_key
 
     @staticmethod
-    def delete_user(user_id):
+    def get_user_by_api_key(api_key):
         db = Library.connect_cdm()
-        db.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        user = db.execute(
+            "SELECT * FROM users WHERE api_key = ?", (api_key,)
+        ).fetchone()
+        if not user:
+            return None
+
+        user = User(
+            id=user[0], username=user[1], discriminator=user[2], avatar=user[
+                3], public_flags=user[4], api_key=user[5], status=user[6], is_admin=user[7]
+        )
+        Library.close_cdm(db)
+        return user
+
+    @staticmethod
+    def is_api_key_valid(api_key):
+        # allow the bot to pass
+        if User.is_api_key_bot(api_key):
+            return True
+        db = Library.connect_cdm()
+        user = db.execute(
+            "SELECT id, status, is_admin FROM users WHERE api_key = ?", (
+                api_key,)
+        ).fetchone()
+        Library.close_cdm(db)
+        if user == None:
+            return False
+
+        status = user[1]
+        role = user[2]
+
+        # if the user is suspended, throw forbidden
+        if status == 1:
+            raise Forbidden("Your account has been suspended.")
+
+        # if we require admin, and the user is not admin, throw forbidden
+        # if require_admin and role == 0:
+        #     raise Forbidden("You do not have permission to do this.")
+
+        return True
+
+    @staticmethod
+    def disable_user(user_id):
+        db = Library.connect_cdm()
+        # update the user record to set user_status to 1
+        db.execute("UPDATE users SET status = ? WHERE id = ?", (1, user_id))
+        Library.close_cdm(db)
+
+    @staticmethod
+    def disable_users(user_ids):
+        print("Request to disable {} users: {}".format(
+            len(user_ids), ", ".join([str(x) for x in user_ids])))
+        if len(user_ids) == 0:
+            raise BadRequest("No data to update or update is not allowed")
+        a = ["id = ?"] * len(user_ids)
+        sql = "UPDATE users SET status = ? WHERE " + " OR ".join(a)
+
+        db = Library.connect_cdm()
+        db.execute(sql, (1, *user_ids))
+        Library.close_cdm(db)
+
+    @staticmethod
+    def enable_user(user_id):
+        db = Library.connect_cdm()
+        # update the user record to set user_status to 0
+        db.execute("UPDATE users SET status = ? WHERE id = ?", (0, user_id))
         Library.close_cdm(db)
 
     @staticmethod

@@ -1,14 +1,10 @@
-from functools import partial, wraps
-import logging
+from functools import update_wrapper, wraps
+import inspect
 import os
-import time
-from typing import Union
-import discord
-from discord.ext import commands
 import git
 from sqlite3 import DatabaseError
 
-from flask import Flask, flash, make_response, redirect, render_template, request, send_from_directory, send_file, session
+from flask import Flask, flash, jsonify, make_response, redirect, render_template, request, send_from_directory, send_file, session
 from flask_login import (
     LoginManager,
     current_user,
@@ -20,24 +16,21 @@ from oauthlib.oauth2 import WebApplicationClient
 import base64
 import json
 import requests
-from config import ADMIN_USERS, BOT_PREFIX, LOG_CHANNEL_ID, LOG_DATE_FORMAT, LOG_FORMAT, WZ_LOG_FILE_PATH
-from instance.config import BOT_TOKEN
+from config import API_HOST, API_PORT
 import libraries
+from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.exceptions import HTTPException, Forbidden, BadRequest
 
-from utils import StoppableThread, construct_logger
+from utils import APIAction, construct_logger
 
 
 app = Flask(__name__, instance_relative_config=True)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.config.from_object('config')
 app.config.from_pyfile('config.py')
 
 # Logger setup
 logger = construct_logger()
-
-
-intents = discord.Intents.default()
-intents.message_content = True
-bot = commands.Bot(command_prefix=BOT_PREFIX, intents=intents)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -51,28 +44,33 @@ sha = repo.git.rev_parse(repo.head.object.hexsha,
 
 
 # Utilities
-def get_ip():  # InCase Request IP Needed
-    if request.environ.get('HTTP_X_FORWARDED_FOR') is None:
-        ip = request.environ['REMOTE_ADDR']
-    else:
-        ip = request.environ['HTTP_X_FORWARDED_FOR']
-    return ip
-
-
-def api_key_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if request.method != "POST":
-            return f(*args, **kwargs)
-        api_key = request.headers.get(
-            "X-API-Key") or request.form.get("X-API-Key")
-        if not api_key:
-            return "API Key Required", 401
-        is_valid = libraries.User.api_key_is_valid(api_key)
-        if not is_valid:
-            return "Invalid API Key", 403
-        return f(*args, **kwargs)
-    return decorated_function
+def authentication_required(exempt_methods=[], admin_only=False):
+    def decorator(func):
+        @wraps(func)
+        def wrapped_function(*args, **kwargs):
+            if request.method in exempt_methods:
+                return func(*args, **kwargs)
+            elif app.config.get('LOGIN_DISABLED'):
+                return func(*args, **kwargs)
+            elif not current_user.is_authenticated:
+                # check if they passed in an api key
+                api_key = request.headers.get(
+                    "X-API-Key") or request.form.get("X-API-Key")
+                if not api_key:
+                    raise Forbidden("API Key Required")
+                # check if the key is a valid user key
+                is_valid = libraries.User.is_api_key_valid(api_key)
+                if not is_valid:
+                    raise Forbidden("Invalid API Key")
+                # user = libraries.User.get_user_by_api_key(api_key)
+                # if not user:
+                #     raise Forbidden("Invalid API Key")
+                # login_user(user, remember=True)
+            elif admin_only and not current_user.is_admin == 1:
+                raise Forbidden("This maze wasn't meant for you.")
+            return func(*args, **kwargs)
+        return update_wrapper(wrapped_function, func)
+    return decorator
 
 
 @login_manager.user_loader
@@ -81,7 +79,7 @@ def load_user(user_id):
 
 
 @app.route('/')
-@login_required
+@authentication_required()
 def home():
     return render_template("index.html", page_title='GetWVkeys', current_user=current_user, website_version=sha)
 
@@ -105,7 +103,7 @@ def favicon():
 
 
 @app.route('/findpssh', methods=['POST', 'GET'])
-@api_key_required
+@authentication_required()
 def find():
     if request.method == 'POST':
         pssh = request.stream.read().decode()
@@ -121,7 +119,7 @@ def find():
 
 
 @app.route('/wv', methods=['POST'])
-@api_key_required
+@authentication_required()
 def wv():
     try:
         event_data = request.get_json(force=True)
@@ -138,7 +136,7 @@ def wv():
 
 
 @app.route('/dev', methods=['POST'])
-@api_key_required
+@authentication_required()
 def dev():
     try:
         event_data = request.get_json(force=True)
@@ -154,8 +152,7 @@ def dev():
 
 
 @app.route('/upload', methods=['GET', 'POST'])
-@login_required
-@api_key_required
+@authentication_required()
 def upload_file():
     if request.method == 'POST':
         user = current_user.id
@@ -170,7 +167,7 @@ def upload_file():
 
 
 @app.route('/api', methods=['POST', 'GET'])
-@api_key_required
+@authentication_required()
 def curl():
     if request.method == 'POST':
         try:
@@ -191,7 +188,7 @@ def curl():
 
 
 @app.route('/pywidevine', methods=['POST'])
-@api_key_required
+@authentication_required()
 def pywidevine():
     try:
         event_data = request.get_json(force=True)
@@ -282,17 +279,76 @@ def login_callback():
 
 
 @app.route("/logout")
-@login_required
+@authentication_required()
 def logout():
     logout_user()
     return redirect("/")
 
 
 @app.route("/me")
-@login_required
+@authentication_required()
 def user_profile():
     user_cdms = current_user.get_user_cdms()
     return render_template("profile.html", current_user=current_user, cdms=user_cdms, website_version=sha)
+
+
+# admin routes
+# @app.route("/admin/users/<id>", methods=["GET"])
+# @authentication_required(admin_only=True)
+# def admin_user(id):
+#     user = libraries.User.get(id)
+
+#     if request.method == "GET":
+#         """view user"""
+#         return render_template("admin_user.html", current_user=current_user, user=user, website_version=sha)
+#     elif request.method == "PATCH":
+#         """edit user"""
+#         data = request.get_json()
+#         if not data:
+#             return json.dumps({"error": "No data provided"}), 400
+#         try:
+#             user.patch(data)
+#             user = libraries.User.get(id)
+#             return jsonify(user.to_json()), 200
+#         except HTTPException as e:
+#             return json.dumps({"error": f"{e.description}"}), e.code
+#         except Exception as e:
+#             logger.error(e)
+#             return json.dumps({"error": "Bad Request"}), 400
+
+
+@app.route("/admin/api", methods=["POST"])
+@authentication_required(admin_only=True)
+def admin_api():
+    data = request.get_json()
+    if not data:
+        raise BadRequest("Bad Request")
+
+    action = data.get("action")
+    if action == APIAction.DISABLE_USER.value:
+        user_id = data.get("user_id")
+        if not user_id:
+            raise BadRequest("Bad Request")
+        libraries.User.disable_user(user_id)
+        return jsonify({"error": False}), 200
+    elif action == APIAction.DISABLE_USER_BULK.value:
+        user_ids = data.get("user_ids")
+        if not user_ids:
+            raise BadRequest("Bad Request")
+        libraries.User.disable_users(user_ids)
+        return jsonify({"error": False}), 200
+    elif action == APIAction.ENABLE_USER.value:
+        user_id = data.get("user_id")
+        if not user_id:
+            raise BadRequest("Bad Request")
+        libraries.User.enable_user(user_id)
+        return jsonify({"error": False}), 200
+    elif action == APIAction.KEY_COUNT.value:
+        return jsonify({"error": False, "message": libraries.Library().cached_number()}), 200
+    elif action == APIAction.USER_COUNT.value:
+        return jsonify({"error": False, "message": libraries.User.get_user_count()}), 200
+
+    raise BadRequest("Bad Request")
 
 
 # error handlers
@@ -303,10 +359,16 @@ def database_error(e):
                            error="Internal Server Error. Please try again later."), 500
 
 
-@app.errorhandler(405)
-def method_not_allowed(_):
-    return render_template('error.html', page_title='Method Not Allowed',
-                           error="Method Not Allowed."), 405
+@app.errorhandler(HTTPException)
+def http_exception(e: HTTPException):
+    if request.method == "GET":
+        return render_template('error.html', page_title=e.name, error=e.description), e.code
+    else:
+        return jsonify({
+            "error": True,
+            "code": e.code,
+            "message": e.description
+        }), e.code
 
 
 @login_manager.unauthorized_handler
@@ -320,130 +382,5 @@ def pssh():
     return render_template("error.html", page_title='Gone', error="This page is no longer available."), 410
 
 
-# Discord bot stuff
-@bot.event
-async def on_ready():
-    logger.info("[Discord] Logged in as {}#{}".format(
-        bot.user.name, bot.user.discriminator))
-    # create a partial function for the flask server
-    partial_run = partial(app.run, host=os.getenv(
-        "API_HOST"), port=os.getenv("API_PORT", 8080), use_reloader=False)
-    # start the flask server in a thread
-    bot.flask_thread = StoppableThread(target=partial_run, daemon=True)
-    bot.flask_thread.start()
-
-
-@bot.event
-async def on_member_ban(guild: discord.Guild, user: Union[discord.User, discord.Member]):
-    # ignore bots
-    if user.bot:
-        return
-    logger.info("[Discord] User {} was banned from {}".format(
-        user.name, guild.name))
-
-    try:
-        # remove the user from the database
-        libraries.User.delete_user(user.id)
-        # get the log channel and send the message
-        log_channel = await bot.fetch_channel(LOG_CHANNEL_ID)
-        await log_channel.send("User {}#{} (`{}`) was banned and has been removed from the database.".format(user.name, user.discriminator, user.id))
-    except Exception as e:
-        logger.error("[Discord] {}".format(e))
-
-
-@bot.event
-async def on_member_kick(guild: discord.Guild, user: Union[discord.User, discord.Member]):
-    # ignore bots
-    if user.bot:
-        return
-    logger.info("[Discord] User {} was kicked from {}".format(
-        user.name, guild.name))
-
-    try:
-        # remove the user from the database
-        libraries.User.delete_user(user.id)
-        # get the log channel and send the message
-        log_channel = await bot.fetch_channel(LOG_CHANNEL_ID)
-        await log_channel.send("User {}#{} (`{}`) was kicked and has been removed from the database.".format(user.name, user.discriminator, user.id))
-    except Exception as e:
-        logger.error("[Discord] {}".format(e))
-
-
-@bot.event
-async def on_command_error(ctx: commands.Context, e: Exception):
-    if isinstance(e, commands.CommandNotFound):
-        return
-    if isinstance(e, commands.MissingRequiredArgument):
-        await ctx.send("You are missing a required argument. Please check the command's syntax.")
-        return
-    if isinstance(e, commands.BadArgument):
-        await ctx.send("Please check the argument you provided. It is invalid.")
-        return
-    if isinstance(e, commands.CheckFailure):
-        await ctx.send("You are not allowed to use this command.")
-        return
-    if isinstance(e, commands.CommandOnCooldown):
-        await ctx.send("You are on cooldown. Please wait {} seconds before using this command again.".format(
-            round(e.retry_after)))
-        return
-    if isinstance(e, commands.CommandInvokeError):
-        logger.error("[Discord] {}".format(e))
-        await ctx.send("An error occurred while executing the command. Please try again later.")
-        return
-    if isinstance(e, commands.CommandError):
-        logger.error("[Discord] {}".format(e))
-        await ctx.send("An error occurred while executing the command. Please try again later.")
-        return
-    logger.error("[Discord] An error occurred while executing the command {}".format(
-        ctx.command.name))
-    logger.error("[Discord] {}".format(e))
-
-
-@bot.command()
-async def ping(ctx):
-    await ctx.send(f'Pong! {round(bot.latency * 1000)}ms')
-
-
-@bot.command()
-@commands.cooldown(1, 3600, commands.BucketType.guild)
-async def sync(ctx: commands.Context):
-    # only allow admins to use command
-    if not str(ctx.author.id) in ADMIN_USERS:
-        return await ctx.send("You're not elite enough, try harder.")
-    m = await ctx.send("Syncing the banned users with the database might take a while. Please be patient.")
-    # sync the banned users with the database
-    try:
-        banned_users = [entry async for entry in ctx.guild.bans()]
-        for ban in banned_users:
-            libraries.User.delete_user(ban.user.id)
-        await m.reply("{} guild bans have been synced with the database.".format(len(banned_users)))
-    except Exception as e:
-        logger.error("[Discord] {}".format(e))
-        await m.reply(content="An error occurred while syncing the guild bans.")
-
-
-@bot.command(name="usercount")
-async def user_count(ctx):
-    count = libraries.User.get_user_count()
-    await ctx.send("There are currently {} users in the database.".format(count))
-
-
-@bot.command(name="keycount")
-async def key_count(ctx):
-    count = libraries.Library().cached_number()
-    await ctx.send("There are currently {} cached keys in the database.".format(count))
-
-
 if __name__ == "__main__":
-    try:
-        logger.info("Starting up...")
-        # Start the discord bot
-        bot.run(BOT_TOKEN)
-    except KeyboardInterrupt:
-        # close discord connection
-        bot.close()
-        # stop the flask server thread
-        bot.flask_thread.stop()
-        exit(0)
-    finally:
-        logger.info("Shutting down...")
+    app.run(API_HOST, API_PORT)
