@@ -111,7 +111,7 @@ def find():
             return ""
         data = libraries.Library().match(pssh)
         if data == {}:
-            return render_template("error.html", page_title='Error', error="No Matches Found")
+            return render_template("error.html", page_title='Error', error="Not Found in our Database But you can add it, contact us on our discord server to have the powers to add cache keys in the database ")
         else:
             return render_template("cache.html", cache=data)
     else:
