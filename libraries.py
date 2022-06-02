@@ -50,12 +50,14 @@ class Library:
     def cache_keys(self, data):
         database = self.connect_database()
         for keys in data['keys']:
-            for key in keys:
-                # self.database[keys[key].split(':')[0]] = data
-                database.execute(
-                    "INSERT OR IGNORE INTO DATABASE (pssh,headers,KID,proxy,time,license,keys) VALUES (?,?,?,?,?,?,?)",
-                    (data['pssh'], json.dumps(data['headers']), key,
-                     json.dumps(data['proxy']), data['time'], data['license'], json.dumps(data['keys'])))
+            # for key in keys:
+            # self.database[keys[key].split(':')[0]] = data
+            key = keys.get("key")
+            (kid, _) = key.split(':')
+            database.execute(
+                "INSERT OR REPLACE INTO DATABASE (pssh,headers,KID,proxy,time,license,keys) VALUES (?,?,?,?,?,?,?)",
+                (data['pssh'], json.dumps(data['headers']), kid,
+                    json.dumps(data['proxy']), data['time'], data['license'], json.dumps(data['keys'])))
         self.close_database(database)
 
     def cached_number(self):
@@ -63,6 +65,16 @@ class Library:
         count = db.execute("SELECT COUNT(*) FROM DATABASE").fetchone()[0]
         self.close_database(db)
         return count
+
+    @staticmethod
+    def search(query):
+        if "-" in query:
+            query = query.replace("-", "")
+        database = Library.connect_database()
+        database.execute(
+            "SELECT keys FROM DATABASE WHERE PSSH = ? or KID = ?", (query, query))
+        results = database.fetchall()
+        return results
 
     def match(self, pssh):
         database = self.connect_database()

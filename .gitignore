@@ -5,3 +5,4 @@ __pycache__/
 instance/*.py
 !instance/config.example.py
 logs/
+*.aria2

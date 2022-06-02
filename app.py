@@ -1,9 +1,8 @@
 from functools import update_wrapper, wraps
-import inspect
 import os
+from pprint import pprint
 import git
 from sqlite3 import DatabaseError
-
 from flask import Flask, flash, jsonify, make_response, redirect, render_template, request, send_from_directory, send_file, session
 from flask_login import (
     LoginManager,
@@ -346,6 +345,19 @@ def admin_api():
         return jsonify({"error": False, "message": libraries.Library().cached_number()}), 200
     elif action == APIAction.USER_COUNT.value:
         return jsonify({"error": False, "message": libraries.User.get_user_count()}), 200
+    elif action == APIAction.SEARCH.value:
+        query = data.get("query")
+        if not query:
+            raise BadRequest("Bad Request")
+        results = libraries.Library.search(query)
+        keys = []
+        pprint(results)
+        for result in results:
+            a = result[0]
+            b: list[dict] = json.loads(a)
+            for k in b:
+                keys.append(k.get("key"))
+        return jsonify({"error": False, "message": keys}), 200
 
     raise BadRequest("Bad Request")
 
