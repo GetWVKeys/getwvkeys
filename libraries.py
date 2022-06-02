@@ -55,7 +55,7 @@ class Library:
             key = keys.get("key")
             (kid, _) = key.split(':')
             database.execute(
-                "INSERT OR REPLACE INTO DATABASE (pssh,headers,KID,proxy,time,license,keys) VALUES (?,?,?,?,?,?,?)",
+                "INSERT OR IGNORE INTO DATABASE (pssh,headers,KID,proxy,time,license,keys) VALUES (?,?,?,?,?,?,?)",
                 (data['pssh'], json.dumps(data['headers']), kid,
                     json.dumps(data['proxy']), data['time'], data['license'], json.dumps(data['keys'])))
         self.close_database(database)
