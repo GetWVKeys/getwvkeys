@@ -391,5 +391,9 @@ def pssh():
     return render_template("error.html", page_title='Gone', error="This page is no longer available."), 410
 
 
-if __name__ == "__main__":
+def main():
     app.run(API_HOST, API_PORT)
+
+
+if __name__ == "__main__":
+    main()
