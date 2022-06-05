@@ -4,7 +4,8 @@ e
 
 # Setup
 
-- Install requirements: `pip install -r requirements.txt`
+- Install Python Poetry: https://python-poetry.org/docs/master/#installation
+- `poetry install`
 - Run database migrations
 - Setup `instance\config.py` by either copying the example or using an existing one.
 
