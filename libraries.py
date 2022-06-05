@@ -14,14 +14,6 @@ from werkzeug.exceptions import BadRequest, Forbidden
 from config import APPENDERS, DEFAULT_CDMS, GUILD_ID, VERIFIED_ROLE_ID
 from instance.config import OAUTH2_CLIENT_ID, OAUTH2_CLIENT_SECRET
 
-try:
-    requests.packages.urllib3.disable_warnings()
-    requests.packages.urllib3.util.ssl_.DEFAULT_CIPHERS += ':HIGH:!DH:!aNULL'
-    requests.packages.urllib3.contrib.pyopenssl.util.ssl_.DEFAULT_CIPHERS += ':HIGH:!DH:!aNULL'
-except AttributeError:
-    # no pyopenssl support used / needed / available
-    pass
-
 
 class Library:
     store_request = {}
