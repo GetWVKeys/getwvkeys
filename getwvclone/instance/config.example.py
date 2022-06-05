@@ -1,6 +1,6 @@
 import os
 
-IS_DEVELOPMENT = os.environ.get("DEVELOPMENT")
+IS_DEVELOPMENT = os.environ.get("DEVELOPMENT", False)
 
 # generate secret offline with os.urandom(16).hex()
 SECRET_KEY = ""
