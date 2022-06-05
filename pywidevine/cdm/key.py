@@ -1,5 +1,6 @@
 import binascii
 
+
 class Key:
     def __init__(self, kid, type, key, permissions=[]):
         self.kid = kid

@@ -1,9 +1,11 @@
 import logging
 import logging.handlers
-from coloredlogs import ColoredFormatter
 from enum import Enum
 
-from config import LOG_DATE_FORMAT, LOG_FORMAT, LOG_LEVEL, WVK_LOG_FILE_PATH, WZ_LOG_FILE_PATH
+from coloredlogs import ColoredFormatter
+
+from config import (LOG_DATE_FORMAT, LOG_FORMAT, LOG_LEVEL, WVK_LOG_FILE_PATH,
+                    WZ_LOG_FILE_PATH)
 
 
 class APIAction(Enum):
