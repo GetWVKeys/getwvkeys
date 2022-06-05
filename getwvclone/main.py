@@ -20,6 +20,7 @@ from getwvclone import libraries, config
 from getwvclone.utils import construct_logger, APIAction
 
 app = Flask(__name__.split(".")[0])
+app.secret_key = config.SECRET_KEY
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # Logger setup
