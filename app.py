@@ -1,7 +1,6 @@
 from functools import update_wrapper, wraps
 import os
 from pprint import pprint
-import git
 from sqlite3 import DatabaseError
 from flask import Flask, flash, jsonify, make_response, redirect, render_template, request, send_from_directory, send_file, session
 from flask_login import (
@@ -21,6 +20,7 @@ from werkzeug.exceptions import HTTPException, Forbidden, BadRequest, Unauthoriz
 
 from utils import APIAction, construct_logger
 
+from dunamai import Version, Style
 
 app = Flask(__name__, instance_relative_config=True)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
@@ -36,9 +36,7 @@ login_manager.init_app(app)
 client = WebApplicationClient(app.config.get("OAUTH2_CLIENT_ID"))
 
 # get current git commit sha
-repo = git.Repo(search_parent_directories=True)
-sha = repo.git.rev_parse(repo.head.object.hexsha,
-                         short=7) if repo else "unknown"
+sha = Version.from_git().serialize(style=Style.SemVer, dirty=True)
 
 
 # Utilities
