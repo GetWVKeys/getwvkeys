@@ -75,8 +75,11 @@ def version():
 
 
 def extractMigrationInformation(filename: str, direction: str):
-    match = re.search("(?P<version>[^.]*)\.?(?P<description>.*)\." +
-                      direction + "\.(?P<database>.*)\.sql", filename, re.IGNORECASE)
+    match = re.search(
+        rf"(?P<version>[^.]*)\.?(?P<description>.*)\.{direction}\.(?P<database>.*)\.sql",
+        filename,
+        re.IGNORECASE
+    )
     if not match:
         return {'version': None, 'description': None, "database": None}
     return {'version': match.group('version'), 'description': match.group('description'), 'database': match.group("database")}
