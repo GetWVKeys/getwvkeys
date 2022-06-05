@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "getwvclone"
+version = "0.1.0"
+description = "Widevine License Proxy"
+authors = [
+    "notaghost <65109659+Notaghost9997@users.noreply.github.com>",
+    "Puyodead1 <14828766+Puyodead1@users.noreply.github.com>"
+]
+
+[tool.poetry.dependencies]
+python = ">=3.7,<4.0"
+Flask = "^2.1.2"
+requests = "^2.27.1"
+protobuf = "3.20.1"
+pycryptodomex = "^3.14.1"
+PyYAML = "^6.0"
+coloredlogs = "^15.0.1"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
