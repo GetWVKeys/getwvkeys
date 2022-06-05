@@ -1,6 +1,5 @@
 import base64
 import json
-import logging
 import random
 import secrets
 import sqlite3
@@ -464,7 +463,7 @@ class User(UserMixin):
                 api_key,)
         ).fetchone()
         Library.close_cdm(db)
-        if user == None:
+        if not user:
             return False
 
         status = user[1]

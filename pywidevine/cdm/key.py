@@ -2,11 +2,11 @@ import binascii
 
 
 class Key:
-    def __init__(self, kid, type, key, permissions=[]):
+    def __init__(self, kid, type, key, permissions=None):
         self.kid = kid
         self.type = type
         self.key = key
-        self.permissions = permissions
+        self.permissions = permissions or []
 
     def __repr__(self):
         if self.type == "OPERATOR_SESSION":
