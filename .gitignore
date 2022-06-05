@@ -1,6 +1,4 @@
 *.db
-instance/*.py
-!getwvclone/instance/config.example.py
 logs/
 *.aria2
 
