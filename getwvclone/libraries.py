@@ -106,7 +106,7 @@ class Library:
         return data
 
     def update_cdm(self, blobs, key, uploader):
-        from pywidevine.cdm.formats import wv_proto2_pb2
+        from getwvclone.pywidevine.cdm.formats import wv_proto2_pb2
 
         def get_blob_id(blob):
             blob_ = base64.b64decode(blob)
@@ -129,7 +129,7 @@ class Library:
 
         try:
             base64.b64decode(pssh)
-            from pywidevine.cdm import deviceconfig
+            from getwvclone.pywidevine.cdm import deviceconfig
             WvDecrypt(pssh, deviceconfig.DeviceConfig(
                 random.choice(config.DEFAULT_CDMS)))
         except Exception as e:
@@ -221,7 +221,7 @@ class Pywidevine:
         except (Exception,):
             self.headers = self.yamldomagic(self.headers)
 
-        from pywidevine.cdm import deviceconfig
+        from getwvclone.pywidevine.cdm import deviceconfig
         wvdecrypt = WvDecrypt(
             self.pssh, deviceconfig.DeviceConfig(self.buildinfo))
         challenge = wvdecrypt.create_challenge()
@@ -247,7 +247,7 @@ class Pywidevine:
             resp.headers['cached'] = True
             return resp
         if self.response is None:
-            from pywidevine.cdm import deviceconfig
+            from getwvclone.pywidevine.cdm import deviceconfig
             wvdecrypt = WvDecrypt(
                 self.pssh, deviceconfig.DeviceConfig(self.buildinfo))
             challenge = wvdecrypt.create_challenge()
@@ -270,7 +270,7 @@ class Pywidevine:
 
 class WvDecrypt:
     def __init__(self, pssh_b64, device):
-        from pywidevine.cdm import cdm
+        from getwvclone.pywidevine.cdm import cdm
         self.cdm = cdm.Cdm()
         self.session = self.cdm.open_session(pssh_b64, device)
 
