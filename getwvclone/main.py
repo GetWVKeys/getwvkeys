@@ -2,6 +2,7 @@ import base64
 import json
 import os
 from functools import update_wrapper, wraps
+from pathlib import Path
 from pprint import pprint
 from sqlite3 import DatabaseError
 
@@ -19,7 +20,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from getwvclone import libraries, config
 from getwvclone.utils import construct_logger, APIAction
 
-app = Flask(__name__.split(".")[0])
+app = Flask(__name__.split(".")[0], root_path=str(Path(__file__).parent))
 app.secret_key = config.SECRET_KEY
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
