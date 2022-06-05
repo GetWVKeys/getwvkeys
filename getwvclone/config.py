@@ -9,7 +9,7 @@ API_PORT = 8080
 SECRET_KEY = ""  # generate secret offline with os.urandom(16).hex()
 OAUTH2_CLIENT_ID = ""  # Discord OAuth Client ID
 OAUTH2_CLIENT_SECRET = ""  # Discord OAuth Client Secret
-OAUTH2_REDIRECT_URL = "http://localhost:8080/login/callback" if IS_DEVELOPMENT else "http://getwvkeys.cc/login/callback"
+OAUTH2_REDIRECT_URL = "http://localhost:8080/login/callback" if IS_DEVELOPMENT else "https://getwvkeys.cc/login/callback"
 
 PROXY = {}
 DEFAULT_CDMS = [
