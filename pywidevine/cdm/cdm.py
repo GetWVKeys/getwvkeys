@@ -21,6 +21,7 @@ class Cdm:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         self.sessions = {}
+        self.raw_pssh = False
 
     def open_session(self, init_data_b64, device, raw_init_data=None, offline=False):
         self.logger.debug("open_session(init_data_b64={}, device={}".format(init_data_b64, device))
