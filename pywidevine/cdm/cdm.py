@@ -1,7 +1,6 @@
 import base64
 import binascii
 import logging
-import os
 import time
 
 from Cryptodome.Cipher import AES, PKCS1_OAEP
@@ -23,13 +22,13 @@ class Cdm:
         self.logger = logging.getLogger(__name__)
         self.sessions = {}
 
-    def open_session(self, init_data_b64, device, raw_init_data = None, offline=False):
+    def open_session(self, init_data_b64, device, raw_init_data=None, offline=False):
         self.logger.debug("open_session(init_data_b64={}, device={}".format(init_data_b64, device))
         self.logger.info("opening new cdm session")
         if device.session_id_type == 'android':
             # format: 16 random hexdigits, 2 digit counter, 14 0s
             rand_ascii = ''.join(random.choice('ABCDEF0123456789') for _ in range(16))
-            counter = '01' # this resets regularly so its fine to use 01
+            counter = '01'  # this resets regularly so its fine to use 01
             rest = '00000000000000'
             session_id = rand_ascii + counter + rest
             session_id = session_id.encode('ascii')
@@ -40,13 +39,13 @@ class Cdm:
             # other formats NYI
             self.logger.error("device type is unusable")
             return 1
-        if raw_init_data and isinstance(raw_init_data, (bytes, bytearray)):
+
+        self.raw_pssh = raw_init_data and isinstance(raw_init_data, (bytes, bytearray))
+        if self.raw_pssh:
             # used for NF key exchange, where they don't provide a valid PSSH
             init_data = raw_init_data
-            self.raw_pssh = True
         else:
             init_data = self._parse_init_data(init_data_b64)
-            self.raw_pssh = False
 
         if init_data:
             new_session = Session(session_id, init_data, device, offline)
@@ -65,11 +64,10 @@ class Cdm:
         except DecodeError:
             self.logger.debug("unable to parse as-is, trying with removed pssh box header")
             try:
-                id_bytes = parsed_init_data.ParseFromString(base64.b64decode(init_data_b64)[32:])
+                parsed_init_data.ParseFromString(base64.b64decode(init_data_b64)[32:])
             except DecodeError:
                 self.logger.error("unable to parse, unsupported init data format")
                 raise Exception("PSSH ERROR unable to parse init data")
-                return None
         self.logger.debug("init_data:")
         for line in text_format.MessageToString(parsed_init_data).splitlines():
             self.logger.debug(line)
@@ -146,8 +144,7 @@ class Cdm:
             license_request = wv_proto2.SignedLicenseRequest()
         client_id = wv_proto2.ClientIdentification()
 
-
-        #with open(session.device_config.device_client_id_blob_filename, "rb") as f:
+        # with open(session.device_config.device_client_id_blob_filename, "rb") as f:
         f = base64.b64decode(session.device_config.device_client_id_blob_filename)
         try:
             cid_bytes = client_id.ParseFromString(f)
@@ -161,19 +158,19 @@ class Cdm:
             license_request.Msg.ContentId.CencId.Pssh.CopyFrom(session.init_data)
         else:
             license_request.Type = wv_proto2.SignedLicenseRequestRaw.MessageType.Value('LICENSE_REQUEST')
-            license_request.Msg.ContentId.CencId.Pssh = session.init_data # bytes
+            license_request.Msg.ContentId.CencId.Pssh = session.init_data  # bytes
 
         if session.offline:
-           license_type = wv_proto2.LicenseType.Value('OFFLINE')
+            license_type = wv_proto2.LicenseType.Value('OFFLINE')
         else:
-           license_type = wv_proto2.LicenseType.Value('DEFAULT')
+            license_type = wv_proto2.LicenseType.Value('DEFAULT')
         license_request.Msg.ContentId.CencId.LicenseType = license_type
         license_request.Msg.ContentId.CencId.RequestId = session_id
         license_request.Msg.Type = wv_proto2.LicenseRequest.RequestType.Value('NEW')
         license_request.Msg.RequestTime = int(time.time())
         license_request.Msg.ProtocolVersion = wv_proto2.ProtocolVersion.Value('CURRENT')
         if session.device_config.send_key_control_nonce:
-            license_request.Msg.KeyControlNonce = random.randrange(1, 2**31)
+            license_request.Msg.KeyControlNonce = random.randrange(1, 2 ** 31)
 
         if session.privacy_mode:
             if session.device_config.vmp:
@@ -218,11 +215,11 @@ class Cdm:
             license_request.Msg.ClientId.CopyFrom(client_id)
 
         if session.device_config.private_key_available:
-             key = RSA.importKey(base64.b64decode(session.device_config.device_private_key_filename).decode())
-             session.device_key = key
+            key = RSA.importKey(base64.b64decode(session.device_config.device_private_key_filename).decode())
+            session.device_key = key
         else:
-             self.logger.error("need device private key, other methods unimplemented")
-             return 1
+            self.logger.error("need device private key, other methods unimplemented")
+            return 1
 
         self.logger.debug("signing license request")
 
@@ -270,7 +267,7 @@ class Cdm:
         self.logger.debug("deriving keys from session key")
 
         oaep_cipher = PKCS1_OAEP.new(session.device_key)
-        
+
         session.session_key = oaep_cipher.decrypt(license.SessionKey)
 
         lic_req_msg = session.license_request.Msg.SerializeToString()
@@ -317,7 +314,8 @@ class Cdm:
         lic_hmac = HMAC.new(session.derived_keys['auth_1'], digestmod=SHA256)
         lic_hmac.update(license.Msg.SerializeToString())
 
-        self.logger.debug("calculated sig: {} actual sig: {}".format(lic_hmac.hexdigest(), binascii.hexlify(license.Signature)))
+        self.logger.debug(
+            "calculated sig: {} actual sig: {}".format(lic_hmac.hexdigest(), binascii.hexlify(license.Signature)))
 
         if lic_hmac.digest() != license.Signature:
             self.logger.info("license signature doesn't match - writing bin so they can be debugged")
