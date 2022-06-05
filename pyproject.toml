@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Widevine License Proxy"
 authors = [
     "notaghost <65109659+Notaghost9997@users.noreply.github.com>",
-    "14828766+Puyodead1@users.noreply.github.com"
+    "Puyodead1 <14828766+Puyodead1@users.noreply.github.com>"
 ]
 
 [tool.poetry.dependencies]
