@@ -21,8 +21,7 @@ from getwvclone.utils import construct_logger, APIAction
 
 app = Flask(__name__, instance_relative_config=False)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
-app.config.from_object('config')
-app.config.from_pyfile('config.py')
+app.config.from_object(config)
 
 # Logger setup
 logger = construct_logger()
