@@ -2,7 +2,7 @@ import os
 
 IS_DEVELOPMENT = os.environ.get("DEVELOPMENT")
 
-# generate secret with https://generate-secret.vercel.app/32
+# generate secret offline with os.urandom(16).hex()
 SECRET_KEY = ""
 OAUTH2_CLIENT_ID = ""  # Discord OAuth Client ID
 # Discord OAuth Client Secret
