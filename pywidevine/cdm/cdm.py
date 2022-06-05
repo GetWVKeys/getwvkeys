@@ -1,23 +1,22 @@
 import base64
-
+import binascii
+import logging
 import os
 import time
-import binascii
 
-from google.protobuf.message import DecodeError
-from google.protobuf import text_format
-
-from pywidevine.cdm.formats import wv_proto2_pb2 as wv_proto2
-from pywidevine.cdm.session import Session
-from pywidevine.cdm.key import Key
-from Cryptodome.Random import get_random_bytes
-from Cryptodome.Random import random
-from Cryptodome.Cipher import PKCS1_OAEP, AES
-from Cryptodome.Hash import CMAC, SHA256, HMAC, SHA1
+from Cryptodome.Cipher import AES, PKCS1_OAEP
+from Cryptodome.Hash import CMAC, HMAC, SHA1, SHA256
 from Cryptodome.PublicKey import RSA
+from Cryptodome.Random import get_random_bytes, random
 from Cryptodome.Signature import pss
 from Cryptodome.Util import Padding
-import logging
+from google.protobuf import text_format
+from google.protobuf.message import DecodeError
+
+from pywidevine.cdm.formats import wv_proto2_pb2 as wv_proto2
+from pywidevine.cdm.key import Key
+from pywidevine.cdm.session import Session
+
 
 class Cdm:
     def __init__(self):

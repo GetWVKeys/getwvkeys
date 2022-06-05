@@ -1,26 +1,24 @@
-from functools import update_wrapper, wraps
-import os
-from pprint import pprint
-from sqlite3 import DatabaseError
-from flask import Flask, flash, jsonify, make_response, redirect, render_template, request, send_from_directory, send_file, session
-from flask_login import (
-    LoginManager,
-    current_user,
-    login_user,
-    logout_user,
-)
-from oauthlib.oauth2 import WebApplicationClient
 import base64
 import json
+import os
+from functools import update_wrapper, wraps
+from pprint import pprint
+from sqlite3 import DatabaseError
+
 import requests
-from config import API_HOST, API_PORT
-import libraries
+from dunamai import Style, Version
+from flask import (Flask, flash, jsonify, make_response, redirect,
+                   render_template, request, send_file, send_from_directory,
+                   session)
+from flask_login import LoginManager, current_user, login_user, logout_user
+from oauthlib.oauth2 import WebApplicationClient
+from werkzeug.exceptions import (BadRequest, Forbidden, HTTPException,
+                                 Unauthorized)
 from werkzeug.middleware.proxy_fix import ProxyFix
-from werkzeug.exceptions import HTTPException, Forbidden, BadRequest, Unauthorized
 
+import libraries
+from config import API_HOST, API_PORT
 from utils import APIAction, construct_logger
-
-from dunamai import Version, Style
 
 app = Flask(__name__, instance_relative_config=True)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
