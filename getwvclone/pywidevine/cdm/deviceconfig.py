@@ -1,7 +1,7 @@
 import random
 
-from config import DEFAULT_CDMS
-from libraries import Library
+from getwvclone.config import DEFAULT_CDMS
+from getwvclone.libraries import Library
 
 
 class DeviceConfig:

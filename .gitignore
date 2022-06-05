@@ -1,6 +1,6 @@
 *.db
 instance/*.py
-!instance/config.example.py
+!getwvclone/instance/config.example.py
 logs/
 *.aria2
 
@@ -68,7 +68,7 @@ db.sqlite3
 db.sqlite3-journal
 
 # Flask stuff:
-instance/
+getwvclone/instance/
 .webassets-cache
 
 # Scrapy stuff:
