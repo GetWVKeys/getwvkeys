@@ -16,9 +16,8 @@ from werkzeug.exceptions import (BadRequest, Forbidden, HTTPException,
                                  Unauthorized)
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-import libraries
-from config import API_HOST, API_PORT
-from utils import APIAction, construct_logger
+from getwvclone import libraries, config
+from getwvclone.utils import construct_logger, APIAction
 
 app = Flask(__name__, instance_relative_config=True)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
@@ -392,7 +391,7 @@ def pssh():
 
 
 def main():
-    app.run(API_HOST, API_PORT)
+    app.run(config.API_HOST, config.API_PORT)
 
 
 if __name__ == "__main__":
