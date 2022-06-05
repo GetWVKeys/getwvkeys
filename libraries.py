@@ -1,15 +1,16 @@
-import logging
-from flask_login import UserMixin
-import sqlite3
-import requests
 import base64
 import json
-from flask import render_template, Response
-import time
-import yaml
+import logging
 import random
 import secrets
-from werkzeug.exceptions import Forbidden, BadRequest
+import sqlite3
+import time
+
+import requests
+import yaml
+from flask import Response, render_template
+from flask_login import UserMixin
+from werkzeug.exceptions import BadRequest, Forbidden
 
 from config import APPENDERS, DEFAULT_CDMS, GUILD_ID, VERIFIED_ROLE_ID
 from instance.config import OAUTH2_CLIENT_ID, OAUTH2_CLIENT_SECRET

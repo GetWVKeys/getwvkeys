@@ -1,6 +1,7 @@
+import random
+
 from config import DEFAULT_CDMS
 from libraries import Library
-import random
 
 
 class DeviceConfig:
