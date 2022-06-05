@@ -11,8 +11,8 @@ from flask import Response, render_template
 from flask_login import UserMixin
 from werkzeug.exceptions import BadRequest, Forbidden
 
-from config import APPENDERS, DEFAULT_CDMS, GUILD_ID, VERIFIED_ROLE_ID
-from instance.config import OAUTH2_CLIENT_ID, OAUTH2_CLIENT_SECRET
+from getwvclone import config
+from getwvclone.instance.config import OAUTH2_CLIENT_ID, OAUTH2_CLIENT_SECRET
 
 
 class Library:
@@ -124,14 +124,14 @@ class Library:
 
     def dev_append(self, pssh, keys: dict, access):
         # testing PSSH
-        if access not in APPENDERS:
+        if access not in config.APPENDERS:
             raise Exception("You are not allowed to add to database")
 
         try:
             base64.b64decode(pssh)
             from pywidevine.cdm import deviceconfig
             WvDecrypt(pssh, deviceconfig.DeviceConfig(
-                random.choice(DEFAULT_CDMS)))
+                random.choice(config.DEFAULT_CDMS)))
         except Exception as e:
             raise Exception(f"PSSH ERROR {str(e)}")
         data = {
@@ -405,12 +405,12 @@ class User(UserMixin):
             raise Exception(
                 f"Failed to get user guilds: [{r.status_code}] {r.text}")
         guilds = r.json()
-        is_in_guild = any(guild.get("id") == GUILD_ID for guild in guilds)
+        is_in_guild = any(guild.get("id") == config.GUILD_ID for guild in guilds)
         return is_in_guild
 
     @staticmethod
     def user_is_verified(token):
-        url = f"https://discord.com/api/users/@me/guilds/{GUILD_ID}/member"
+        url = f"https://discord.com/api/users/@me/guilds/{config.GUILD_ID}/member"
         headers = {
             "Authorization": f"Bearer {token}",
         }
@@ -419,7 +419,7 @@ class User(UserMixin):
             raise Exception(
                 f"Failed to get guild member: [{r.status_code}] {r.text}")
         data = r.json()
-        return any(role == VERIFIED_ROLE_ID for role in data.get("roles"))
+        return any(role == config.VERIFIED_ROLE_ID for role in data.get("roles"))
 
     @staticmethod
     def is_api_key_bot(api_key):
