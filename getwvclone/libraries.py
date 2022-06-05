@@ -12,7 +12,6 @@ from flask_login import UserMixin
 from werkzeug.exceptions import BadRequest, Forbidden
 
 from getwvclone import config
-from getwvclone.instance.config import OAUTH2_CLIENT_ID, OAUTH2_CLIENT_SECRET
 
 
 class Library:
@@ -425,7 +424,7 @@ class User(UserMixin):
     def is_api_key_bot(api_key):
         """checks if the api key is from the bot"""
         bot_key = base64.b64encode("{}:{}".format(
-            OAUTH2_CLIENT_ID, OAUTH2_CLIENT_SECRET).encode()).decode("utf8")
+            config.OAUTH2_CLIENT_ID, config.OAUTH2_CLIENT_SECRET).encode()).decode("utf8")
         return api_key == bot_key
 
     @staticmethod
