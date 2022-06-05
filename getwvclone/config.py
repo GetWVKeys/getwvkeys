@@ -3,13 +3,17 @@ import os
 import pathlib
 import time
 
+from dotenv import load_dotenv
+
+load_dotenv()
+SECRET_KEY = os.environ["SECRET_KEY"]  # generate secret offline with os.urandom(16).hex()
+OAUTH2_CLIENT_ID = os.environ["OAUTH2_CLIENT_ID"]  # Discord OAuth Client ID
+OAUTH2_CLIENT_SECRET = os.environ["OAUTH2_CLIENT_SECRET"]  # Discord OAuth Client Secret
+OAUTH2_REDIRECT_URL = os.environ["OAUTH2_REDIRECT_URL"]  # Discord OAuth Callback URL
+
 IS_DEVELOPMENT = os.environ.get("DEVELOPMENT", False)
 API_HOST = "0.0.0.0"
 API_PORT = 8080
-SECRET_KEY = ""  # generate secret offline with os.urandom(16).hex()
-OAUTH2_CLIENT_ID = ""  # Discord OAuth Client ID
-OAUTH2_CLIENT_SECRET = ""  # Discord OAuth Client Secret
-OAUTH2_REDIRECT_URL = "https://getwvkeys.cc/login/callback"
 
 PROXY = {}
 DEFAULT_CDMS = [
