@@ -122,13 +122,13 @@ class Library:
             ci.ParseFromString(blob_)
             return str(ci.ClientInfo[5]).split("Value: ")[1].replace("\n", "").replace('"', "")
 
-        ID = get_blob_id(blobs)
+        blob_id = get_blob_id(blobs)
         cdm = self.connect_cdm()
         cdm.execute(
             "INSERT OR IGNORE INTO CDMS (client_id_blob_filename,device_private_key,CODE, uploaded_by) VALUES (?,?,?, ?)",
-            (blobs, key, ID, uploader))
+            (blobs, key, blob_id, uploader))
         self.close_cdm(cdm)
-        return ID
+        return blob_id
 
     def dev_append(self, pssh, keys: dict, access):
         # testing PSSH
@@ -467,7 +467,7 @@ class User(UserMixin):
             return False
 
         status = user[1]
-        role = user[2]
+        role = user[2]  # TODO: Use role where fit
 
         # if the user is suspended, throw forbidden
         if status == 1:

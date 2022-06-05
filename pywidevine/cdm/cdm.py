@@ -148,7 +148,7 @@ class Cdm:
         # with open(session.device_config.device_client_id_blob_filename, "rb") as f:
         f = base64.b64decode(session.device_config.device_client_id_blob_filename)
         try:
-            cid_bytes = client_id.ParseFromString(f)
+            client_id.ParseFromString(f)
         except DecodeError:
             self.logger.error("client id failed to parse as protobuf")
             return 1
@@ -180,7 +180,7 @@ class Cdm:
                 vmp_hashes = wv_proto2.FileHashes()
                 with open(session.device_config.device_vmp_blob_filename, "rb") as f:
                     try:
-                        vmp_bytes = vmp_hashes.ParseFromString(f.read())
+                        vmp_hashes.ParseFromString(f.read())
                     except DecodeError:
                         self.logger.error("vmp hashes failed to parse as protobuf")
                         return 1
@@ -224,8 +224,7 @@ class Cdm:
 
         self.logger.debug("signing license request")
 
-        hash = SHA1.new(license_request.Msg.SerializeToString())
-        signature = pss.new(key).sign(hash)
+        signature = pss.new(key).sign(SHA1.new(license_request.Msg.SerializeToString()))
 
         license_request.Signature = signature
 
@@ -252,24 +251,24 @@ class Cdm:
             self.logger.error("generate a license request first!")
             return 1
 
-        license = wv_proto2.SignedLicense()
+        signed_license = wv_proto2.SignedLicense()
         try:
-            license.ParseFromString(base64.b64decode(license_b64))
+            signed_license.ParseFromString(base64.b64decode(license_b64))
         except DecodeError:
             self.logger.error("unable to parse license - check protobufs")
             return 1
 
-        session.license = license
+        session.license = signed_license
 
         self.logger.debug("license:")
-        for line in text_format.MessageToString(license).splitlines():
+        for line in text_format.MessageToString(signed_license).splitlines():
             self.logger.debug(line)
 
         self.logger.debug("deriving keys from session key")
 
         oaep_cipher = PKCS1_OAEP.new(session.device_key)
 
-        session.session_key = oaep_cipher.decrypt(license.SessionKey)
+        session.session_key = oaep_cipher.decrypt(signed_license.SessionKey)
 
         lic_req_msg = session.license_request.Msg.SerializeToString()
 
@@ -313,32 +312,32 @@ class Cdm:
         self.logger.debug('verifying license signature')
 
         lic_hmac = HMAC.new(session.derived_keys['auth_1'], digestmod=SHA256)
-        lic_hmac.update(license.Msg.SerializeToString())
+        lic_hmac.update(signed_license.Msg.SerializeToString())
 
         self.logger.debug(
-            "calculated sig: {} actual sig: {}".format(lic_hmac.hexdigest(), binascii.hexlify(license.Signature)))
+            "calculated sig: {} actual sig: {}".format(lic_hmac.hexdigest(), binascii.hexlify(signed_license.Signature)))
 
-        if lic_hmac.digest() != license.Signature:
+        if lic_hmac.digest() != signed_license.Signature:
             self.logger.info("license signature doesn't match - writing bin so they can be debugged")
             with open("original_lic.bin", "wb") as f:
                 f.write(base64.b64decode(license_b64))
             with open("parsed_lic.bin", "wb") as f:
-                f.write(license.SerializeToString())
+                f.write(signed_license.SerializeToString())
             self.logger.info("continuing anyway")
 
-        self.logger.debug("key count: {}".format(len(license.Msg.Key)))
-        for key in license.Msg.Key:
+        self.logger.debug("key count: {}".format(len(signed_license.Msg.Key)))
+        for key in signed_license.Msg.Key:
             if key.Id:
                 key_id = key.Id
             else:
                 key_id = wv_proto2.License.KeyContainer.KeyType.Name(key.Type).encode('utf-8')
             encrypted_key = key.Key
             iv = key.Iv
-            type = wv_proto2.License.KeyContainer.KeyType.Name(key.Type)
+            key_type = wv_proto2.License.KeyContainer.KeyType.Name(key.Type)
 
             cipher = AES.new(session.derived_keys['enc'], AES.MODE_CBC, iv=iv)
             decrypted_key = cipher.decrypt(encrypted_key)
-            if type == "OPERATOR_SESSION":
+            if key_type == "OPERATOR_SESSION":
                 permissions = []
                 perms = key._OperatorSessionKeyPermissions
                 for (descriptor, value) in perms.ListFields():
@@ -347,7 +346,7 @@ class Cdm:
                 print(permissions)
             else:
                 permissions = []
-            session.keys.append(Key(key_id, type, Padding.unpad(decrypted_key, 16), permissions))
+            session.keys.append(Key(key_id, key_type, Padding.unpad(decrypted_key, 16), permissions))
 
         self.logger.info("decrypted all keys")
         return 0

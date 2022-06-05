@@ -128,7 +128,7 @@ if command == 'version':
 
 elif command == 'up':
     # Stop if latest version is dirty
-    if (version()['dirty']):
+    if version()['dirty']:
         print("Latest version is dirty. Please manually correct.")
         exit()
 
