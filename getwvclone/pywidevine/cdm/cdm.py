@@ -12,9 +12,9 @@ from Cryptodome.Util import Padding
 from google.protobuf import text_format
 from google.protobuf.message import DecodeError
 
-from pywidevine.cdm.formats import wv_proto2_pb2 as wv_proto2
-from pywidevine.cdm.key import Key
-from pywidevine.cdm.session import Session
+from getwvclone.pywidevine.cdm.formats import wv_proto2_pb2 as wv_proto2
+from getwvclone.pywidevine.cdm.key import Key
+from getwvclone.pywidevine.cdm.session import Session
 
 
 class Cdm:
