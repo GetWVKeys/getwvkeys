@@ -19,10 +19,8 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from getwvclone import libraries, config
 from getwvclone.utils import construct_logger, APIAction
 
-app = Flask(__name__.split(".")[0], instance_relative_config=True)
+app = Flask(__name__.split(".")[0])
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
-app.config.from_object('getwvclone.config')
-app.config.from_pyfile('config.py')
 
 # Logger setup
 logger = construct_logger()
@@ -30,7 +28,7 @@ logger = construct_logger()
 login_manager = LoginManager()
 login_manager.init_app(app)
 
-client = WebApplicationClient(app.config.get("OAUTH2_CLIENT_ID"))
+client = WebApplicationClient(config.OAUTH2_CLIENT_ID)
 
 # get current git commit sha
 sha = Version.from_git().serialize(style=Style.SemVer, dirty=True)
@@ -43,7 +41,7 @@ def authentication_required(exempt_methods=[], admin_only=False):
         def wrapped_function(*args, **kwargs):
             if request.method in exempt_methods:
                 return func(*args, **kwargs)
-            elif app.config.get('LOGIN_DISABLED'):
+            elif config.LOGIN_DISABLED:
                 return func(*args, **kwargs)
             elif not current_user.is_authenticated:
                 # check if they passed in an api key
@@ -220,8 +218,11 @@ def login():
     if current_user.is_authenticated:
         flash("You are already logged in.", "warning")
         return redirect("/")
-    request_uri = client.prepare_request_uri("https://discord.com/api/oauth2/authorize", redirect_uri=app.config.get(
-        "OAUTH2_REDIRECT_URL"), scope=["guilds", "guilds.members.read", "identify"])
+    request_uri = client.prepare_request_uri(
+        "https://discord.com/api/oauth2/authorize",
+        redirect_uri=config.OAUTH2_REDIRECT_URL,
+        scope=["guilds", "guilds.members.read", "identify"]
+    )
     return render_template("login.html", auth_url=request_uri, current_user=current_user, website_version=sha)
 
 
@@ -233,15 +234,15 @@ def login_callback():
     token_url, headers, body = client.prepare_token_request(
         "https://discord.com/api/oauth2/token",
         authorization_response=request.url,
-        redirect_url=app.config.get("OAUTH2_REDIRECT_URL"),
+        redirect_url=config.OAUTH2_REDIRECT_URL,
         code=code
     )
     token_response = requests.post(
         token_url,
         headers=headers,
         data=body,
-        auth=(app.config.get("OAUTH2_CLIENT_ID"),
-              app.config.get("OAUTH2_CLIENT_SECRET")),
+        auth=(config.OAUTH2_CLIENT_ID,
+              config.OAUTH2_CLIENT_SECRET),
     )
     client.parse_request_body_response(json.dumps(token_response.json()))
     uri, headers, body = client.add_token("https://discord.com/api/oauth2/@me")
@@ -391,7 +392,7 @@ def pssh():
 
 
 def main():
-    app.run(config.API_HOST, config.API_PORT)
+    app.run(config.API_HOST, config.API_PORT, debug=config.IS_DEVELOPMENT)
 
 
 if __name__ == "__main__":
