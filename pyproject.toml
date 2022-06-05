@@ -10,6 +10,8 @@ authors = [
 [tool.poetry.dependencies]
 python = ">=3.7,<4.0"
 Flask = "^2.1.2"
+Flask-Login = "^0.6.1"
+oauthlib = "^3.2.0"
 requests = "^2.27.1"
 protobuf = "3.20.1"
 pycryptodomex = "^3.14.1"
