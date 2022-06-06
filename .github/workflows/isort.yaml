@@ -11,3 +11,5 @@ jobs:
         with:
           python-version: "3.9"
       - uses: isort/isort-action@master
+        with:
+          configuration: "--profile black"
