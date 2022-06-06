@@ -10,8 +10,9 @@ SECRET_KEY = os.environ["SECRET_KEY"]  # generate secret offline with os.urandom
 OAUTH2_CLIENT_ID = os.environ["OAUTH2_CLIENT_ID"]  # Discord OAuth Client ID
 OAUTH2_CLIENT_SECRET = os.environ["OAUTH2_CLIENT_SECRET"]  # Discord OAuth Client Secret
 OAUTH2_REDIRECT_URL = os.environ["OAUTH2_REDIRECT_URL"]  # Discord OAuth Callback URL
+OAUTH2_REDIRECT_URL_DEV = os.environ["OAUTH2_REDIRECT_URL_DEV"]  # Discord OAuth Callback URL for local development
 
-IS_DEVELOPMENT = os.environ.get("DEVELOPMENT", False)
+IS_DEVELOPMENT = bool(os.environ.get("DEVELOPMENT", False))
 API_HOST = "0.0.0.0"
 API_PORT = 8080
 
@@ -23,7 +24,7 @@ DEFAULT_CDMS = [
     "AZ1122/aosp_kenzo/kenzo:7.1.2/NZH542/doveki08121232:userdebug/test-keys",
     "AZ1122/aosp_kenzo/kenzo:7.1.2/NZH543/doveki08121232:userdebug/test-keys",
     "AZ1122/aosp_kenzo/kenzo:7.1.2/NZH544/doveki08121232:userdebug/test-keys",
-    "AZ1122/aosp_kenzo/kenzo:7.1.2/NZH545/doveki08121232:userdebug/test-keys"
+    "AZ1122/aosp_kenzo/kenzo:7.1.2/NZH545/doveki08121232:userdebug/test-keys",
 ]
 APPENDERS = ["staff_getwvkeys", "seopsta0197123"]
 GUILD_ID = "948675767754174465"
@@ -31,9 +32,12 @@ VERIFIED_ROLE_ID = "970332150891155607"
 ELITE_ROLE_ID = "956263275887218808"
 LOGIN_DISABLED = False
 LOG_LEVEL = logging.DEBUG if IS_DEVELOPMENT else logging.INFO
-LOG_FORMAT = '[%(asctime)s] [%(name)s] [%(funcName)s:%(lineno)d] %(levelname)s: %(message)s'
-LOG_DATE_FORMAT = '%I:%M:%S'
-WVK_LOG_FILE_PATH = pathlib.Path(
-    os.getcwd(), "logs", f"GWVK_{time.strftime('%Y-%m-%d')}.log")
-WZ_LOG_FILE_PATH = pathlib.Path(
-    os.getcwd(), "logs", f"ACCESS_{time.strftime('%Y-%m-%d')}.log")
+LOG_FORMAT = "[%(asctime)s] [%(name)s] [%(funcName)s:%(lineno)d] %(levelname)s: %(message)s"
+LOG_DATE_FORMAT = "%I:%M:%S"
+WVK_LOG_FILE_PATH = pathlib.Path(os.getcwd(), "logs", f"GWVK_{time.strftime('%Y-%m-%d')}.log")
+WZ_LOG_FILE_PATH = pathlib.Path(os.getcwd(), "logs", f"ACCESS_{time.strftime('%Y-%m-%d')}.log")
+DATABASE_USER = os.environ["DATABASE_USER"]
+DATABASE_PASSWORD = os.environ["DATABASE_PASSWORD"]
+DATABASE_HOST = os.environ["DATABASE_HOST"]
+DATABASE_PORT = int(os.environ.get("DATABASE_PORT", 3306))
+DATABASE_NAME = os.environ.get("DATABASE_NAME", "getwvclone")

@@ -19,8 +19,12 @@ PyYAML = "^6.0"
 coloredlogs = "^15.0.1"
 dunamai = "^1.12.0"
 python-dotenv = "^0.20.0"
+mariadb = "^1.0.11"
+yoyo-migrations = "^7.3.2"
 
 [tool.poetry.dev-dependencies]
+black = "^22.3.0"
+isort = "^5.10.1"
 
 [tool.poetry.scripts]
 serve = 'getwvclone.main:main'
@@ -28,3 +32,6 @@ serve = 'getwvclone.main:main'
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.isort]
+profile = "black"

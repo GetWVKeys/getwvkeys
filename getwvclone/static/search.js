@@ -37,7 +37,7 @@ async function server_request() {
     document.getElementById("demo").innerHTML = "Searching the database";
 
     const apiKey = getCookie("api_key");
-    const response = await fetch("/findpssh", {
+    const response = await fetch("/search", {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -48,8 +48,25 @@ async function server_request() {
     return await response.text();
   }
   const response = await server_request_data();
-  document.getElementById("demo").innerHTML = response;
+  setInnerHTML(document.getElementById("demo"), response);
 
   formButton.disabled = false;
   formButton.value = "Send";
+}
+
+const setInnerHTML = function (elm, html) {
+  elm.innerHTML = html;
+  Array.from(elm.querySelectorAll("script")).forEach((oldScript) => {
+    const newScript = document.createElement("script");
+    Array.from(oldScript.attributes).forEach((attr) =>
+      newScript.setAttribute(attr.name, attr.value)
+    );
+    newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+    oldScript.parentNode.replaceChild(newScript, oldScript);
+  });
+};
+
+function parseUnixTimestamp(timestamp) {
+  const date = new Date(timestamp * 1000);
+  return date.toLocaleString();
 }
