@@ -1,22 +1,38 @@
 import base64
 import json
 import os
+import time
 from functools import update_wrapper, wraps
 from pathlib import Path
 from pprint import pprint
 from sqlite3 import DatabaseError
-import time
 
 import requests
 from dunamai import Style, Version
-from flask import Flask, jsonify, make_response, redirect, render_template, request, send_file, send_from_directory, session, g
+from flask import (
+    Flask,
+    g,
+    jsonify,
+    make_response,
+    redirect,
+    render_template,
+    request,
+    send_file,
+    send_from_directory,
+    session,
+)
 from flask_login import LoginManager, current_user, login_user, logout_user
 from oauthlib.oauth2 import WebApplicationClient
 from werkzeug.exceptions import BadRequest, Forbidden, Gone, HTTPException, Unauthorized
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from getwvclone import config, libraries
-from getwvclone.utils import APIAction, DatabaseManager, construct_logger, log_date_time_string
+from getwvclone.utils import (
+    APIAction,
+    DatabaseManager,
+    construct_logger,
+    log_date_time_string,
+)
 
 app = Flask(__name__.split(".")[0], root_path=str(Path(__file__).parent))
 app.secret_key = config.SECRET_KEY
