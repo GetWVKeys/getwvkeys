@@ -1,5 +1,6 @@
 import base64
 import struct
+
 from pywidevine.cdm.formats.widevine_pssh_data_pb2 import WidevinePsshData
 
 
