@@ -1,7 +1,7 @@
 import base64
 import struct
 
-from pywidevine.cdm.formats.widevine_pssh_data_pb2 import WidevinePsshData
+from getwvclone.pywidevine.cdm.formats.widevine_pssh_data_pb2 import WidevinePsshData
 
 
 def int_to_bytes(x: int) -> bytes:

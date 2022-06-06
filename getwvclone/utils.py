@@ -1,6 +1,7 @@
 import logging
 import logging.handlers
 from enum import Enum
+import time
 from typing import Union
 
 import mariadb
@@ -17,6 +18,15 @@ class APIAction(Enum):
     KEY_COUNT = "keycount"
     USER_COUNT = "usercount"
     SEARCH = "search"
+
+
+def log_date_time_string():
+    """Return the current time formatted for logging."""
+    monthname = [None, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    now = time.time()
+    year, month, day, hh, mm, ss, x, y, z = time.localtime(now)
+    s = "%02d/%3s/%04d %02d:%02d:%02d" % (day, monthname[month], year, hh, mm, ss)
+    return s
 
 
 def construct_logger():
@@ -38,10 +48,11 @@ def construct_logger():
     file_handler = logging.handlers.RotatingFileHandler(config.WVK_LOG_FILE_PATH, maxBytes=(1024 * 1024) * 5, backupCount=5)
     file_handler.setFormatter(file_formatter)
 
-    # configure werkzeug and flask logger
+    # configure werkzeug logger
     wzlogger = logging.getLogger("werkzeug")
-    wzlogger.setLevel(logging.DEBUG)
+    wzlogger.setLevel(logging.ERROR)
     file_handler = logging.handlers.RotatingFileHandler(config.WZ_LOG_FILE_PATH, maxBytes=(1024 * 1024) * 5, backupCount=5)
+
     # create a regular non-colored formatter for the log file
     file_formatter = logging.Formatter(config.LOG_FORMAT, datefmt=config.LOG_DATE_FORMAT)
     file_handler.setFormatter(file_formatter)

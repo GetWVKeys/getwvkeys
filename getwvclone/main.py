@@ -5,28 +5,18 @@ from functools import update_wrapper, wraps
 from pathlib import Path
 from pprint import pprint
 from sqlite3 import DatabaseError
+import time
 
 import requests
 from dunamai import Style, Version
-from flask import (
-    Flask,
-    flash,
-    jsonify,
-    make_response,
-    redirect,
-    render_template,
-    request,
-    send_file,
-    send_from_directory,
-    session,
-)
+from flask import Flask, jsonify, make_response, redirect, render_template, request, send_file, send_from_directory, session, g
 from flask_login import LoginManager, current_user, login_user, logout_user
 from oauthlib.oauth2 import WebApplicationClient
 from werkzeug.exceptions import BadRequest, Forbidden, Gone, HTTPException, Unauthorized
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from getwvclone import config, libraries
-from getwvclone.utils import APIAction, DatabaseManager, construct_logger
+from getwvclone.utils import APIAction, DatabaseManager, construct_logger, log_date_time_string
 
 app = Flask(__name__.split(".")[0], root_path=str(Path(__file__).parent))
 app.secret_key = config.SECRET_KEY
@@ -48,7 +38,6 @@ sha = Version.from_git().serialize(style=Style.SemVer, dirty=True)
 
 # create library instance
 library = libraries.Library(db_manager)
-
 
 # Utilities
 def authentication_required(exempt_methods=[], admin_only=False):
@@ -84,6 +73,18 @@ def authentication_required(exempt_methods=[], admin_only=False):
 @login_manager.user_loader
 def load_user(user_id):
     return libraries.User.get(db_manager, user_id)
+
+
+@app.before_request
+def before_request():
+    request.start_time = time.time()
+
+
+@app.after_request
+def log_request_info(response):
+    time_taken = round((time.time() - request.start_time) * 1000, 2)
+    logger.info(f'{request.remote_addr} - - [{log_date_time_string()}] "{request.method} {request.path}" {response.status_code} - {current_user.id} - {time_taken}ms')
+    return response
 
 
 @app.route("/")
