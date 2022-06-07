@@ -99,7 +99,8 @@ def before_request():
 @app.after_request
 def log_request_info(response):
     time_taken = round((time.time() - request.start_time) * 1000, 2)
-    logger.info(f'{request.remote_addr} - - [{log_date_time_string()}] "{request.method} {request.path}" {response.status_code} - {current_user.id} - {time_taken}ms')
+    user_id = current_user.id if current_user.is_authenticated else "N/A"
+    logger.info(f'{request.remote_addr} - - [{log_date_time_string()}] "{request.method} {request.path}" {response.status_code} - {user_id} - {time_taken}ms')
     return response
 
 
