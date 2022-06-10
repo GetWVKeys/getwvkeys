@@ -36,7 +36,7 @@ class GetwvCloneApi:
     def generate_request(self):
         if self.args.verbose:
             print("[+] Generating License Request ")
-        data = {"pssh": self.args.pssh, "buildInfo": self.args.buildinfo, "cache": self.args.cache}
+        data = {"pssh": self.args.pssh, "buildInfo": self.args.buildinfo, "cache": self.args.cache, "license_url": self.args.url}
         header = {"X-API-Key": args.auth}
         r = requests.post(self.api_url, json=data, headers=header)
         if not r.ok:
@@ -83,6 +83,7 @@ class GetwvCloneApi:
 
 
 if __name__ == "__main__":
+    getwvkeys_api_key = "__getwvkeys_api_key__"
     print(f"\n{' ' * 6}pywidevine-api {version}\n{' ' * 7} from getwvkeys \n\n")
 
     parser = argparse.ArgumentParser()
@@ -94,14 +95,17 @@ if __name__ == "__main__":
     parser.add_argument("--buildinfo", "-b", default="", help="Buildinfo", required=False)
 
     args = parser.parse_args()
+    args.auth = getwvkeys_api_key if getwvkeys_api_key != "__getwvkeys_api_key__" else None
+
+    while (args.url is None or args.pssh is None) or (args.url == "" or args.pssh == ""):
+        args.url = input("Enter LICENSE URL:")
+        args.pssh = input("Enter PSSH:")
+        if not args.auth:
+            args.auth = input("Enter GetWVKeys API Key:")
 
     if len(sys.argv) == 1:
         parser.print_help()
         print()
-        while (args.url is None and args.pssh is None) or (args.url == "" and args.pssh == ""):
-            args.url = input("Enter LICENSE URL:")
-            args.pssh = input("Enter PSSH:")
-            args.auth = input("Enter GetWVKeys API Key:")
         args.buildinfo = ""
         args.cache = True
         args.verbose = False
