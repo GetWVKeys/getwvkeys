@@ -6,6 +6,7 @@ from functools import update_wrapper, wraps
 from pathlib import Path
 from pprint import pprint
 from sqlite3 import DatabaseError
+from urllib.parse import quote_plus
 
 import requests
 from dunamai import Style, Version
@@ -23,8 +24,9 @@ from flask import (
 )
 from flask_login import LoginManager, current_user, login_user, logout_user
 from oauthlib.oauth2 import WebApplicationClient
-from werkzeug.exceptions import BadRequest, Forbidden, Gone, HTTPException, Unauthorized
+from werkzeug.exceptions import BadRequest, Forbidden, Gone, HTTPException, Unauthorized, NotFound
 from werkzeug.middleware.proxy_fix import ProxyFix
+from oauthlib.oauth2.rfc6749.errors import OAuth2Error
 
 from getwvclone import config, libraries
 from getwvclone.utils import (
@@ -91,17 +93,17 @@ def load_user(user_id):
     return libraries.User.get(db_manager, user_id)
 
 
-@app.before_request
-def before_request():
-    request.start_time = time.time()
+# @app.before_request
+# def before_request():
+#     request.start_time = time.time()
 
 
-@app.after_request
-def log_request_info(response):
-    time_taken = round((time.time() - request.start_time) * 1000, 2)
-    user_id = current_user.id if current_user.is_authenticated else "N/A"
-    logger.info(f'{request.remote_addr} - - [{log_date_time_string()}] "{request.method} {request.path}" {response.status_code} - {user_id} - {time_taken}ms')
-    return response
+# @app.after_request
+# def log_request_info(response):
+#     time_taken = round((time.time() - request.start_time) * 1000, 2)
+#     user_id = current_user.id if current_user.is_authenticated else "N/A"
+#     logger.info(f'{request.remote_addr} - - [{log_date_time_string()}] "{request.method} {request.path}" {response.status_code} - {user_id} - {time_taken}ms')
+#     return response
 
 
 @app.route("/")
@@ -110,10 +112,23 @@ def home():
     return render_template("index.html", page_title="GetWVkeys", current_user=current_user, website_version=sha)
 
 
+@app.route("/faq")
+def faq():
+    return render_template("faq.html", page_title="FAQ", current_user=current_user, website_version=sha)
+
+
 @app.route("/scripts")
 def scripts():
     files = os.listdir(os.path.dirname(os.path.abspath(__file__)) + "/download")
     return render_template("scripts.html", script_names=files, current_user=current_user, website_version=sha)
+
+
+@app.route("/scripts/<file>")
+def downloadfile(file):
+    path = os.path.join(app.root_path, "download", file)
+    if not os.path.isfile(path):
+        raise NotFound("File not found")
+    return send_file(path, as_attachment=True)
 
 
 @app.route("/count")
@@ -135,9 +150,7 @@ def search():
             raise BadRequest("Missing or Invalid Search Query")
         data = library.search(query)
         if len(data) == 0:
-            return render_template(
-                "error.html", page_title="Error", error="Oops, there were no results. But guess what? You can contact us on our Discord server to get access to add cached keys to the database!"
-            )
+            raise NotFound("No keys found")
         else:
             data = library.search_res_to_dict(query, data)
             return render_template("cache.html", results=data)
@@ -145,38 +158,13 @@ def search():
         return render_template("search.html", page_title="Search Database", current_user=current_user, website_version=sha)
 
 
-@app.route("/wv", methods=["POST"])
-@authentication_required()
-def wv():
-    try:
-        event_data = request.get_json(force=True)
-        (proxy, license_url, pssh, headers, buildinfo, cache) = (
-            event_data["proxy"],
-            event_data["license_url"],
-            event_data["pssh"],
-            event_data["headers"],
-            event_data["buildInfo"],
-            event_data["cache"],
-        )
-
-        magic = libraries.Pywidevine(library, proxy, license_url, pssh, headers, buildinfo, cache=cache, user_id=current_user.id)
-        return magic.main(library)
-    except Exception as e:
-        logger.exception(e)
-        return render_template("error.html", page_title="Error", error=str(e))
-
-
 @app.route("/dev", methods=["POST"])
 @authentication_required()
 def dev():
-    try:
-        event_data = request.get_json(force=True)
-        (keys, access) = (event_data["keys"], event_data["access"])
-        magic = library.dev_append(keys, access, user_id=current_user.id)
-        return magic
-    except Exception as e:
-        logger.exception(e)
-        raise BadRequest(str(e))
+    event_data = request.get_json(force=True)
+    (keys, access) = (event_data["keys"], event_data["access"])
+    magic = library.dev_append(keys, access, user_id=current_user.id)
+    return magic
 
 
 @app.route("/upload", methods=["GET", "POST"])
@@ -194,26 +182,42 @@ def upload_file():
         return render_template("upload.html", current_user=current_user, website_version=sha)
 
 
+@app.route("/wv", methods=["POST"])
+@authentication_required()
+def wv():
+    event_data = request.get_json(force=True)
+    (proxy, license_url, pssh, headers, buildinfo, cache) = (
+        event_data.get("proxy", ""),
+        event_data["license_url"],
+        event_data["pssh"],
+        event_data.get("headers", ""),
+        event_data.get("buildInfo", ""),
+        event_data.get("cache", True),
+    )
+    if not pssh or not license_url:
+        raise BadRequest("Missing Fields")
+
+    magic = libraries.Pywidevine(library, proxy, license_url, pssh, headers, buildinfo, cache=cache, user_id=current_user.id)
+    return magic.main(library)
+
+
 @app.route("/api", methods=["POST", "GET"])
 @authentication_required(exempt_methods=["GET"])
 def curl():
     if request.method == "POST":
-        try:
-            event_data = request.get_json(force=True)
-            (proxy, license_url, pssh, headers, buildinfo, cache) = (
-                event_data["proxy"] if "proxy" in event_data else "",
-                event_data["license_url"],
-                event_data["pssh"],
-                event_data["headers"] if "headers" in event_data else "",
-                event_data["buildInfo"] if "buildInfo" in event_data else "",
-                event_data["cache"] if "cache" in event_data else True,
-            )
-            magic = libraries.Pywidevine(library, proxy, license_url, pssh, headers, buildinfo, cache=cache, user_id=current_user.id)
-            return magic.main(library, curl=True)
-
-        except Exception as e:
-            logger.exception(e)
-            raise BadRequest(str(e))
+        event_data = request.get_json(force=True)
+        (proxy, license_url, pssh, headers, buildinfo, cache) = (
+            event_data.get("proxy", ""),
+            event_data["license_url"],
+            event_data["pssh"],
+            event_data.get("headers", ""),
+            event_data.get("buildInfo", ""),
+            event_data.get("cache", True),
+        )
+        if not pssh or not license_url:
+            raise BadRequest("Missing Fields")
+        magic = libraries.Pywidevine(library, proxy, license_url, pssh, headers, buildinfo, cache=cache, user_id=current_user.id)
+        return magic.main(library, curl=True)
     else:
         return render_template("api.html", current_user=current_user, website_version=sha)
 
@@ -221,35 +225,20 @@ def curl():
 @app.route("/pywidevine", methods=["POST"])
 @authentication_required()
 def pywidevine():
-    try:
-        event_data = request.get_json(force=True)
-        (proxy, license_url, pssh, headers, buildinfo, cache, response) = (
-            event_data["proxy"] if "proxy" in event_data else "",
-            event_data["license_url"] if "license_url" in event_data else "",
-            event_data["pssh"] if "pssh" in event_data else "",
-            event_data["headers"] if "headers" in event_data else "",
-            event_data["buildInfo"] if "buildInfo" in event_data else "",
-            event_data["cache"] if "cache" in event_data else True,
-            event_data["response"] if "response" in event_data else None,
-        )
-        magic = libraries.Pywidevine(library, proxy, license_url, pssh, headers, buildinfo, cache=cache, response=response, user_id=current_user.id)
-        return magic.api(library)
-    except Exception as e:
-        logger.exception(e)
-        raise BadRequest(str(e))
-
-
-@app.route("/faq")
-def faq():
-    return render_template("faq.html", page_title="FAQ", current_user=current_user, website_version=sha)
-
-
-@app.route("/download/<file>")
-def downloadfile(file):
-    path = os.path.join(app.root_path, "download", file)
-    if not os.path.isfile(path):
-        return "FILE NOT FOUND"
-    return send_file(path, as_attachment=True)
+    event_data = request.get_json(force=True)
+    (proxy, license_url, pssh, headers, buildinfo, cache, response) = (
+        event_data.get("proxy", ""),
+        event_data["license_url"],
+        event_data["pssh"],
+        event_data.get("headers", ""),
+        event_data.get("buildInfo", ""),
+        event_data.get("cache", True),
+        event_data.get("response"),
+    )
+    if not pssh or not license_url:
+        raise BadRequest("Missing Fields")
+    magic = libraries.Pywidevine(library, proxy, license_url, pssh, headers, buildinfo, cache=cache, response=response, user_id=current_user.id)
+    return magic.api(library)
 
 
 # auth endpoints
@@ -303,26 +292,12 @@ def login_callback():
     is_in_guild = libraries.User.user_is_in_guild(client.access_token)
     if not is_in_guild:
         session.clear()
-        return (
-            render_template(
-                "error.html",
-                page_title="Error",
-                error="You must be in our Discord support server and be verified to use this service. You can join our server here: https://discord.gg/sMBEwDEGQg",
-            ),
-            403,
-        )
+        raise Forbidden("You must be in our Discord support server and be verified to use this service. You can join our server here: https://discord.gg/sMBEwDEGQg")
     # check if the user is verified
     user_is_verified = libraries.User.user_is_verified(client.access_token)
     if not user_is_verified:
         session.clear()
-        return (
-            render_template(
-                "error.html",
-                page_title="Error",
-                error="You must be verified to use this service. Please read the #rules channel.",
-            ),
-            403,
-        )
+        raise Forbidden("You must be verified to use this service. Please read the #rules channel.")
     login_user(user, True)
     # flash("Welcome, {}!".format(user.username), "success")
     resp = make_response(redirect("/"))
@@ -393,16 +368,18 @@ def admin_api():
 
 # error handlers
 @app.errorhandler(DatabaseError)
-def database_error(e):
+def database_error(e: DatabaseError):
     logger.error("[Database] {}".format(e))
-    return (
-        render_template(
-            "error.html",
-            page_title="Internal Server Error",
-            error="Internal Server Error. Please try again later.",
-        ),
-        500,
-    )
+    if request.method == "GET":
+        return render_template("error.html", title=str(e), details="", current_user=current_user, website_version=sha), 500
+    return jsonify({"error": True, "code": 500, "message": str(e)}), 500
+
+
+@app.errorhandler(Exception)
+def database_error(e: Exception):
+    if request.method == "GET":
+        return render_template("error.html", title=str(e), details="", current_user=current_user, website_version=sha), 400
+    return jsonify({"error": True, "code": 400, "message": str(e)}), 400
 
 
 @app.errorhandler(HTTPException)
@@ -410,17 +387,20 @@ def http_exception(e: HTTPException):
     if request.method == "GET":
         if e.code == 401 or e.code == 403:
             return app.login_manager.unauthorized()
-        return render_template("error.html", page_title=e.name, error=e.description), e.code
-    else:
-        return jsonify({"error": True, "code": e.code, "message": e.description}), e.code
+        return render_template("error.html", title=e.name, details=e.description, current_user=current_user, website_version=sha), e.code
+    return jsonify({"error": True, "code": e.code, "message": e.description}), e.code
 
 
 @app.errorhandler(Gone)
-def gone_exception(_):
-    return (
-        render_template("error.html", page_title="Gone", error="This page is no longer available."),
-        410,
-    )
+def gone_exception(e: Gone):
+    if request.method == "GET":
+        return render_template("error.html", title=e.name, details="The page you are looking for is no longer available.", current_user=current_user, website_version=sha), e.code
+    return jsonify({"error": True, "code": 500, "message": "The page you are looking for is no longer available."}), e.code
+
+
+@app.errorhandler(OAuth2Error)
+def oauth2_error(e: OAuth2Error):
+    return render_template("error.html", title=e.description, details="The code was probably already used or is invalid.", current_user=current_user, website_version=sha), e.status_code
 
 
 @login_manager.unauthorized_handler
@@ -438,6 +418,11 @@ def pssh():
 @app.route("/findpssh")
 def findpssh():
     return redirect("/search", 301)
+
+
+@app.route("/download/<file>")
+def downloadfile_old(file):
+    return redirect("/scripts/{}".format(file), 301)
 
 
 def main():
