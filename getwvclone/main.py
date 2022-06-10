@@ -24,9 +24,16 @@ from flask import (
 )
 from flask_login import LoginManager, current_user, login_user, logout_user
 from oauthlib.oauth2 import WebApplicationClient
-from werkzeug.exceptions import BadRequest, Forbidden, Gone, HTTPException, Unauthorized, NotFound
-from werkzeug.middleware.proxy_fix import ProxyFix
 from oauthlib.oauth2.rfc6749.errors import OAuth2Error
+from werkzeug.exceptions import (
+    BadRequest,
+    Forbidden,
+    Gone,
+    HTTPException,
+    NotFound,
+    Unauthorized,
+)
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from getwvclone import config, libraries
 from getwvclone.utils import (
