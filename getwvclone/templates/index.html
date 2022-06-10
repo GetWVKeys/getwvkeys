@@ -1,5 +1,4 @@
-{% extends "base.html" %} {% block title %}Home{% endblock %} {% block content
-%}
+{% extends "base.html" %} {% block title %}Home{% endblock %} {% block content %}
 <section class="wdvn-request">
   <header>
     <h1 class="section-title">Send Widevine Request</h1>
@@ -13,7 +12,7 @@
           type="text"
           id="pssh"
           name="pssh"
-          value="AAAAW3Bzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAADsIARIQ62dqu8s0Xpa7z2FmMPGj2hoNd2lkZXZpbmVfdGVzdCIQZmtqM2xqYVNkZmFsa3IzaioCSEQyAA=="
+          value="AAAAp3Bzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAAIcSEFF0U4YtQlb9i61PWEIgBNcSEPCTfpp3yFXwptQ4ZMXZ82USEE1LDKJawVjwucGYPFF+4rUSEJAqBRprNlaurBkm/A9dkjISECZHD0KW1F0Eqbq7RC4WmAAaDXdpZGV2aW5lX3Rlc3QiFnNoYWthX2NlYzViZmY1ZGM0MGRkYzlI49yVmwY="
         />
       </div>
       <div class="form-item">
@@ -23,42 +22,23 @@
           type="text"
           id="license"
           name="licenseUrl"
-          value="https://proxy.staging.widevine.com/proxy"
+          value="https://cwip-shaka-proxy.appspot.com/no_auth"
         />
       </div>
       <div class="form-item">
         <label for="headers">Headers:</label>
-        <textarea
-          data-lpignore="true"
-          rows="4"
-          cols="64"
-          id="headers"
-          name="headers"
-        >
+        <textarea data-lpignore="true" rows="4" cols="64" id="headers" name="headers">
 accept: "*/*"
-content-length: "316"
 Connection: keep-alive</textarea
         >
       </div>
       <div class="form-item">
         <label for="buildInfo">Build Info:</label>
-        <input
-          data-lpignore="true"
-          type="text"
-          id="buildInfo"
-          name="buildInfo"
-          value=""
-        />
+        <input data-lpignore="true" type="text" id="buildInfo" name="buildInfo" value="" />
       </div>
       <div class="form-item">
         <label for="headers">Proxy:</label>
-        <input
-          data-lpignore="true"
-          type="text"
-          id="proxy"
-          name="proxy"
-          value=""
-        />
+        <input data-lpignore="true" type="text" id="proxy" name="proxy" value="" />
       </div>
       <div class="form-item">
         <label for="cache">Cache:</label>
@@ -89,9 +69,7 @@ Connection: keep-alive</textarea
         </tr>
         <tr>
           <td>ETH&nbsp;&nbsp;</td>
-          <td>
-            &nbsp;&nbsp;0x91af349007877eb1528e5aed186f740febae68f3&nbsp;&nbsp;
-          </td>
+          <td>&nbsp;&nbsp;0x91af349007877eb1528e5aed186f740febae68f3&nbsp;&nbsp;</td>
           <td>&nbsp;&nbsp;Ethereum</td>
         </tr>
         <tr>

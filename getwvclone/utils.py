@@ -1,6 +1,5 @@
 import logging
 import logging.handlers
-import time
 from enum import Enum
 from typing import Union
 
@@ -20,37 +19,28 @@ class APIAction(Enum):
     SEARCH = "search"
 
 
-def log_date_time_string():
-    """Return the current time formatted for logging."""
-    monthname = [None, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-    now = time.time()
-    year, month, day, hh, mm, ss, x, y, z = time.localtime(now)
-    s = "%02d/%3s/%04d %02d:%02d:%02d" % (day, monthname[month], year, hh, mm, ss)
-    return s
-
-
 def construct_logger():
-    logging.root.setLevel(config.LOG_LEVEL)
+    logging.root.setLevel(config.ROOT_LOG_LEVEL)
 
+    # ensure parent folders exist
     config.WVK_LOG_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
     config.WZ_LOG_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
 
     # setup handlers
     # create a colored formatter for the console
     console_formatter = ColoredFormatter(config.LOG_FORMAT, datefmt=config.LOG_DATE_FORMAT)
+
     # create a regular non-colored formatter for the log file
     file_formatter = logging.Formatter(config.LOG_FORMAT, datefmt=config.LOG_DATE_FORMAT)
+
     # create a handler for console logging
     stream = logging.StreamHandler()
-    stream.setLevel(config.LOG_LEVEL)
+    stream.setLevel(config.CONSOLE_LOG_LEVEL)
     stream.setFormatter(console_formatter)
-    # create a handler for file logging, 5 mb max size, with 5 backup files
-    file_handler = logging.handlers.RotatingFileHandler(config.WVK_LOG_FILE_PATH, maxBytes=(1024 * 1024) * 5, backupCount=5)
-    file_handler.setFormatter(file_formatter)
 
     # configure werkzeug logger
     wzlogger = logging.getLogger("werkzeug")
-    wzlogger.setLevel(logging.ERROR)
+    wzlogger.setLevel(logging.DEBUG)
     file_handler = logging.handlers.RotatingFileHandler(config.WZ_LOG_FILE_PATH, maxBytes=(1024 * 1024) * 5, backupCount=5)
 
     # create a regular non-colored formatter for the log file
@@ -59,9 +49,13 @@ def construct_logger():
     wzlogger.addHandler(file_handler)
     wzlogger.addHandler(stream)
 
+    # create a handler for file logging, 5 mb max size, with 5 backup files
+    file_handler = logging.handlers.RotatingFileHandler(config.WVK_LOG_FILE_PATH, maxBytes=(1024 * 1024) * 5, backupCount=5)
+    file_handler.setFormatter(file_formatter)
+    file_handler.setLevel(config.FILE_LOG_LEVEL)
+
     # construct the logger
     logger = logging.getLogger("getwvkeys")
-    logger.setLevel(config.LOG_LEVEL)
     logger.addHandler(stream)
     logger.addHandler(file_handler)
     return logger

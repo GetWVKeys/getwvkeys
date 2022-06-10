@@ -8,7 +8,7 @@
       <h2>Curl</h2>
       <p>
         curl https://getwvkeys.cc/api -d "{\"license_url\":
-        \"https://proxy.staging.widevine.com/proxy\",\"pssh\":\"AAAAW3Bzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAADsIARIQ62dqu8s0Xpa7z2FmMPGj2hoNd2lkZXZpbmVfdGVzdCIQZmtqM2xqYVNkZmFsa3IzaioCSEQyAA==\",\"cache\":false}"
+        \"https://cwip-shaka-proxy.appspot.com/no_auth\",\"pssh\":\"AAAAp3Bzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAAIcSEFF0U4YtQlb9i61PWEIgBNcSEPCTfpp3yFXwptQ4ZMXZ82USEE1LDKJawVjwucGYPFF+4rUSEJAqBRprNlaurBkm/A9dkjISECZHD0KW1F0Eqbq7RC4WmAAaDXdpZGV2aW5lX3Rlc3QiFnNoYWthX2NlYzViZmY1ZGM0MGRkYzlI49yVmwY=\",\"cache\":false}"
         -H "Referer: https://getwvkeys.cc" -H "X-API-Key: {{ current_user.api_key if
         current_user.api_key else "YOUR API KEY HERE" }}"
       </p>
@@ -18,9 +18,9 @@
       <p>
         import requests,json<br />
         api_url = "https://getwvkeys.cc/api"<br />
-        license_url = "https://proxy.staging.widevine.com/proxy"<br />
+        license_url = "https://cwip-shaka-proxy.appspot.com/no_auth"<br />
         pssh =
-        "AAAAW3Bzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAADsIARIQ62dqu8s0Xpa7z2FmMPGj2hoNd2lkZXZpbmVfdGVzdCIQZmtqM2xqYVNkZmFsa3IzaioCSEQyAA=="<br />
+        "AAAAp3Bzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAAIcSEFF0U4YtQlb9i61PWEIgBNcSEPCTfpp3yFXwptQ4ZMXZ82USEE1LDKJawVjwucGYPFF+4rUSEJAqBRprNlaurBkm/A9dkjISECZHD0KW1F0Eqbq7RC4WmAAaDXdpZGV2aW5lX3Rlc3QiFnNoYWthX2NlYzViZmY1ZGM0MGRkYzlI49yVmwY="<br />
         headers = {'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
         (Ktesttemp, like Gecko) Chrome/90.0.4430.85 Safari/537.36', 'X-API-Key': '{{
         current_user.api_key if current_user.api_key else "YOUR API KEY HERE" }}'}<br />

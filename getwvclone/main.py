@@ -1,6 +1,8 @@
 import base64
+from io import BytesIO
 import json
 import os
+import pathlib
 import time
 from functools import update_wrapper, wraps
 from pathlib import Path
@@ -40,7 +42,6 @@ from getwvclone.utils import (
     APIAction,
     DatabaseManager,
     construct_logger,
-    log_date_time_string,
 )
 
 app = Flask(__name__.split(".")[0], root_path=str(Path(__file__).parent))
@@ -75,7 +76,7 @@ def authentication_required(exempt_methods=[], admin_only=False):
                 return func(*args, **kwargs)
             elif not current_user.is_authenticated:
                 # check if they passed in an api key
-                api_key = request.headers.get("X-API-Key") or request.form.get("X-API-Key")
+                api_key = request.headers.get("X-API-Key") or request.form.get("X-API-Key") or request.headers.get("Authorization") or request.form.get("Authorization")
                 if not api_key:
                     raise Unauthorized("API Key Required")
                 # check if the key is a valid user key
@@ -95,22 +96,25 @@ def authentication_required(exempt_methods=[], admin_only=False):
     return decorator
 
 
+def log_date_time_string():
+    """Return the current time formatted for logging."""
+    monthname = [None, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    now = time.time()
+    year, month, day, hh, mm, ss, x, y, z = time.localtime(now)
+    s = "%02d/%3s/%04d %02d:%02d:%02d" % (day, monthname[month], year, hh, mm, ss)
+    return s
+
+
 @login_manager.user_loader
 def load_user(user_id):
     return libraries.User.get(db_manager, user_id)
 
 
-# @app.before_request
-# def before_request():
-#     request.start_time = time.time()
-
-
-# @app.after_request
-# def log_request_info(response):
-#     time_taken = round((time.time() - request.start_time) * 1000, 2)
-#     user_id = current_user.id if current_user.is_authenticated else "N/A"
-#     logger.info(f'{request.remote_addr} - - [{log_date_time_string()}] "{request.method} {request.path}" {response.status_code} - {user_id} - {time_taken}ms')
-#     return response
+@app.after_request
+def log_request_info(response):
+    user_id = current_user.id if current_user.is_authenticated else "N/A"
+    logger.info(f'{request.remote_addr} - - [{log_date_time_string()}] "{request.method} {request.path}" {response.status_code} - {user_id}: {request.data}')
+    return response
 
 
 @app.route("/")
@@ -132,9 +136,15 @@ def scripts():
 
 @app.route("/scripts/<file>")
 def downloadfile(file):
-    path = os.path.join(app.root_path, "download", file)
-    if not os.path.isfile(path):
+    path = pathlib.Path(app.root_path, "download", file)
+    if not path.is_file():
         raise NotFound("File not found")
+    print(current_user.is_authenticated)
+    if current_user.is_authenticated:
+        data = open(path, "r").read()
+        data = data.replace("__getwvkeys_api_key__", current_user.api_key, 1)
+        f = BytesIO(data.encode())
+        return send_file(f, as_attachment=True, download_name=path.name, mimetype="application/x-python-script")
     return send_file(path, as_attachment=True)
 
 
