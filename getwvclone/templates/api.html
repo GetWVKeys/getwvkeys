@@ -8,7 +8,7 @@
       <h2>Curl</h2>
       <p>
         curl https://getwvkeys.cc/api -d "{\"license_url\":
-        \"https://widevine-proxy.appspot.com/proxy\",\"pssh\":\"AAAAW3Bzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAADsIARIQ62dqu8s0Xpa7z2FmMPGj2hoNd2lkZXZpbmVfdGVzdCIQZmtqM2xqYVNkZmFsa3IzaioCSEQyAA==\",\"cache\":false}"
+        \"https://proxy.staging.widevine.com/proxy\",\"pssh\":\"AAAAW3Bzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAADsIARIQ62dqu8s0Xpa7z2FmMPGj2hoNd2lkZXZpbmVfdGVzdCIQZmtqM2xqYVNkZmFsa3IzaioCSEQyAA==\",\"cache\":false}"
         -H "Referer: https://getwvkeys.cc" -H "X-API-Key: {{ current_user.api_key if
         current_user.api_key else "YOUR API KEY HERE" }}"
       </p>
@@ -18,7 +18,7 @@
       <p>
         import requests,json<br />
         api_url = "https://getwvkeys.cc/api"<br />
-        license_url = "https://widevine-proxy.appspot.com/proxy"<br />
+        license_url = "https://proxy.staging.widevine.com/proxy"<br />
         pssh =
         "AAAAW3Bzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAADsIARIQ62dqu8s0Xpa7z2FmMPGj2hoNd2lkZXZpbmVfdGVzdCIQZmtqM2xqYVNkZmFsa3IzaioCSEQyAA=="<br />
         headers = {'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
