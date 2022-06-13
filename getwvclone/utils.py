@@ -3,8 +3,8 @@ import logging.handlers
 from enum import Enum
 from typing import Union
 
-from coloredlogs import ColoredFormatter
 from cerberus import Validator
+from coloredlogs import ColoredFormatter
 
 from getwvclone import config
 from getwvclone.pssh_utils import parse_pssh
