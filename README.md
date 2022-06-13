@@ -33,3 +33,7 @@ For Windows (Powershell): `$env:OAUTHLIB_INSECURE_TRANSPORT=1`
 
 This will create a new migration file with a filename in the form of:
 `<unix timestamp>.<migration name>.<direction>.<database name>.sql`
+
+# Deploy
+Example deploy command for staging:
+`poetry run gunicorn -w 4 -b 0.0.0.0:8081 getwvclone.main:app`
