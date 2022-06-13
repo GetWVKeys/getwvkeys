@@ -8,13 +8,13 @@ from functools import update_wrapper, wraps
 from pathlib import Path
 from pprint import pprint
 from sqlite3 import DatabaseError
-from urllib.parse import quote_plus
+import traceback
+from flask_sqlalchemy import SQLAlchemy
 
 import requests
 from dunamai import Style, Version
 from flask import (
     Flask,
-    g,
     jsonify,
     make_response,
     redirect,
@@ -27,32 +27,29 @@ from flask import (
 from flask_login import LoginManager, current_user, login_user, logout_user
 from oauthlib.oauth2 import WebApplicationClient
 from oauthlib.oauth2.rfc6749.errors import OAuth2Error
-from werkzeug.exceptions import (
-    BadRequest,
-    Forbidden,
-    Gone,
-    HTTPException,
-    NotFound,
-    Unauthorized,
-)
+from werkzeug.exceptions import BadRequest, Forbidden, Gone, HTTPException, NotFound, Unauthorized, NotImplemented
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from getwvclone import config, libraries
 from getwvclone.utils import (
     APIAction,
-    DatabaseManager,
+    Validators,
     construct_logger,
 )
+from getwvclone.models.CDM import CDM
+from getwvclone.models.User import User
+from getwvclone.models.Key import Key
+from getwvclone.models.Shared import db
 
 app = Flask(__name__.split(".")[0], root_path=str(Path(__file__).parent))
+app.config["SQLALCHEMY_DATABASE_URI"] = config.SQLALCHEMY_DATABASE_URI
 app.secret_key = config.SECRET_KEY
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+db.init_app(app)
 
 # Logger setup
 logger = construct_logger()
 
-# create database manager instance
-db_manager = DatabaseManager(logger)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -63,7 +60,10 @@ client = WebApplicationClient(config.OAUTH2_CLIENT_ID)
 sha = Version.from_git().serialize(style=Style.SemVer, dirty=True)
 
 # create library instance
-library = libraries.Library(db_manager)
+library = libraries.Library(db)
+
+# create validators instance
+validators = Validators()
 
 # Utilities
 def authentication_required(exempt_methods=[], admin_only=False):
@@ -80,10 +80,10 @@ def authentication_required(exempt_methods=[], admin_only=False):
                 if not api_key:
                     raise Unauthorized("API Key Required")
                 # check if the key is a valid user key
-                is_valid = libraries.User.is_api_key_valid(db_manager, api_key)
+                is_valid = libraries.User.is_api_key_valid(db, api_key)
                 if not is_valid:
                     raise Forbidden("Invalid API Key")
-                user = libraries.User.get_user_by_api_key(db_manager, api_key)
+                user = libraries.User.get_user_by_api_key(db, api_key)
                 if not user:
                     raise Forbidden("Invalid API Key")
                 login_user(user, remember=False)
@@ -107,7 +107,7 @@ def log_date_time_string():
 
 @login_manager.user_loader
 def load_user(user_id):
-    return libraries.User.get(db_manager, user_id)
+    return libraries.User.get(db, user_id)
 
 
 @app.after_request
@@ -222,7 +222,7 @@ def wv():
 @authentication_required(exempt_methods=["GET"])
 def curl():
     if request.method == "POST":
-        event_data = request.get_json(force=True)
+        event_data = request.get_json()
         (proxy, license_url, pssh, headers, buildinfo, cache) = (
             event_data.get("proxy", ""),
             event_data["license_url"],
@@ -242,7 +242,7 @@ def curl():
 @app.route("/pywidevine", methods=["POST"])
 @authentication_required()
 def pywidevine():
-    event_data = request.get_json(force=True)
+    event_data = request.get_json()
     (proxy, license_url, pssh, headers, buildinfo, cache, response) = (
         event_data.get("proxy", ""),
         event_data["license_url"],
@@ -256,6 +256,36 @@ def pywidevine():
         raise BadRequest("Missing Fields")
     magic = libraries.Pywidevine(library, proxy, license_url, pssh, headers, buildinfo, cache=cache, response=response, user_id=current_user.id)
     return magic.api(library)
+
+
+# TODO: make this route restricted to specific role
+@app.route("/vinetrimmer", methods=["POST"])
+def vinetrimmer():
+    event_data = request.get_json()
+    # validate the request body
+    if not validators.vinetrimmer_validator(event_data):
+        return jsonify({"status_code": 400, "message": "Malformed Body"})
+
+    # get the data
+    (method, params, token) = (event_data["method"], event_data["params"], event_data["token"])
+
+    if method == "GetKeysX":
+        # Validate params required for method
+        if not validators.key_exchange_validator(params):
+            return jsonify({"status_code": 400, "message": "Malformed Params"})
+        return jsonify({"status_code": 501, "message": "Method Not Implemented"})
+    elif method == "GetKeys":
+        # Validate params required for method
+        if not validators.keys_validator(params):
+            return jsonify({"status_code": 400, "message": "Malformed Params"})
+        return jsonify({"status_code": 501, "message": "Method Not Implemented"})
+    elif method == "GetChallenge":
+        # Validate params required for method
+        if not validators.challenge_validator(params):
+            return jsonify({"status_code": 400, "message": "Malformed Params"})
+        return jsonify({"status_code": 501, "message": "Method Not Implemented"})
+
+    return jsonify({"status_code": 400, "message": "Invalid Method"})
 
 
 # auth endpoints
@@ -299,12 +329,13 @@ def login_callback():
     info_response = requests.get(uri, headers=headers, data=body)
     info = info_response.json()
     userinfo = info.get("user")
-    user = libraries.User.get(db_manager, userinfo.get("id"))
+    user = libraries.User.get(db, userinfo.get("id"))
     if not user:
-        libraries.User.create(db_manager, userinfo)
-        user = libraries.User.get(db_manager, userinfo.get("id"))
-    # update the user info in the database as some fields can change like username
-    libraries.User.update(db_manager, userinfo)
+        libraries.User.create(db, userinfo)
+        user = libraries.User.get(db, userinfo.get("id"))
+    else:
+        # update the user info in the database as some fields can change like username
+        libraries.User.update(db, userinfo)
     # check if the user is in the getwvkeys server
     is_in_guild = libraries.User.user_is_in_guild(client.access_token)
     if not is_in_guild:
@@ -348,24 +379,24 @@ def admin_api():
         user_id = data.get("user_id")
         if not user_id:
             raise BadRequest("Bad Request")
-        libraries.User.disable_user(db_manager, user_id)
+        libraries.User.disable_user(db, user_id)
         return jsonify({"error": False}), 200
     elif action == APIAction.DISABLE_USER_BULK.value:
         user_ids = data.get("user_ids")
         if not user_ids:
             raise BadRequest("Bad Request")
-        libraries.User.disable_users(db_manager, user_ids)
+        libraries.User.disable_users(db, user_ids)
         return jsonify({"error": False}), 200
     elif action == APIAction.ENABLE_USER.value:
         user_id = data.get("user_id")
         if not user_id:
             raise BadRequest("Bad Request")
-        libraries.User.enable_user(db_manager, user_id)
+        libraries.User.enable_user(db, user_id)
         return jsonify({"error": False}), 200
     elif action == APIAction.KEY_COUNT.value:
         return jsonify({"error": False, "message": library.get_keycount()}), 200
     elif action == APIAction.USER_COUNT.value:
-        return jsonify({"error": False, "message": libraries.User.get_user_count(db_manager)}), 200
+        return jsonify({"error": False, "message": libraries.User.get_user_count(db)}), 200
     elif action == APIAction.SEARCH.value:
         query = data.get("query")
         if not query:
@@ -386,7 +417,7 @@ def admin_api():
 # error handlers
 @app.errorhandler(DatabaseError)
 def database_error(e: DatabaseError):
-    logger.error("[Database] {}".format(e))
+    traceback.print_last()
     if request.method == "GET":
         return render_template("error.html", title=str(e), details="", current_user=current_user, website_version=sha), 500
     return jsonify({"error": True, "code": 500, "message": str(e)}), 500
@@ -394,6 +425,7 @@ def database_error(e: DatabaseError):
 
 @app.errorhandler(Exception)
 def database_error(e: Exception):
+    traceback.print_last()
     if request.method == "GET":
         return render_template("error.html", title=str(e), details="", current_user=current_user, website_version=sha), 400
     return jsonify({"error": True, "code": 400, "message": str(e)}), 400
@@ -417,6 +449,7 @@ def gone_exception(e: Gone):
 
 @app.errorhandler(OAuth2Error)
 def oauth2_error(e: OAuth2Error):
+    traceback.print_last()
     return render_template("error.html", title=e.description, details="The code was probably already used or is invalid.", current_user=current_user, website_version=sha), e.status_code
 
 
@@ -443,11 +476,12 @@ def downloadfile_old(file):
 
 
 def main():
-    conn_res = db_manager.connect()
-    if conn_res == False:
-        logger.fatal("Could not connect to the database.")
-        exit(1)
-    app.run(config.API_HOST, config.API_PORT, debug=config.IS_DEVELOPMENT)
+    app.run(config.API_HOST, config.API_PORT, debug=config.IS_DEVELOPMENT, use_reloader=False)
+
+
+def setup():
+    with app.app_context():
+        db.create_all()
 
 
 if __name__ == "__main__":

@@ -1,6 +1,0 @@
-[DEFAULT]
-sources = getwvclone\migrations
-migration_table = _yoyo_migration
-batch_mode = off
-verbosity = 0
-database = mysql://user:password@host/database
