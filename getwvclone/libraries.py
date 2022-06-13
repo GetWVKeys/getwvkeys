@@ -17,7 +17,13 @@ from getwvclone import config
 from getwvclone.models.CDM import CDM as CDMModel
 from getwvclone.models.Key import Key as KeyModel
 from getwvclone.models.User import User as UserModel
-from getwvclone.utils import Bitfield, CachedKey, FlagAction, UserFlags, extract_kid_from_pssh
+from getwvclone.utils import (
+    Bitfield,
+    CachedKey,
+    FlagAction,
+    UserFlags,
+    extract_kid_from_pssh,
+)
 
 logger = logging.getLogger("getwvkeys")
 
