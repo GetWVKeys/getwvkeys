@@ -46,6 +46,7 @@ from getwvclone.models.User import User
 from getwvclone.utils import (
     APIAction,
     Bitfield,
+    FlagAction,
     UserFlags,
     Validators,
     construct_logger,
@@ -81,7 +82,7 @@ def authentication_required(exempt_methods=[], flags_required: int = None):
         def wrapped_function(*args, **kwargs):
             if request.method in exempt_methods:
                 return func(*args, **kwargs)
-            elif config.LOGIN_DISABLED:
+            if config.LOGIN_DISABLED:
                 return func(*args, **kwargs)
 
             # handle api keys
@@ -90,13 +91,17 @@ def authentication_required(exempt_methods=[], flags_required: int = None):
                 api_key = request.headers.get("X-API-Key") or request.form.get("X-API-Key") or request.headers.get("Authorization") or request.form.get("Authorization")
                 if not api_key:
                     raise Unauthorized("API Key Required")
+
                 # check if the key is a bot
                 if libraries.User.is_api_key_bot(api_key):
                     return func(*args, **kwargs)
+
                 # check if the key is a valid user key
                 user = libraries.User.get_user_by_api_key(db, api_key)
+
                 if not user:
                     raise Forbidden("Invalid API Key")
+
                 login_user(user, remember=False)
 
             # check if the user is enabled
@@ -197,13 +202,14 @@ def search():
         return render_template("search.html", page_title="Search Database", current_user=current_user, website_version=sha)
 
 
-@app.route("/dev", methods=["POST"])
+@app.route("/keys", methods=["POST"])
 @authentication_required(flags_required=UserFlags.KEY_ADDING)
-def dev():
-    event_data = request.get_json(force=True)
-    (keys, access) = (event_data["keys"], event_data["access"])
-    magic = library.dev_append(keys, access, user_id=current_user.id)
-    return magic
+def keys():
+    event_data = request.get_json()
+    keys = event_data.get("keys")
+    if not keys or len(keys) == 0:
+        raise BadRequest("Invalid Body")
+    return library.add_keys(keys, user_id=current_user.id)
 
 
 @app.route("/upload", methods=["GET", "POST"])
@@ -280,7 +286,6 @@ def pywidevine():
     return magic.api(library)
 
 
-# TODO: make this route restricted to specific role
 @app.route("/vinetrimmer", methods=["POST"])
 @authentication_required(flags_required=UserFlags.VINETRIMMER)
 def vinetrimmer():
@@ -293,7 +298,7 @@ def vinetrimmer():
     (method, params, token) = (event_data["method"], event_data["params"], event_data["token"])
     user = libraries.User.get_user_by_api_key(db, token)
     if not user:
-        return jsonify({"status_code": 403, "message": "You are not authorized to use this endpoint."})
+        return jsonify({"status_code": 401, "message": "Invalid API Key"})
 
     if method == "GetKeysX":
         # Validate params required for method
@@ -412,19 +417,19 @@ def admin_api():
         if not user_id:
             raise BadRequest("Bad Request")
         libraries.User.disable_user(db, user_id)
-        return jsonify({"error": False}), 200
+        return jsonify({"error": False, "message": None}), 200
     elif action == APIAction.DISABLE_USER_BULK.value:
         user_ids = data.get("user_ids")
         if not user_ids:
             raise BadRequest("Bad Request")
         libraries.User.disable_users(db, user_ids)
-        return jsonify({"error": False}), 200
+        return jsonify({"error": False, "message": None}), 200
     elif action == APIAction.ENABLE_USER.value:
         user_id = data.get("user_id")
         if not user_id:
             raise BadRequest("Bad Request")
         libraries.User.enable_user(db, user_id)
-        return jsonify({"error": False}), 200
+        return jsonify({"error": False, "message": None}), 200
     elif action == APIAction.KEY_COUNT.value:
         return jsonify({"error": False, "message": library.get_keycount()}), 200
     elif action == APIAction.USER_COUNT.value:
@@ -442,6 +447,22 @@ def admin_api():
             for k in b:
                 keys.append(k.get("key"))
         return jsonify({"error": False, "message": keys}), 200
+    elif action == APIAction.UPDATE_PERMISSIONS.value:
+        user_id = data.get("user_id")
+        permissions = data.get("permissions")
+        permission_action = data.get("permission_action", FlagAction.ADD)
+        if not user_id or not permissions:
+            raise BadRequest("Bad Request")
+
+        # get user
+        user = libraries.User.get(db, user_id)
+        if not user:
+            raise NotFound("User not found")
+
+        print("Old flags: ", user.flags_raw)
+        user = user.update_flags(permissions, permission_action)
+        print("New flags: ", user.flags_raw)
+        return jsonify({"error": False, "message": None}), 200
 
     raise BadRequest("Bad Request")
 
@@ -500,6 +521,11 @@ def pssh():
 @app.route("/findpssh")
 def findpssh():
     return redirect("/search", 301)
+
+
+@app.route("/dev")
+def dev():
+    return redirect("/keys", 301)
 
 
 @app.route("/download/<file>")
