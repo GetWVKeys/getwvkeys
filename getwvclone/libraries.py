@@ -16,7 +16,7 @@ from getwvclone import config
 from getwvclone.models.CDM import CDM as CDMModel
 from getwvclone.models.Key import Key as KeyModel
 from getwvclone.models.User import User as UserModel
-from getwvclone.utils import CachedKey, extract_kid_from_pssh
+from getwvclone.utils import Bitfield, CachedKey, UserFlags, extract_kid_from_pssh
 
 logger = logging.getLogger("getwvkeys")
 
@@ -330,8 +330,8 @@ class User(UserMixin):
         self.avatar = user.avatar
         self.public_flags = user.public_flags
         self.api_key = user.api_key
-        self.disabled = user.disabled
-        self.flags = user.flags
+        self.flags_raw = user.flags
+        self.flags = Bitfield(user.flags)
 
     def get_user_cdms(self):
         cdms = CDMModel.query.filter_by(uploaded_by=self.id).all()
@@ -362,8 +362,7 @@ class User(UserMixin):
             "avatar": self.avatar,
             "public_flags": self.public_flags,
             "api_key": self.api_key if api_key else None,
-            "disabled": self.disabled,
-            "flags": self.flags,
+            "flags": self.flags_raw,
         }
 
     @staticmethod
@@ -437,35 +436,33 @@ class User(UserMixin):
 
         return User(db, user)
 
+    def check_status(self):
+        if self.flags.has(UserFlags.SUSPENDED) == 1:
+            raise Forbidden("Your account has been suspended.")
+
     @staticmethod
-    def is_api_key_valid(db: SQLAlchemy, api_key):
+    def is_api_key_valid(db: SQLAlchemy, api_key: str):
         # allow the bot to pass
         if User.is_api_key_bot(api_key):
             return True
+
         user = User.get_user_by_api_key(db, api_key)
         if not user:
             return False
 
-        disabled = user.disabled
-        flags = user.flags  # TODO: Use flags where fit
-
         # if the user is suspended, throw forbidden
-        if disabled == 1:
-            raise Forbidden("Your account has been suspended.")
-
-        # if we require admin, and the user is not admin, throw forbidden
-        # if require_admin and role == 0:
-        #     raise Forbidden("You do not have permission to do this.")
+        user.check_status()
 
         return True
 
     @staticmethod
     def disable_user(db: SQLAlchemy, user_id: str):
-        # update the user record to set disabled to 1
         user = UserModel.query.filter_by(id=user_id).first()
         if not user:
             raise NotFound("User not found")
-        user.disabled = 1
+        flags = Bitfield(user.flags)
+        flags.add(UserFlags.SUSPENDED)
+        user.flags = flags.bits
         db.session.commit()
 
     @staticmethod
@@ -479,11 +476,12 @@ class User(UserMixin):
 
     @staticmethod
     def enable_user(db: SQLAlchemy, user_id):
-        # update the user record to set disabled to 0
         user = UserModel.query.filter_by(id=user_id).first()
         if not user:
             raise NotFound("User not found")
-        user.disabled = 0
+        flags = Bitfield(user.flags)
+        flags.remove(UserFlags.SUSPENDED)
+        user.flags = flags.bits
         db.session.commit()
 
     @staticmethod
