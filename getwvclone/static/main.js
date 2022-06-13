@@ -96,7 +96,7 @@ async function generating_request() {
     );
     const dicted = {
       license_response: license_response_base64String,
-      license: document.getElementById("license").value,
+      license_url: document.getElementById("license").value,
       headers: headers,
       pssh: document.getElementById("pssh").value,
       buildInfo: document.getElementById("buildInfo").value,

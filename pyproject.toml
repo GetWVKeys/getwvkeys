@@ -8,7 +8,7 @@ authors = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.7,<4.0"
+python = ">=3.9"
 Flask = "^2.1.2"
 Flask-Login = "^0.6.1"
 oauthlib = "^3.2.0"
