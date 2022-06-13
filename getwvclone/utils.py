@@ -34,8 +34,6 @@ class FlagAction(Enum):
 
 
 def construct_logger():
-    logging.root.setLevel(config.ROOT_LOG_LEVEL)
-
     # ensure parent folders exist
     config.WVK_LOG_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
     config.WZ_LOG_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)

@@ -31,7 +31,6 @@ GUILD_ID = "948675767754174465"
 VERIFIED_ROLE_ID = "970332150891155607"
 ELITE_ROLE_ID = "956263275887218808"
 LOGIN_DISABLED = False
-ROOT_LOG_LEVEL = logging.DEBUG if IS_DEVELOPMENT else logging.INFO
 CONSOLE_LOG_LEVEL = logging.DEBUG if IS_DEVELOPMENT else logging.ERROR
 FILE_LOG_LEVEL = logging.DEBUG
 LOG_FORMAT = "[%(asctime)s] [%(name)s] [%(funcName)s:%(lineno)d] %(levelname)s: %(message)s"
