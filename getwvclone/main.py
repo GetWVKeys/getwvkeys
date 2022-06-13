@@ -9,7 +9,6 @@ from pathlib import Path
 from pprint import pprint
 from sqlite3 import DatabaseError
 import traceback
-from flask_sqlalchemy import SQLAlchemy
 
 import requests
 from dunamai import Style, Version
@@ -27,7 +26,7 @@ from flask import (
 from flask_login import LoginManager, current_user, login_user, logout_user
 from oauthlib.oauth2 import WebApplicationClient
 from oauthlib.oauth2.rfc6749.errors import OAuth2Error
-from werkzeug.exceptions import BadRequest, Forbidden, Gone, HTTPException, NotFound, Unauthorized, NotImplemented
+from werkzeug.exceptions import BadRequest, Forbidden, Gone, HTTPException, NotFound, Unauthorized
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from getwvclone import config, libraries
@@ -36,6 +35,8 @@ from getwvclone.utils import (
     Validators,
     construct_logger,
 )
+
+# these need to be kept
 from getwvclone.models.CDM import CDM
 from getwvclone.models.User import User
 from getwvclone.models.Key import Key
@@ -49,7 +50,6 @@ db.init_app(app)
 
 # Logger setup
 logger = construct_logger()
-
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -113,7 +113,12 @@ def load_user(user_id):
 @app.after_request
 def log_request_info(response):
     user_id = current_user.id if current_user.is_authenticated else "N/A"
-    logger.info(f'{request.remote_addr} - - [{log_date_time_string()}] "{request.method} {request.path}" {response.status_code} - {user_id}: {request.data}')
+    l = f'{request.remote_addr} - - [{log_date_time_string()}] "{request.method} {request.path}" {response.status_code} - {user_id}'
+
+    if request.data and len(request.data) > 0 and request.headers.get("Content-Type") == "application/json":
+        l += f"\nRequest Data: {request.data.decode()}"
+
+    logger.info(l)
     return response
 
 
@@ -214,7 +219,7 @@ def wv():
     if not pssh or not license_url:
         raise BadRequest("Missing Fields")
 
-    magic = libraries.Pywidevine(library, proxy, license_url, pssh, headers, buildinfo, cache=cache, user_id=current_user.id)
+    magic = libraries.Pywidevine(library, proxy=proxy, license_url=license_url, pssh=pssh, headers=headers, buildinfo=buildinfo, cache=cache, user_id=current_user.id)
     return magic.main(library)
 
 
@@ -233,7 +238,7 @@ def curl():
         )
         if not pssh or not license_url:
             raise BadRequest("Missing Fields")
-        magic = libraries.Pywidevine(library, proxy, license_url, pssh, headers, buildinfo, cache=cache, user_id=current_user.id)
+        magic = libraries.Pywidevine(library, proxy=proxy, license_url=license_url, pssh=pssh, headers=headers, buildinfo=buildinfo, cache=cache, user_id=current_user.id)
         return magic.main(library, curl=True)
     else:
         return render_template("api.html", current_user=current_user, website_version=sha)
@@ -254,7 +259,7 @@ def pywidevine():
     )
     if not pssh or not license_url:
         raise BadRequest("Missing Fields")
-    magic = libraries.Pywidevine(library, proxy, license_url, pssh, headers, buildinfo, cache=cache, response=response, user_id=current_user.id)
+    magic = libraries.Pywidevine(library, proxy=proxy, license_url=license_url, pssh=pssh, headers=headers, buildinfo=buildinfo, cache=cache, response=response, user_id=current_user.id)
     return magic.api(library)
 
 
@@ -268,6 +273,9 @@ def vinetrimmer():
 
     # get the data
     (method, params, token) = (event_data["method"], event_data["params"], event_data["token"])
+    user = libraries.User.get_user_by_api_key(db, token)
+    if not user:
+        return jsonify({"status_code": 403, "message": "You are not authorized to use this endpoint."})
 
     if method == "GetKeysX":
         # Validate params required for method
@@ -278,12 +286,18 @@ def vinetrimmer():
         # Validate params required for method
         if not validators.keys_validator(params):
             return jsonify({"status_code": 400, "message": "Malformed Params"})
-        return jsonify({"status_code": 501, "message": "Method Not Implemented"})
+        (cdmkeyresponse, session_id) = (params["cdmkeyresponse"], params["session_id"])
+        magic = libraries.Pywidevine(library, user.id, response=cdmkeyresponse, session_id=session_id)
+        res = magic.vinetrimmer(library)
+        return jsonify({"status_code": 200, "message": res})
     elif method == "GetChallenge":
         # Validate params required for method
         if not validators.challenge_validator(params):
             return jsonify({"status_code": 400, "message": "Malformed Params"})
-        return jsonify({"status_code": 501, "message": "Method Not Implemented"})
+        (init, cert, raw, licensetype, device) = (params["init"], params["cert"], params["raw"], params["licensetype"], params["device"])
+        magic = libraries.Pywidevine(library, user.id, pssh=init, buildinfo=device, server_certificate=cert)
+        res = magic.vinetrimmer(library)
+        return jsonify({"status_code": 200, "message": res})
 
     return jsonify({"status_code": 400, "message": "Invalid Method"})
 
@@ -417,7 +431,7 @@ def admin_api():
 # error handlers
 @app.errorhandler(DatabaseError)
 def database_error(e: DatabaseError):
-    traceback.print_last()
+    logger.exception(e)
     if request.method == "GET":
         return render_template("error.html", title=str(e), details="", current_user=current_user, website_version=sha), 500
     return jsonify({"error": True, "code": 500, "message": str(e)}), 500
@@ -425,7 +439,7 @@ def database_error(e: DatabaseError):
 
 @app.errorhandler(Exception)
 def database_error(e: Exception):
-    traceback.print_last()
+    logger.exception(e)
     if request.method == "GET":
         return render_template("error.html", title=str(e), details="", current_user=current_user, website_version=sha), 400
     return jsonify({"error": True, "code": 400, "message": str(e)}), 400
@@ -449,7 +463,7 @@ def gone_exception(e: Gone):
 
 @app.errorhandler(OAuth2Error)
 def oauth2_error(e: OAuth2Error):
-    traceback.print_last()
+    logger.exception(e)
     return render_template("error.html", title=e.description, details="The code was probably already used or is invalid.", current_user=current_user, website_version=sha), e.status_code
 
 

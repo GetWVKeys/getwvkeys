@@ -101,7 +101,22 @@ class Library:
 
 
 class Pywidevine:
-    def __init__(self, library: Library, proxy, license_url, pssh, headers, buildinfo, cache=False, response=None, challenge=False, user_id=None):
+    def __init__(
+        self,
+        library: Library,
+        user_id,
+        # TODO: we really shouldn't do this, but vinetrimmer doesn't send license urls without modifications
+        license_url="VINETRIMMER",
+        pssh=None,
+        proxy={},
+        headers={},
+        buildinfo=None,
+        cache=False,
+        response=None,
+        challenge=False,
+        server_certificate=None,
+        session_id=None,
+    ):
         self.library = library
         self.license_url = license_url
         self.pssh = pssh
@@ -114,23 +129,36 @@ class Pywidevine:
         self.challenge = challenge
         self.response = response
         self.user_id = user_id
-        if isinstance(proxy, dict):
-            self.proxy = proxy
-        else:
-            self.proxy = {}
+        self.server_certificate = server_certificate
+        self.proxy = proxy
         self.store_request = {}
+        self.session_id = session_id
 
         # extract KID from pssh
-        try:
-            self.kid = extract_kid_from_pssh(self.pssh)
-            if isinstance(self.kid, list):
-                self.kid = self.kid[0]
-        except Exception as e:
-            logger.exception(e)
-            raise e
+        if self.pssh:
+            try:
+                self.kid = extract_kid_from_pssh(self.pssh)
+                if isinstance(self.kid, list):
+                    self.kid = self.kid[0]
+            except Exception as e:
+                logger.exception(e)
+                raise e
 
-    def _cache_keys(self):
+    def _cache_keys(self, vt=False):
         self.library.cache_keys(self.content_keys)
+
+        # return a list of dicts containing kid and key, this is what vinetrimmer expects
+        if vt:
+            results = list()
+            for entry in self.content_keys:
+                k = entry.key.split(":")
+                results.append(
+                    {
+                        "kid": k[0],
+                        "key": k[1],
+                    }
+                )
+            return results
 
         results = {"kid": self.kid, "license_url": self.license_url, "added_at": self.time, "keys": list()}
         for key in self.content_keys:
@@ -179,6 +207,8 @@ class Pywidevine:
         from getwvclone.pywidevine.cdm import deviceconfig
 
         wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(library, self.buildinfo))
+        if self.server_certificate:
+            wvdecrypt.set_server_certificate(self.server_certificate)
         challenge = wvdecrypt.create_challenge()
 
         decode = self.post_data(self.license_url, self.headers, challenge, self.proxy)
@@ -221,6 +251,35 @@ class Pywidevine:
                 self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, y))
             output = self._cache_keys()
             return output
+
+    def vinetrimmer(self, library: Library):
+        # TODO: implement cache
+        # if self.cache:
+        #    return self.library.search(self.pssh)
+        if self.response is None:
+            from getwvclone.pywidevine.cdm import deviceconfig
+
+            wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(library, self.buildinfo))
+            challenge = wvdecrypt.create_challenge()
+            if len(Library.store_request) > 30:
+                self.store_request = {}
+            self.session_id = wvdecrypt.session.hex()
+            Library.store_request[self.session_id] = wvdecrypt
+
+            res = base64.b64encode(challenge).decode()
+            return {"challenge": res, "session_id": self.session_id}
+        else:
+            if self.session_id not in Library.store_request:
+                raise BadRequest("PSSH CHALLENGE WAS NOT GENERATED FIRST")
+            wvdecrypt = Library.store_request[self.session_id]
+            wvdecrypt.decrypt_license(self.response)
+            for _, y in enumerate(wvdecrypt.get_content_key()):
+                (kid, _) = y.split(":")
+                self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, y))
+            keys = self._cache_keys(vt=True)
+            return {
+                "keys": keys,
+            }
 
 
 class WvDecrypt:
@@ -272,7 +331,7 @@ class User(UserMixin):
         self.public_flags = user.public_flags
         self.api_key = user.api_key
         self.disabled = user.disabled
-        self.role = user.role
+        self.flags = user.flags
 
     def get_user_cdms(self):
         cdms = CDMModel.query.filter_by(uploaded_by=self.id).all()
@@ -304,7 +363,7 @@ class User(UserMixin):
             "public_flags": self.public_flags,
             "api_key": self.api_key if api_key else None,
             "disabled": self.disabled,
-            "role": self.role,
+            "flags": self.flags,
         }
 
     @staticmethod
@@ -388,7 +447,7 @@ class User(UserMixin):
             return False
 
         disabled = user.disabled
-        role = user.role  # TODO: Use role where fit
+        flags = user.flags  # TODO: Use flags where fit
 
         # if the user is suspended, throw forbidden
         if disabled == 1:
