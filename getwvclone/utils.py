@@ -17,6 +17,7 @@ class APIAction(Enum):
     KEY_COUNT = "keycount"
     USER_COUNT = "usercount"
     SEARCH = "search"
+    UPDATE_PERMISSIONS = "update_permissions"
 
 
 class UserFlags(Enum):
@@ -25,6 +26,11 @@ class UserFlags(Enum):
     VINETRIMMER = 1 << 2
     KEY_ADDING = 1 << 3
     SUSPENDED = 1 << 4
+
+
+class FlagAction(Enum):
+    ADD = "add"
+    REMOVE = "remove"
 
 
 def construct_logger():
@@ -153,11 +159,13 @@ class Bitfield:
         if isinstance(bit, UserFlags):
             bit = bit.value
         self.bits |= bit
+        return self.bits
 
     def remove(self, bit: Union[int, UserFlags]):
         if isinstance(bit, UserFlags):
             bit = bit.value
         self.bits &= ~bit
+        return self.bits
 
     def has(self, bit: Union[int, UserFlags]):
         if isinstance(bit, UserFlags):

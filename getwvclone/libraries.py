@@ -3,6 +3,7 @@ import json
 import logging
 import secrets
 import time
+from typing import Union
 from urllib.parse import urlsplit
 
 import requests
@@ -16,7 +17,7 @@ from getwvclone import config
 from getwvclone.models.CDM import CDM as CDMModel
 from getwvclone.models.Key import Key as KeyModel
 from getwvclone.models.User import User as UserModel
-from getwvclone.utils import Bitfield, CachedKey, UserFlags, extract_kid_from_pssh
+from getwvclone.utils import Bitfield, CachedKey, FlagAction, UserFlags, extract_kid_from_pssh
 
 logger = logging.getLogger("getwvkeys")
 
@@ -85,10 +86,7 @@ class Library:
         self.db.session.commit()
         return code
 
-    def dev_append(keys: list, access: str, user_id: str):
-        if access not in config.APPENDERS:
-            raise Exception("You are not allowed to add to database")
-
+    def add_keys(keys: list, user_id: str):
         cached_keys = list()
 
         for entry in keys:
@@ -332,27 +330,26 @@ class User(UserMixin):
         self.api_key = user.api_key
         self.flags_raw = user.flags
         self.flags = Bitfield(user.flags)
+        self.user_model = user
 
     def get_user_cdms(self):
         cdms = CDMModel.query.filter_by(uploaded_by=self.id).all()
         return [x.code for x in cdms]
 
-    # def patch(self, data):
-    #     # loop keys in data dict and create a sql statement
-    #     disallowed_keys = ["id", "username", "discriminator", "avatar", "public_flags", "api_key"]
-    #     values = []
-    #     sql = "UPDATE users SET "
-    #     for key, value in data.items():
-    #         if key.lower() in disallowed_keys:
-    #             continue
-    #         sql += f"{key} = %s, "
-    #         values.append(value)
-    #     if len(values) == 0:
-    #         raise BadRequest("No data to update or update is not allowed")
-    #     sql = sql[:-2]
-    #     sql += f" WHERE id = {self.id}"
+    def patch(self, data):
+        disallowed_keys = ["id", "username", "discriminator", "avatar", "public_flags", "api_key"]
 
-    #     self.db.execute(sql, values)
+        for key, value in data.items():
+            # Skip attributes that cant be changed
+            if key in disallowed_keys:
+                logger.warning("{} cannot be updated".format(key))
+                continue
+            # change attribute
+            setattr(self.user_model, key, value)
+        # save changes
+        self.db.session.commit()
+        # get a new user object
+        return User(self.db, self.user_model)
 
     def to_json(self, api_key=False):
         return {
@@ -364,6 +361,21 @@ class User(UserMixin):
             "api_key": self.api_key if api_key else None,
             "flags": self.flags_raw,
         }
+
+    def update_flags(self, flags: Union[int, Bitfield], action: FlagAction):
+        # get bits from bitfield if it is one
+        if isinstance(flags, Bitfield):
+            flags = flags.bits
+
+        if action == FlagAction.ADD.value:
+            self.user_model.flags = self.flags.add(flags)
+        elif action == FlagAction.REMOVE.value:
+            self.user_model.flags = self.flags.remove(flags)
+        else:
+            raise BadRequest("Unknown flag action")
+
+        self.db.session.commit()
+        return User(self.db, self.user_model)
 
     @staticmethod
     def get(db: SQLAlchemy, user_id: str):
