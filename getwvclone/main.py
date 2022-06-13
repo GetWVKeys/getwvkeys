@@ -1,14 +1,14 @@
 import base64
-from io import BytesIO
 import json
 import os
 import pathlib
 import time
+import traceback
 from functools import update_wrapper, wraps
+from io import BytesIO
 from pathlib import Path
 from pprint import pprint
 from sqlite3 import DatabaseError
-import traceback
 
 import requests
 from dunamai import Style, Version
@@ -26,21 +26,24 @@ from flask import (
 from flask_login import LoginManager, current_user, login_user, logout_user
 from oauthlib.oauth2 import WebApplicationClient
 from oauthlib.oauth2.rfc6749.errors import OAuth2Error
-from werkzeug.exceptions import BadRequest, Forbidden, Gone, HTTPException, NotFound, Unauthorized
+from werkzeug.exceptions import (
+    BadRequest,
+    Forbidden,
+    Gone,
+    HTTPException,
+    NotFound,
+    Unauthorized,
+)
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from getwvclone import config, libraries
-from getwvclone.utils import (
-    APIAction,
-    Validators,
-    construct_logger,
-)
 
 # these need to be kept
 from getwvclone.models.CDM import CDM
-from getwvclone.models.User import User
 from getwvclone.models.Key import Key
 from getwvclone.models.Shared import db
+from getwvclone.models.User import User
+from getwvclone.utils import APIAction, Validators, construct_logger
 
 app = Flask(__name__.split(".")[0], root_path=str(Path(__file__).parent))
 app.config["SQLALCHEMY_DATABASE_URI"] = config.SQLALCHEMY_DATABASE_URI

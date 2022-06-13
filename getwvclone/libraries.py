@@ -4,12 +4,12 @@ import logging
 import secrets
 import time
 from urllib.parse import urlsplit
-from flask_sqlalchemy import SQLAlchemy
 
 import requests
 import yaml
 from flask import jsonify, render_template
 from flask_login import UserMixin
+from flask_sqlalchemy import SQLAlchemy
 from werkzeug.exceptions import BadRequest, Forbidden, NotFound
 
 from getwvclone import config
