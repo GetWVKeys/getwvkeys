@@ -19,6 +19,14 @@ class APIAction(Enum):
     SEARCH = "search"
 
 
+class UserFlags(Enum):
+    ADMIN = 1 << 0
+    BETA_TESTER = 1 << 1
+    VINETRIMMER = 1 << 2
+    KEY_ADDING = 1 << 3
+    SUSPENDED = 1 << 4
+
+
 def construct_logger():
     logging.root.setLevel(config.ROOT_LOG_LEVEL)
 
@@ -133,3 +141,25 @@ class Validators:
         self.key_exchange_validator = Validator(self.key_exchange_schema)
         self.keys_validator = Validator(self.keys_schema)
         self.challenge_validator = Validator(self.challenge_schema)
+
+
+class Bitfield:
+    def __init__(self, bits: Union[int, UserFlags] = 0):
+        if isinstance(bits, UserFlags):
+            bits = bits.value
+        self.bits = bits
+
+    def add(self, bit: Union[int, UserFlags]):
+        if isinstance(bit, UserFlags):
+            bit = bit.value
+        self.bits |= bit
+
+    def remove(self, bit: Union[int, UserFlags]):
+        if isinstance(bit, UserFlags):
+            bit = bit.value
+        self.bits &= ~bit
+
+    def has(self, bit: Union[int, UserFlags]):
+        if isinstance(bit, UserFlags):
+            bit = bit.value
+        return (self.bits & bit) == bit

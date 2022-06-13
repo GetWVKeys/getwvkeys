@@ -43,7 +43,7 @@ from getwvclone.models.CDM import CDM
 from getwvclone.models.Key import Key
 from getwvclone.models.Shared import db
 from getwvclone.models.User import User
-from getwvclone.utils import APIAction, Validators, construct_logger
+from getwvclone.utils import APIAction, Bitfield, UserFlags, Validators, construct_logger
 
 app = Flask(__name__.split(".")[0], root_path=str(Path(__file__).parent))
 app.config["SQLALCHEMY_DATABASE_URI"] = config.SQLALCHEMY_DATABASE_URI
@@ -69,7 +69,7 @@ library = libraries.Library(db)
 validators = Validators()
 
 # Utilities
-def authentication_required(exempt_methods=[], admin_only=False):
+def authentication_required(exempt_methods=[], flags_required: int = None):
     def decorator(func):
         @wraps(func)
         def wrapped_function(*args, **kwargs):
@@ -77,21 +77,29 @@ def authentication_required(exempt_methods=[], admin_only=False):
                 return func(*args, **kwargs)
             elif config.LOGIN_DISABLED:
                 return func(*args, **kwargs)
-            elif not current_user.is_authenticated:
+
+            # handle api keys
+            if not current_user.is_authenticated:
                 # check if they passed in an api key
                 api_key = request.headers.get("X-API-Key") or request.form.get("X-API-Key") or request.headers.get("Authorization") or request.form.get("Authorization")
                 if not api_key:
                     raise Unauthorized("API Key Required")
+                # check if the key is a bot
+                if libraries.User.is_api_key_bot(api_key):
+                    return func(*args, **kwargs)
                 # check if the key is a valid user key
-                is_valid = libraries.User.is_api_key_valid(db, api_key)
-                if not is_valid:
-                    raise Forbidden("Invalid API Key")
                 user = libraries.User.get_user_by_api_key(db, api_key)
                 if not user:
                     raise Forbidden("Invalid API Key")
                 login_user(user, remember=False)
-            elif admin_only and not current_user.is_admin == 1:
-                raise Forbidden("This maze wasn't meant for you.")
+
+            # check if the user is enabled
+            current_user.check_status()
+
+            # check if the user has the required flags
+            if flags_required and not current_user.flags.has(flags_required):
+                raise Forbidden("Insufficient Permissions")
+
             return func(*args, **kwargs)
 
         return update_wrapper(wrapped_function, func)
@@ -184,7 +192,7 @@ def search():
 
 
 @app.route("/dev", methods=["POST"])
-@authentication_required()
+@authentication_required(flags_required=UserFlags.KEY_ADDING)
 def dev():
     event_data = request.get_json(force=True)
     (keys, access) = (event_data["keys"], event_data["access"])
@@ -268,6 +276,7 @@ def pywidevine():
 
 # TODO: make this route restricted to specific role
 @app.route("/vinetrimmer", methods=["POST"])
+@authentication_required(flags_required=UserFlags.VINETRIMMER)
 def vinetrimmer():
     event_data = request.get_json()
     # validate the request body
@@ -385,7 +394,7 @@ def user_profile():
 
 
 @app.route("/admin/api", methods=["POST"])
-@authentication_required(admin_only=True)
+@authentication_required(flags_required=UserFlags.ADMIN)
 def admin_api():
     data = request.get_json()
     if not data:
@@ -451,7 +460,7 @@ def database_error(e: Exception):
 @app.errorhandler(HTTPException)
 def http_exception(e: HTTPException):
     if request.method == "GET":
-        if e.code == 401 or e.code == 403:
+        if e.code == 401:
             return app.login_manager.unauthorized()
         return render_template("error.html", title=e.name, details=e.description, current_user=current_user, website_version=sha), e.code
     return jsonify({"error": True, "code": e.code, "message": e.description}), e.code
