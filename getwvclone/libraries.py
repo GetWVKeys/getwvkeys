@@ -3,23 +3,26 @@ import json
 import logging
 import secrets
 import time
-from typing import Union
 from urllib.parse import urlsplit
+from flask_sqlalchemy import SQLAlchemy
 
 import requests
 import yaml
 from flask import jsonify, render_template
 from flask_login import UserMixin
-from werkzeug.exceptions import BadRequest, Forbidden
+from werkzeug.exceptions import BadRequest, Forbidden, NotFound
 
 from getwvclone import config
-from getwvclone.utils import CachedKey, DatabaseManager, extract_kid_from_pssh
+from getwvclone.models.CDM import CDM as CDMModel
+from getwvclone.models.Key import Key as KeyModel
+from getwvclone.models.User import User as UserModel
+from getwvclone.utils import CachedKey, extract_kid_from_pssh
 
 logger = logging.getLogger("getwvkeys")
 
 
 class Library:
-    def __init__(self, db: DatabaseManager):
+    def __init__(self, db: SQLAlchemy):
         self.db = db
 
     store_request = {}
@@ -29,50 +32,43 @@ class Library:
             self.cache_key(cached_key)
 
     def cache_key(self, cached_key: CachedKey):
-        self.db.execute(
-            "REPLACE INTO `keys_` (`kid`, `added_at`, `added_by`, `license_url`, `key_`) VALUES (?,?,?,?,?)",
-            (cached_key.kid, cached_key.added_at, cached_key.added_by, cached_key.license_url, cached_key.key),
-        )
+        k = KeyModel(kid=cached_key.kid, added_at=cached_key.added_at, added_by=cached_key.added_by, license_url=cached_key.license_url, key_=cached_key.key)
+        self.db.session.add(k)
+        self.db.session.commit()
 
     def get_keycount(self) -> int:
-        self.db.execute("SELECT COUNT(*) FROM `keys_`")
-        result = self.db.fetchone()[0]
-        return result
+        return KeyModel().query.count()
 
     def search(self, query: str) -> list:
         if "-" in query:
             query = query.replace("-", "")
-        self.db.execute("SELECT `kid`, `added_at`, `license_url`, `key_` FROM `keys_` WHERE `kid` = ?", (query,))
-        results = self.db.fetchall()
-        return results
+        return KeyModel.query.filter_by(kid=query).all()
 
-    def search_res_to_dict(self, kid: str, data: list[tuple[str, int, Union[str, None], str]]):
+    def search_res_to_dict(self, kid: str, keys: list[KeyModel]) -> dict:
         """
-        Converts a list of tuples from search method to a list of dicts
+        Converts a list of Keys from search method to a list of dicts
         """
         results = {"kid": kid, "keys": list()}
-        for result in data:
-            license_url = result[2]
+        for key in keys:
+            license_url = key.license_url
             if license_url:
-                s = urlsplit(result[2])
+                s = urlsplit(key.license_url)
                 license_url = "{}://{}".format(s.scheme, s.netloc)
             results["keys"].append(
                 {
-                    "added_at": result[1],
+                    "added_at": key.added_at,
                     # We shouldnt return the license url as that could have sensitive information it in still
                     "license_url": license_url,
-                    "key": result[3],
+                    "key": key.key_,
                 }
             )
         return results
 
-    def cdm_selector(self, blob_id: str) -> dict[str, str]:
-        self.db.execute("SELECT `client_id_blob_filename`,`device_private_key` FROM `cdms` WHERE `code` = ?", (blob_id,))
-        data_result = self.db.fetchone()
-        if not data_result:
-            raise Exception("No CDM found matching the blob_id")
-        data = {"session_id_type": "android", "security_level": "3", "client_id_blob_filename": data_result[0], "device_private_key": data_result[1]}
-        return data
+    def cdm_selector(self, code: str) -> dict:
+        cdm = CDMModel.query.filter_by(code=code).first()
+        if not cdm:
+            raise NotFound("CDM not found")
+        return cdm.to_json()
 
     def update_cdm(self, client_id_blob, device_private_key, uploaded_by) -> str:
         from getwvclone.pywidevine.cdm.formats import wv_proto2_pb2
@@ -83,11 +79,11 @@ class Library:
             ci.ParseFromString(blob_)
             return str(ci.ClientInfo[5]).split("Value: ")[1].replace("\n", "").replace('"', "")
 
-        blob_id = get_blob_id(client_id_blob)
-        self.db.execute(
-            "INSERT IGNORE INTO `cdms` (`client_id_blob_filename`, `device_private_key`, `code`, `uploaded_by`) VALUES (?,?,?,?)", (client_id_blob, device_private_key, blob_id, uploaded_by)
-        )
-        return blob_id
+        code = get_blob_id(client_id_blob)
+        cdm = CDMModel(client_id_blob_filename=client_id_blob, device_private_key=device_private_key, code=code, uploaded_by=uploaded_by)
+        self.db.session.add(cdm)
+        self.db.session.commit()
+        return code
 
     def dev_append(keys: list, access: str, user_id: str):
         if access not in config.APPENDERS:
@@ -267,42 +263,37 @@ class WvDecrypt:
 
 
 class User(UserMixin):
-    def __init__(self, db: DatabaseManager, id, username, discriminator, avatar, public_flags, api_key, disabled, is_admin):
+    def __init__(self, db: SQLAlchemy, user: UserModel):
         self.db = db
-        self.id = id
-        self.username = username
-        self.discriminator = discriminator
-        self.avatar = avatar
-        self.public_flags = public_flags
-        self.api_key = api_key
-        self.disabled = disabled
-        self.is_admin = is_admin
+        self.id = user.id
+        self.username = user.username
+        self.discriminator = user.discriminator
+        self.avatar = user.avatar
+        self.public_flags = user.public_flags
+        self.api_key = user.api_key
+        self.disabled = user.disabled
+        self.role = user.role
 
     def get_user_cdms(self):
-        cdms = []
-        self.db.execute("SELECT code FROM `cdms` WHERE `uploaded_by` = ?", (self.id,))
-        results = self.db.fetchall()
+        cdms = CDMModel.query.filter_by(uploaded_by=self.id).all()
+        return [x.code for x in cdms]
 
-        for result in results:
-            cdms.append(result[0])
-        return cdms
+    # def patch(self, data):
+    #     # loop keys in data dict and create a sql statement
+    #     disallowed_keys = ["id", "username", "discriminator", "avatar", "public_flags", "api_key"]
+    #     values = []
+    #     sql = "UPDATE users SET "
+    #     for key, value in data.items():
+    #         if key.lower() in disallowed_keys:
+    #             continue
+    #         sql += f"{key} = %s, "
+    #         values.append(value)
+    #     if len(values) == 0:
+    #         raise BadRequest("No data to update or update is not allowed")
+    #     sql = sql[:-2]
+    #     sql += f" WHERE id = {self.id}"
 
-    def patch(self, data):
-        # loop keys in data dict and create a sql statement
-        disallowed_keys = ["id", "username", "discriminator", "avatar", "public_flags", "api_key"]
-        values = []
-        sql = "UPDATE users SET "
-        for key, value in data.items():
-            if key.lower() in disallowed_keys:
-                continue
-            sql += f"{key} = ?, "
-            values.append(value)
-        if len(values) == 0:
-            raise BadRequest("No data to update or update is not allowed")
-        sql = sql[:-2]
-        sql += f" WHERE id = {self.id}"
-
-        self.db.execute(sql, values)
+    #     self.db.execute(sql, values)
 
     def to_json(self, api_key=False):
         return {
@@ -313,33 +304,42 @@ class User(UserMixin):
             "public_flags": self.public_flags,
             "api_key": self.api_key if api_key else None,
             "disabled": self.disabled,
-            "is_admin": self.is_admin,
+            "role": self.role,
         }
 
     @staticmethod
-    def get(db: DatabaseManager, user_id):
-        db.execute("SELECT * FROM `users` WHERE `id` = ?", (user_id,))
-        user = db.fetchone()
+    def get(db: SQLAlchemy, user_id: str):
+        user = UserModel.query.filter_by(id=user_id).first()
         if not user:
             return None
 
-        user = User(db, id=user[0], username=user[1], discriminator=user[2], avatar=user[3], public_flags=user[4], api_key=user[5], disabled=user[6], is_admin=user[7])
-        return user
+        return User(db, user)
 
     @staticmethod
-    def create(db: DatabaseManager, userinfo):
+    def create(db: SQLAlchemy, userinfo: dict):
         api_key = secrets.token_hex(32)
-        db.execute(
-            "INSERT INTO `users` (`id`, `username`, `discriminator`, `avatar`, `public_flags`, `api_key`) VALUES (?, ?, ?, ?, ?, ?)",
-            (userinfo.get("id"), userinfo.get("username"), userinfo.get("discriminator"), userinfo.get("avatar"), userinfo.get("public_flags"), api_key),
+        user = UserModel(
+            id=userinfo.get("id"),
+            username=userinfo.get("username"),
+            discriminator=userinfo.get("discriminator"),
+            avatar=userinfo.get("avatar"),
+            public_flags=userinfo.get("public_flags"),
+            api_key=api_key,
         )
+        db.session.add(user)
+        db.session.commit()
 
     @staticmethod
-    def update(db: DatabaseManager, userinfo):
-        db.execute(
-            "UPDATE `users` SET `username` = ?, `discriminator` = ?, `avatar` = ?, `public_flags` = ? WHERE `id` = ?",
-            (userinfo.get("username"), userinfo.get("discriminator"), userinfo.get("avatar"), userinfo.get("public_flags"), userinfo.get("id")),
-        )
+    def update(db: SQLAlchemy, userinfo: dict):
+        user = UserModel.query.filter_by(id=userinfo.get("id")).first()
+        if not user:
+            return None
+
+        user.username = userinfo.get("username")
+        user.discriminator = userinfo.get("discriminator")
+        user.avatar = userinfo.get("avatar")
+        user.public_flags = userinfo.get("public_flags")
+        db.session.commit()
 
     @staticmethod
     def user_is_in_guild(token):
@@ -371,27 +371,24 @@ class User(UserMixin):
         return api_key == bot_key
 
     @staticmethod
-    def get_user_by_api_key(db: DatabaseManager, api_key):
-        db.execute("SELECT * FROM `users` WHERE `api_key` = ?", (api_key,))
-        user = db.fetchone()
+    def get_user_by_api_key(db: SQLAlchemy, api_key):
+        user = UserModel.query.filter_by(api_key=api_key).first()
         if not user:
             return None
 
-        user = User(db, id=user[0], username=user[1], discriminator=user[2], avatar=user[3], public_flags=user[4], api_key=user[5], disabled=user[6], is_admin=user[7])
-        return user
+        return User(db, user)
 
     @staticmethod
-    def is_api_key_valid(db: DatabaseManager, api_key):
+    def is_api_key_valid(db: SQLAlchemy, api_key):
         # allow the bot to pass
         if User.is_api_key_bot(api_key):
             return True
-        db.execute("SELECT `id`, `disabled`, `is_admin` FROM `users` WHERE `api_key` = ?", (api_key,))
-        user = db.fetchone()
+        user = User.get_user_by_api_key(db, api_key)
         if not user:
             return False
 
-        disabled = user[1]
-        role = user[2]  # TODO: Use role where fit
+        disabled = user.disabled
+        role = user.role  # TODO: Use role where fit
 
         # if the user is suspended, throw forbidden
         if disabled == 1:
@@ -404,26 +401,32 @@ class User(UserMixin):
         return True
 
     @staticmethod
-    def disable_user(db: DatabaseManager, user_id):
+    def disable_user(db: SQLAlchemy, user_id: str):
         # update the user record to set disabled to 1
-        db.execute("UPDATE `users` SET `disabled` = ? WHERE `id` = ?", (1, user_id))
+        user = UserModel.query.filter_by(id=user_id).first()
+        if not user:
+            raise NotFound("User not found")
+        user.disabled = 1
+        db.session.commit()
 
     @staticmethod
-    def disable_users(db: DatabaseManager, user_ids):
+    def disable_users(db: SQLAlchemy, user_ids: list):
         print("Request to disable {} users: {}".format(len(user_ids), ", ".join([str(x) for x in user_ids])))
         if len(user_ids) == 0:
             raise BadRequest("No data to update or update is not allowed")
-        a = ["`id` = ?"] * len(user_ids)
-        sql = "UPDATE `users` SET `disabled` = ? WHERE " + " OR ".join(a)
 
-        db.execute(sql, (1, *user_ids))
+        for user_id in user_ids:
+            User.disable_user(db, user_id)
 
     @staticmethod
-    def enable_user(db: DatabaseManager, user_id):
+    def enable_user(db: SQLAlchemy, user_id):
         # update the user record to set disabled to 0
-        db.execute("UPDATE `users` SET `disabled` = ? WHERE `id` = ?", (0, user_id))
+        user = UserModel.query.filter_by(id=user_id).first()
+        if not user:
+            raise NotFound("User not found")
+        user.disabled = 0
+        db.session.commit()
 
     @staticmethod
-    def get_user_count(db: DatabaseManager):
-        count = db.execute("SELECT COUNT(*) FROM `users`").fetchone()[0]
-        return count
+    def get_user_count():
+        return UserModel.query.count()

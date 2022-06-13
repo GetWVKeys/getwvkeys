@@ -3,8 +3,8 @@ import logging.handlers
 from enum import Enum
 from typing import Union
 
-import mariadb
 from coloredlogs import ColoredFormatter
+from cerberus import Validator
 
 from getwvclone import config
 from getwvclone.pssh_utils import parse_pssh
@@ -61,71 +61,6 @@ def construct_logger():
     return logger
 
 
-class DatabaseManager:
-    def __init__(self, logger: logging.Logger):
-        self.logger = logger
-        self.connection = None
-        self.cursor = None
-
-    def connect(self):
-        if self.connection != None:
-            self.logger.warning("[Database] Tried to connect to database, but a connection is already open!")
-            return True
-        try:
-            self.logger.info("[Database] Attempting to connect to database...")
-            self.connection = mariadb.connect(
-                user=config.DATABASE_USER,
-                password=config.DATABASE_PASSWORD,
-                host=config.DATABASE_HOST,
-                port=config.DATABASE_PORT,
-                database=config.DATABASE_NAME,
-            )
-            self.connection.autocommit = True
-            self.cursor = self.connection.cursor()
-            self.logger.info("[Database] Successfully connected to database.")
-            return True
-        except mariadb.Error as e:
-            self.logger.fatal("Error connecting to database: {}".format(e))
-            return False
-
-    def disconnect(self):
-        if self.connection == None:
-            self.logger.warning("[Database] Tried to disconnect from database, but no connection is open!")
-            return True
-        try:
-            self.cursor.close()
-            self.connection.close()
-            self.connection = None
-            self.cursor = None
-            return True
-        except mariadb.Error as e:
-            self.logger.fatal("[Database] Error disconnecting from database: {}".format(e))
-            return False
-
-    def execute(self, query: str, args=Union[None, tuple]):
-        if self.connection == None:
-            self.logger.warning("[Database] Tried to execute query, but no connection is open!")
-            return False
-        try:
-            self.cursor.execute(query, args)
-            return True
-        except mariadb.Error as e:
-            self.logger.fatal("[Database] Error executing query: {}".format(e))
-            return False
-
-    def fetchall(self):
-        return self.cursor.fetchall()
-
-    def fetchone(self):
-        return self.cursor.fetchone()
-
-    def get_cursor(self):
-        return self.cursor
-
-    def get_connection(self):
-        return self.connection
-
-
 class CacheBase(object):
     def __init__(self, added_at: int, added_by: Union[str, None], license_url: Union[str, None]):
         self.added_at = added_at
@@ -171,3 +106,30 @@ def extract_kid_from_pssh(pssh: str):
                 return parsed_pssh.data.key_ids[0]
     except Exception as e:
         raise e
+
+
+class Validators:
+    def __init__(self) -> None:
+        self.vinetrimmer_schema = {
+            "method": {"required": True, "type": "string", "allowed": ["GetKeysX", "GetKeys", "GetChallenge"]},
+            "params": {"required": False, "type": "dict"},
+            "token": {"required": True, "type": "string"},
+        }
+        self.key_exchange_schema = {
+            "cdmkeyresponse": {"required": True, "type": ["string", "binary"]},
+            "encryptionkeyid": {"required": True, "type": ["string", "binary"]},
+            "hmackeyid": {"required": True, "type": ["string", "binary"]},
+            "session_id": {"required": True, "type": "string"},
+        }
+        self.keys_schema = {"cdmkeyresponse": {"required": True, "type": ["string", "binary"]}, "session_id": {"required": True, "type": "string"}}
+        self.challenge_schema = {
+            "init": {"required": True, "type": "string"},
+            "cert": {"required": True, "type": "string"},
+            "raw": {"required": True, "type": "boolean"},
+            "licensetype": {"required": True, "type": "string", "allowed": ["OFFLINE", "STREAMING"]},
+            "device": {"required": True, "type": "string"},
+        }
+        self.vinetrimmer_validator = Validator(self.vinetrimmer_schema)
+        self.key_exchange_validator = Validator(self.key_exchange_schema)
+        self.keys_validator = Validator(self.keys_schema)
+        self.challenge_validator = Validator(self.challenge_schema)
