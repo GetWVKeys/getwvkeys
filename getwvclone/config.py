@@ -14,7 +14,7 @@ OAUTH2_REDIRECT_URL_DEV = os.environ["OAUTH2_REDIRECT_URL_DEV"]  # Discord OAuth
 
 IS_DEVELOPMENT = bool(os.environ.get("DEVELOPMENT", False))
 API_HOST = "0.0.0.0"
-API_PORT = 8080
+API_PORT = int(os.environ.get("API_PORT", 8080))
 
 PROXY = {}
 DEFAULT_CDMS = [
