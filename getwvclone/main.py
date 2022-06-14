@@ -287,7 +287,6 @@ def pywidevine():
 
 
 @app.route("/vinetrimmer", methods=["POST"])
-@authentication_required(flags_required=UserFlags.VINETRIMMER)
 def vinetrimmer():
     event_data = request.get_json()
     # validate the request body
@@ -299,6 +298,9 @@ def vinetrimmer():
     user = libraries.User.get_user_by_api_key(db, token)
     if not user:
         return jsonify({"status_code": 401, "message": "Invalid API Key"})
+
+    if not user.flags.has(UserFlags.VINETRIMMER):
+        return jsonify({"status_code": 403, "message": "Missing Access"})
 
     if method == "GetKeysX":
         # Validate params required for method
