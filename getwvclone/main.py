@@ -251,17 +251,30 @@ def wv():
 def curl():
     if request.method == "POST":
         event_data = request.get_json()
-        (proxy, license_url, pssh, headers, buildinfo, cache) = (
+        (proxy, license_url, pssh, headers, buildinfo, cache, server_certificate, disable_privacy) = (
             event_data.get("proxy", ""),
             event_data["license_url"],
             event_data["pssh"],
             event_data.get("headers", ""),
             event_data.get("buildInfo", ""),
             event_data.get("cache", True),
+            event_data.get("certificate", libraries.common_privacy_cert),
+            event_data.get("disable_privacy", False),
         )
         if not pssh or not license_url:
             raise BadRequest("Missing Fields")
-        magic = libraries.Pywidevine(library, proxy=proxy, license_url=license_url, pssh=pssh, headers=headers, buildinfo=buildinfo, cache=cache, user_id=current_user.id)
+        magic = libraries.Pywidevine(
+            library,
+            proxy=proxy,
+            license_url=license_url,
+            pssh=pssh,
+            headers=headers,
+            buildinfo=buildinfo,
+            cache=cache,
+            user_id=current_user.id,
+            server_certificate=server_certificate,
+            disable_privacy=disable_privacy,
+        )
         return magic.main(library, curl=True)
     else:
         return render_template("api.html", current_user=current_user, website_version=sha)
