@@ -10,7 +10,7 @@ version = "4.0"
 
 # Change your headers here
 def headers():
-    return {"content-length": "316", "Connection": "keep-alive", "accept": "*/*"}
+    return {"Connection": "keep-alive", "accept": "*/*"}
 
 
 # CHANGE THIS FUNCTION TO PARSE LICENSE URL RESPONSE
@@ -37,7 +37,7 @@ class GetwvCloneApi:
         if self.args.verbose:
             print("[+] Generating License Request ")
         data = {"pssh": self.args.pssh, "buildInfo": self.args.buildinfo, "cache": self.args.cache, "license_url": self.args.url}
-        header = {"X-API-Key": args.auth}
+        header = {"X-API-Key": args.auth, "Content-Type": "application/json"}
         r = requests.post(self.api_url, json=data, headers=header)
         if not r.ok:
             if "error" in r.text:
@@ -62,7 +62,7 @@ class GetwvCloneApi:
         if self.args.verbose:
             print("[+] Decrypting with License Request and Response ")
         data = {"pssh": self.args.pssh, "response": license_response, "license_url": self.args.url, "headers": self.args.headers, "buildInfo": self.args.buildinfo, "cache": self.args.cache}
-        header = {"X-API-Key": args.auth}
+        header = {"X-API-Key": args.auth, "Content-Type": "application/json"}
         r = requests.post(self.api_url, json=data, headers=header)
         if not r.ok:
             if "error" in r.text:
