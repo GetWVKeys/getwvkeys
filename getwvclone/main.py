@@ -478,10 +478,7 @@ def admin_api():
             raise BadRequest("Bad Request")
         results = library.search(query)
         results = library.search_res_to_dict(query, results)
-        keys = []
-        for result in results:
-            keys.append(result.get("key"))
-        return jsonify({"error": False, "message": keys}), 200
+        return jsonify({"error": False, "message": results}), 200
     elif action == APIAction.UPDATE_PERMISSIONS.value:
         user_id = data.get("user_id")
         permissions = data.get("permissions")
