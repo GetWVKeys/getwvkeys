@@ -45,7 +45,6 @@ from getwvclone.models.Shared import db
 from getwvclone.models.User import User
 from getwvclone.utils import (
     APIAction,
-    Bitfield,
     FlagAction,
     UserFlags,
     Validators,
