@@ -54,6 +54,7 @@ from getwvclone.utils import (
 
 app = Flask(__name__.split(".")[0], root_path=str(Path(__file__).parent))
 app.config["SQLALCHEMY_DATABASE_URI"] = config.SQLALCHEMY_DATABASE_URI
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.secret_key = config.SECRET_KEY
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 db.init_app(app)
