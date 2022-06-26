@@ -64,8 +64,8 @@ class Library:
         if query.startswith("AAAA"):
             # Try to parse the query as a PSSH and extract a KID
             try:
-                query = extract_kid_from_pssh(self.pssh)
-                if isinstance(self.kid, list):
+                query = extract_kid_from_pssh(query)
+                if isinstance(query, list):
                     query = query[0]
             except Exception as e:
                 logger.exception(e)
