@@ -285,7 +285,7 @@ def curl():
 @authentication_required()
 def pywidevine():
     event_data = request.get_json()
-    (proxy, license_url, pssh, headers, buildinfo, cache, response) = (
+    (proxy, license_url, pssh, headers, buildinfo, cache, response, server_certificate, disable_privacy) = (
         event_data.get("proxy", ""),
         event_data["license_url"],
         event_data["pssh"],
@@ -293,10 +293,24 @@ def pywidevine():
         event_data.get("buildInfo", ""),
         event_data.get("cache", True),
         event_data.get("response"),
+        event_data.get("certificate", libraries.common_privacy_cert),
+        event_data.get("disable_privacy", False),
     )
     if not pssh or not license_url:
         raise BadRequest("Missing Fields")
-    magic = libraries.Pywidevine(library, proxy=proxy, license_url=license_url, pssh=pssh, headers=headers, buildinfo=buildinfo, cache=cache, response=response, user_id=current_user.id)
+    magic = libraries.Pywidevine(
+        library,
+        proxy=proxy,
+        license_url=license_url,
+        pssh=pssh,
+        headers=headers,
+        buildinfo=buildinfo,
+        cache=cache,
+        response=response,
+        user_id=current_user.id,
+        server_certificate=server_certificate,
+        disable_privacy=disable_privacy,
+    )
     return magic.api(library)
 
 
