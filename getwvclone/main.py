@@ -504,7 +504,7 @@ def database_error(e: Exception):
 
 @app.errorhandler(HTTPException)
 def http_exception(e: HTTPException):
-    logger.exception(e)
+    logger.error(e)
     if request.method == "GET":
         if e.code == 401:
             return app.login_manager.unauthorized()
@@ -521,7 +521,7 @@ def gone_exception(e: Gone):
 
 @app.errorhandler(OAuth2Error)
 def oauth2_error(e: OAuth2Error):
-    logger.exception(e)
+    logger.error(e)
     return render_template("error.html", title=e.description, details="The code was probably already used or is invalid.", current_user=current_user, website_version=sha), e.status_code
 
 
