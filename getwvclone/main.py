@@ -12,28 +12,11 @@ from sqlite3 import DatabaseError
 
 import requests
 from dunamai import Style, Version
-from flask import (
-    Flask,
-    jsonify,
-    make_response,
-    redirect,
-    render_template,
-    request,
-    send_file,
-    send_from_directory,
-    session,
-)
+from flask import Flask, Request, jsonify, make_response, redirect, render_template, request, send_file, send_from_directory, session, _request_ctx_stack
 from flask_login import LoginManager, current_user, login_user, logout_user
 from oauthlib.oauth2 import WebApplicationClient
 from oauthlib.oauth2.rfc6749.errors import OAuth2Error
-from werkzeug.exceptions import (
-    BadRequest,
-    Forbidden,
-    Gone,
-    HTTPException,
-    NotFound,
-    Unauthorized,
-)
+from werkzeug.exceptions import BadRequest, Forbidden, Gone, HTTPException, NotFound, Unauthorized, UnsupportedMediaType
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from getwvclone import config, libraries
@@ -116,6 +99,13 @@ def authentication_required(exempt_methods=[], flags_required: int = None):
         return update_wrapper(wrapped_function, func)
 
     return decorator
+
+
+def on_json_loading_failed(self, e):
+    raise UnsupportedMediaType()
+
+
+Request.on_json_loading_failed = on_json_loading_failed
 
 
 def log_date_time_string():
