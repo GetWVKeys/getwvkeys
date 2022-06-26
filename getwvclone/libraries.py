@@ -253,6 +253,8 @@ class Pywidevine:
             from getwvclone.pywidevine.cdm import deviceconfig
 
             wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(library, self.buildinfo))
+            if self.server_certificate:
+                wvdecrypt.set_server_certificate(self.server_certificate)
             challenge = wvdecrypt.create_challenge()
             if len(Library.store_request) > 30:
                 self.store_request = {}
