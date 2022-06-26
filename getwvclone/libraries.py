@@ -54,7 +54,7 @@ class Library:
 
     def cache_key(self, cached_key: CachedKey):
         k = KeyModel(kid=cached_key.kid, added_at=cached_key.added_at, added_by=cached_key.added_by, license_url=cached_key.license_url, key_=cached_key.key)
-        self.db.session.add(k)
+        self.db.session.merge(k)
         self.db.session.commit()
 
     def get_keycount(self) -> int:
@@ -132,7 +132,7 @@ class Pywidevine:
         cache=False,
         response=None,
         challenge=False,
-        server_certificate=common_privacy_cert,
+        server_certificate=None,
         session_id=None,
         disable_privacy=False,
     ):
@@ -148,7 +148,7 @@ class Pywidevine:
         self.challenge = challenge
         self.response = response
         self.user_id = user_id
-        self.server_certificate = None if disable_privacy else server_certificate
+        self.server_certificate = server_certificate
         self.proxy = proxy
         self.store_request = {}
         self.session_id = session_id
@@ -209,7 +209,7 @@ class Pywidevine:
     def main(self, library: Library, curl=False):
         # Cached
         if self.cache:
-            result = self.library.search(self.pssh)
+            result = self.library.search(self.kid)
             cached = self.library.search_res_to_dict(self.kid, result)
             if cached:
                 if not curl:
