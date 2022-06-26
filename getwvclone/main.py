@@ -515,6 +515,7 @@ def database_error(e: Exception):
 
 @app.errorhandler(HTTPException)
 def http_exception(e: HTTPException):
+    logger.exception(e)
     if request.method == "GET":
         if e.code == 401:
             return app.login_manager.unauthorized()
