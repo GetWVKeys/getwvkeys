@@ -1,14 +1,32 @@
 <!DOCTYPE html>
 <html>
   <body>
-    <h2>Cached PSSH</h2>
-
-    <p style="font-family: 'Courier'">PSSH:{{cache['pssh']}}</p>
-    <p style="font-family: 'Courier'">Time:{{cache['time']}}</p>
+    <h2>Cached Key</h2>
+    <p style="font-family: 'Courier'">KID: {{results['kid']}}</p>
+    {% if results['keys']|length == 0 %}
+    <p>No keys found</p>
+    {% else %}
     <ol>
-      {%for key in cache['keys']%}
-      <li style="font-family: 'Courier'">{{key['key']}}</li>
+      {%for key in results['keys']%}
+      <li style="font-family: 'Courier'">
+        <ul>
+          <li style="font-family: 'Courier'">Key: {{key['key']}}</li>
+          <li style="font-family: 'Courier'">License URL: {{key['license_url']}}</li>
+          <li style="font-family: 'Courier'">
+            Added At: <span name="timestamp">{{key['added_at']}}</span>
+          </li>
+        </ul>
+      </li>
       {%endfor%}
     </ol>
+    {% endif %}
+
+    <script>
+      for (const timestampElem of document.getElementsByName("timestamp")) {
+        const timestamp = timestampElem.innerHTML;
+        const parsed = parseUnixTimestamp(timestamp);
+        timestampElem.innerHTML = parsed;
+      }
+    </script>
   </body>
 </html>

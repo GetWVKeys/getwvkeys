@@ -1,110 +1,97 @@
 import base64
 import json
-import random
+import logging
 import secrets
-import sqlite3
 import time
+from typing import Union
+from urllib.parse import urlsplit
 
 import requests
 import yaml
-from flask import Response, render_template
+from flask import jsonify, render_template
 from flask_login import UserMixin
-from werkzeug.exceptions import BadRequest, Forbidden
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.exceptions import BadRequest, Forbidden, NotFound
 
 from getwvclone import config
+from getwvclone.models.CDM import CDM as CDMModel
+from getwvclone.models.Key import Key as KeyModel
+from getwvclone.models.User import User as UserModel
+from getwvclone.utils import (
+    Bitfield,
+    CachedKey,
+    FlagAction,
+    UserFlags,
+    extract_kid_from_pssh,
+)
+
+logger = logging.getLogger("getwvkeys")
+
+common_privacy_cert = (
+    "CAUSxwUKwQIIAxIQFwW5F8wSBIaLBjM6L3cqjBiCtIKSBSKOAjCCAQoCggEBAJntWzsyfateJO/DtiqVtZhSCtW8y"
+    "zdQPgZFuBTYdrjfQFEEQa2M462xG7iMTnJaXkqeB5UpHVhYQCOn4a8OOKkSeTkwCGELbxWMh4x+Ib/7/up34QGeHl"
+    "eB6KRfRiY9FOYOgFioYHrc4E+shFexN6jWfM3rM3BdmDoh+07svUoQykdJDKR+ql1DghjduvHK3jOS8T1v+2RC/TH"
+    "hv0CwxgTRxLpMlSCkv5fuvWCSmvzu9Vu69WTi0Ods18Vcc6CCuZYSC4NZ7c4kcHCCaA1vZ8bYLErF8xNEkKdO7Dev"
+    "Sy8BDFnoKEPiWC8La59dsPxebt9k+9MItHEbzxJQAZyfWgkCAwEAAToUbGljZW5zZS53aWRldmluZS5jb20SgAOuN"
+    "HMUtag1KX8nE4j7e7jLUnfSSYI83dHaMLkzOVEes8y96gS5RLknwSE0bv296snUE5F+bsF2oQQ4RgpQO8GVK5uk5M"
+    "4PxL/CCpgIqq9L/NGcHc/N9XTMrCjRtBBBbPneiAQwHL2zNMr80NQJeEI6ZC5UYT3wr8+WykqSSdhV5Cs6cD7xdn9"
+    "qm9Nta/gr52u/DLpP3lnSq8x2/rZCR7hcQx+8pSJmthn8NpeVQ/ypy727+voOGlXnVaPHvOZV+WRvWCq5z3CqCLl5"
+    "+Gf2Ogsrf9s2LFvE7NVV2FvKqcWTw4PIV9Sdqrd+QLeFHd/SSZiAjjWyWOddeOrAyhb3BHMEwg2T7eTo/xxvF+YkP"
+    "j89qPwXCYcOxF+6gjomPwzvofcJOxkJkoMmMzcFBDopvab5tDQsyN9UPLGhGC98X/8z8QSQ+spbJTYLdgFenFoGq4"
+    "7gLwDS6NWYYQSqzE3Udf2W7pzk4ybyG4PHBYV3s4cyzdq8amvtE/sNSdOKReuHpfQ="
+)
 
 
 class Library:
+    def __init__(self, db: SQLAlchemy):
+        self.db = db
+
     store_request = {}
 
-    def __init__(self):
-        pass
+    def cache_keys(self, cached_keys: list[CachedKey]):
+        for cached_key in cached_keys:
+            self.cache_key(cached_key)
 
-    @staticmethod
-    def connect_database():
-        conn = sqlite3.connect('database.db', isolation_level=None)
-        return conn.cursor()
+    def cache_key(self, cached_key: CachedKey):
+        k = KeyModel(kid=cached_key.kid, added_at=cached_key.added_at, added_by=cached_key.added_by, license_url=cached_key.license_url, key_=cached_key.key)
+        self.db.session.add(k)
+        self.db.session.commit()
 
-    @staticmethod
-    def close_database(conn):
-        conn.close()
+    def get_keycount(self) -> int:
+        return KeyModel().query.count()
 
-    @staticmethod
-    def connect_cdm():
-        conn = sqlite3.connect('cdms.db', isolation_level=None)
-        return conn.cursor()
-
-    @staticmethod
-    def close_cdm(conn):
-        conn.close()
-
-    def cache_keys(self, data):
-        database = self.connect_database()
-        for keys in data['keys']:
-            # for key in keys:
-            # self.database[keys[key].split(':')[0]] = data
-            key = keys.get("key")
-            (kid, _) = key.split(':')
-            database.execute(
-                "INSERT OR IGNORE INTO DATABASE (pssh,headers,KID,proxy,time,license,keys) VALUES (?,?,?,?,?,?,?)",
-                (data['pssh'], json.dumps(data['headers']), kid,
-                    json.dumps(data['proxy']), data['time'], data['license'], json.dumps(data['keys'])))
-        self.close_database(database)
-
-    def cached_number(self):
-        db = self.connect_database()
-        count = db.execute("SELECT COUNT(*) FROM DATABASE").fetchone()[0]
-        self.close_database(db)
-        return count
-
-    @staticmethod
-    def search(query):
+    def search(self, query: str) -> list:
         if "-" in query:
             query = query.replace("-", "")
-        database = Library.connect_database()
-        database.execute(
-            "SELECT keys FROM DATABASE WHERE PSSH = ? or KID = ?", (query, query))
-        results = database.fetchall()
+        return KeyModel.query.filter_by(kid=query).all()
+
+    def search_res_to_dict(self, kid: str, keys: list[KeyModel]) -> dict:
+        """
+        Converts a list of Keys from search method to a list of dicts
+        """
+        results = {"kid": kid, "keys": list()}
+        for key in keys:
+            license_url = key.license_url
+            if license_url:
+                s = urlsplit(key.license_url)
+                license_url = "{}://{}".format(s.scheme, s.netloc)
+            results["keys"].append(
+                {
+                    "added_at": key.added_at,
+                    # We shouldnt return the license url as that could have sensitive information it in still
+                    "license_url": license_url,
+                    "key": key.key_,
+                }
+            )
         return results
 
-    def match(self, pssh):
-        database = self.connect_database()
-        if "-" in pssh:
-            pssh = pssh.replace("-", "")
-        sql = f'SELECT * FROM DATABASE WHERE PSSH = "{pssh}" or KID = "{pssh}"'
-        database_result = database.execute(sql)
-        result = database_result.fetchall()
-        if result:
-            data = {
-                "pssh": result[0][1],
-                "time": result[0][4],
-                "keys": eval(result[0][6]),
-                # "headers": result[0][2],
-                # "proxy": result[0][3],
-                # "license": result[0][5]
-            }
-        else:
-            data = {}
-        self.close_database(database)
-        return data
+    def cdm_selector(self, code: str) -> dict:
+        cdm = CDMModel.query.filter_by(code=code).first()
+        if not cdm:
+            raise NotFound("CDM not found")
+        return cdm.to_json()
 
-    def cdm_selector(self, blob_id):
-        cdm = self.connect_cdm()
-        sql = f'SELECT * FROM CDMS WHERE CODE = "{blob_id}"'
-        database = cdm.execute(sql)
-        data_result = database.fetchall()
-        if not data_result:
-            raise Exception("NO CDM FOUND")
-        data = {
-            "session_id_type": "android",
-            "security_level": "3",
-            "client_id_blob_filename": data_result[0][2],
-            "device_private_key": data_result[0][3]
-        }
-        self.close_cdm(cdm)
-        return data
-
-    def update_cdm(self, blobs, key, uploader):
+    def update_cdm(self, client_id_blob, device_private_key, uploaded_by) -> str:
         from getwvclone.pywidevine.cdm.formats import wv_proto2_pb2
 
         def get_blob_id(blob):
@@ -113,106 +100,122 @@ class Library:
             ci.ParseFromString(blob_)
             return str(ci.ClientInfo[5]).split("Value: ")[1].replace("\n", "").replace('"', "")
 
-        blob_id = get_blob_id(blobs)
-        cdm = self.connect_cdm()
-        cdm.execute(
-            "INSERT OR IGNORE INTO CDMS (client_id_blob_filename,device_private_key,CODE, uploaded_by) VALUES (?,?,?, ?)",
-            (blobs, key, blob_id, uploader))
-        self.close_cdm(cdm)
-        return blob_id
+        code = get_blob_id(client_id_blob)
+        cdm = CDMModel(client_id_blob_filename=client_id_blob, device_private_key=device_private_key, code=code, uploaded_by=uploaded_by)
+        self.db.session.add(cdm)
+        self.db.session.commit()
+        return code
 
-    def dev_append(self, pssh, keys: dict, access):
-        # testing PSSH
-        if access not in config.APPENDERS:
-            raise Exception("You are not allowed to add to database")
+    def add_keys(keys: list, user_id: str):
+        cached_keys = list()
 
-        try:
-            base64.b64decode(pssh)
-            from getwvclone.pywidevine.cdm import deviceconfig
-            WvDecrypt(pssh, deviceconfig.DeviceConfig(
-                random.choice(config.DEFAULT_CDMS)))
-        except Exception as e:
-            raise Exception(f"PSSH ERROR {str(e)}")
-        data = {
-            "pssh": pssh,
-            "time": str(time.ctime()),
-            "keys": json.dumps(keys),
-        }
+        for entry in keys:
+            (added_at, licese_url, key) = (entry.get("time", int(time.time())), entry.get("license_url", None), entry.get("key"))
+            (kid, _) = key.split(":")
+            cached_keys.append(CachedKey(kid, added_at, user_id, licese_url, key))
 
-        for key in keys:
-            if len(key['key'].split(":")[0]) != 32:
-                raise Exception("wrong key length")
-            database = self.connect_database()
-            database.execute(
-                "INSERT OR IGNORE INTO DATABASE (pssh,headers,KID,proxy,time,license,keys) VALUES (?,?,?,?,?,?,?)",
-                (data['pssh'], "", key['key'].split(":")[0],
-                 "", data['time'], "", json.dumps(data['keys']))
-            )
-        response = {
-            "response": "added"
-        }
-        return json.dumps(response)
+        Library.cache_keys(cached_keys)
+        return jsonify({"error": False, "message": "Added {} keys".format(len(keys))}), 201
 
 
 class Pywidevine:
-    def __init__(self, proxy, license_, pssh, headers, buildinfo, cache=False, response=None, challenge=False):
-
-        self.license = license_
+    def __init__(
+        self,
+        library: Library,
+        user_id,
+        # TODO: we really shouldn't do this, but vinetrimmer doesn't send license urls without modifications
+        license_url="VINETRIMMER",
+        pssh=None,
+        proxy={},
+        headers={},
+        buildinfo=None,
+        cache=False,
+        response=None,
+        challenge=False,
+        server_certificate=common_privacy_cert,
+        session_id=None,
+        disable_privacy=False,
+    ):
+        self.library = library
+        self.license_url = license_url
         self.pssh = pssh
+        self.kid = None
         self.headers = headers
         self.buildinfo = buildinfo
         self.cache = cache
-        self.time = str(time.ctime())
-        self.content_key = []
+        self.time = int(time.time())
+        self.content_keys: list[CachedKey] = list()
         self.challenge = challenge
         self.response = response
-        if isinstance(proxy, dict):
-            self.proxy = proxy
-        else:
-            self.proxy = {}
+        self.user_id = user_id
+        self.server_certificate = None if disable_privacy else server_certificate
+        self.proxy = proxy
         self.store_request = {}
+        self.session_id = session_id
 
-    def logs(self):
-        data = {
-            "pssh": self.pssh,
-            "time": self.time,
-            "keys": self.content_key,
-            "headers": self.headers,
-            "proxy": self.proxy,
-            "license": self.license
-        }
-        Library().cache_keys(data)
-        return data
+        # extract KID from pssh
+        if self.pssh:
+            try:
+                self.kid = extract_kid_from_pssh(self.pssh)
+                if isinstance(self.kid, list):
+                    self.kid = self.kid[0]
+            except Exception as e:
+                logger.exception(e)
+                raise e
+
+    def _cache_keys(self, vt=False):
+        self.library.cache_keys(self.content_keys)
+
+        # return a list of dicts containing kid and key, this is what vinetrimmer expects
+        if vt:
+            results = list()
+            for entry in self.content_keys:
+                k = entry.key.split(":")
+                results.append(
+                    {
+                        "kid": k[0],
+                        "key": k[1],
+                    }
+                )
+            return results
+
+        results = {"kid": self.kid, "license_url": self.license_url, "added_at": self.time, "keys": list()}
+        for key in self.content_keys:
+            # s = urlsplit(self.license_url)
+            # license_url = "{}//{}".format(s.scheme, s.netloc)
+            results["keys"].append(key.key)
+
+        return results
 
     @staticmethod
     def yamldomagic(headers):
         try:
-            return {
-                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (Ktesttemp, like Gecko) '
-                              'Chrome/90.0.4430.85 Safari/537.36'
-            } if headers == "" else yaml.safe_load(headers)
+            return (
+                {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (Ktesttemp, like Gecko) " "Chrome/90.0.4430.85 Safari/537.36"}
+                if headers == ""
+                else yaml.safe_load(headers)
+            )
         except Exception as e:
-            raise Exception("Wrong headers:\n" + str(e))
+            raise BadRequest("Wrong headers:\n" + str(e))
 
     @staticmethod
     def post_data(license_url, headers, challenge, proxy):
-        r = requests.post(url=license_url, data=challenge,
-                          headers=headers, proxies=proxy, timeout=10, verify=False)
+        r = requests.post(url=license_url, data=challenge, headers=headers, proxies=proxy, timeout=10, verify=False)
         if r.status_code != 200:
             raise Exception(f"Error {r.status_code}:\n" + r.text)
 
         return base64.b64encode(r.content)
 
-    def main(self, curl=False):
+    def main(self, library: Library, curl=False):
         # Cached
-
         if self.cache:
-            cached = Library().match(self.pssh)
+            result = self.library.search(self.pssh)
+            cached = self.library.search_res_to_dict(self.kid, result)
             if cached:
                 if not curl:
-                    return render_template("cache.html", cache=cached)
+                    return render_template("cache.html", results=cached)
                 else:
-                    return json.dumps(cached)
+                    return jsonify(cached)
 
         # Headers
         try:
@@ -221,34 +224,37 @@ class Pywidevine:
             self.headers = self.yamldomagic(self.headers)
 
         from getwvclone.pywidevine.cdm import deviceconfig
-        wvdecrypt = WvDecrypt(
-            self.pssh, deviceconfig.DeviceConfig(self.buildinfo))
+
+        wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(library, self.buildinfo))
+        if self.server_certificate:
+            wvdecrypt.set_server_certificate(self.server_certificate)
         challenge = wvdecrypt.create_challenge()
 
-        decode = self.post_data(
-            self.license, self.headers, challenge, self.proxy)
+        decode = self.post_data(self.license_url, self.headers, challenge, self.proxy)
 
         wvdecrypt.decrypt_license(decode)
-        for x, y in enumerate(wvdecrypt.get_content_key()):
-            self.content_key.append({'key': y})
+        for _, y in enumerate(wvdecrypt.get_content_key()):
+            (kid, _) = y.split(":")
+            self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, y))
 
         # caching
-        data = self.logs()
+        data = self._cache_keys()
         if curl:
-            return json.dumps(data)
-        return render_template("success.html", page_title='Success', keys=self.content_key, time=self.time,
-                               license=self.license, pssh=self.pssh, headers=self.headers)
+            return jsonify(data)
+        return render_template("success.html", page_title="Success", results=data)
 
-    def api(self):
+    def api(self, library: Library):
         if self.cache:
-            cached = Library().match(self.pssh)
-            resp = Response(json.dumps(cached))
-            resp.headers['cached'] = True
+            cached = self.library.search(self.pssh)
+            resp = jsonify(cached)
+            resp.headers["X-Cached"] = True
             return resp
         if self.response is None:
             from getwvclone.pywidevine.cdm import deviceconfig
-            wvdecrypt = WvDecrypt(
-                self.pssh, deviceconfig.DeviceConfig(self.buildinfo))
+
+            wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(library, self.buildinfo))
+            if self.server_certificate:
+                wvdecrypt.set_server_certificate(self.server_certificate)
             challenge = wvdecrypt.create_challenge()
             if len(Library.store_request) > 30:
                 self.store_request = {}
@@ -258,18 +264,49 @@ class Pywidevine:
             return res
         else:
             if self.pssh not in Library.store_request:
-                raise Exception("PSSH CHALLENGE WAS NOT GENERATED FIRST")
+                raise BadRequest("PSSH CHALLENGE WAS NOT GENERATED FIRST")
             wvdecrypt = Library.store_request[self.pssh]
             wvdecrypt.decrypt_license(self.response)
-            for x, y in enumerate(wvdecrypt.get_content_key()):
-                self.content_key.append({'key': y})
-            output = self.logs()
+            for _, y in enumerate(wvdecrypt.get_content_key()):
+                (kid, _) = y.split(":")
+                self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, y))
+            output = self._cache_keys()
             return output
+
+    def vinetrimmer(self, library: Library):
+        # TODO: implement cache
+        # if self.cache:
+        #    return self.library.search(self.pssh)
+        if self.response is None:
+            from getwvclone.pywidevine.cdm import deviceconfig
+
+            wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(library, self.buildinfo))
+            challenge = wvdecrypt.create_challenge()
+            if len(Library.store_request) > 30:
+                self.store_request = {}
+            self.session_id = wvdecrypt.session.hex()
+            Library.store_request[self.session_id] = wvdecrypt
+
+            res = base64.b64encode(challenge).decode()
+            return {"challenge": res, "session_id": self.session_id}
+        else:
+            if self.session_id not in Library.store_request:
+                raise BadRequest("PSSH CHALLENGE WAS NOT GENERATED FIRST")
+            wvdecrypt = Library.store_request[self.session_id]
+            wvdecrypt.decrypt_license(self.response)
+            for _, y in enumerate(wvdecrypt.get_content_key()):
+                (kid, _) = y.split(":")
+                self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, y))
+            keys = self._cache_keys(vt=True)
+            return {
+                "keys": keys,
+            }
 
 
 class WvDecrypt:
     def __init__(self, pssh_b64, device):
         from getwvclone.pywidevine.cdm import cdm
+
         self.cdm = cdm.Cdm()
         self.session = self.cdm.open_session(pssh_b64, device)
 
@@ -288,64 +325,54 @@ class WvDecrypt:
     def get_content_key(self):
         content_keys = []
         for key in self.cdm.get_keys(self.session):
-            if key.type == 'CONTENT':
+            if key.type == "CONTENT":
                 kid = key.kid.hex()
                 key = key.key.hex()
-                content_keys.append('{}:{}'.format(kid, key))
+                content_keys.append("{}:{}".format(kid, key))
 
         return content_keys
 
     def get_signing_key(self):
         for key in self.cdm.get_keys(self.session):
-            if key.type == 'SIGNING':
+            if key.type == "SIGNING":
                 kid = key.kid.hex()
                 key = key.key.hex()
 
-                signing_key = '{}:{}'.format(kid, key)
+                signing_key = "{}:{}".format(kid, key)
                 return signing_key
 
 
 class User(UserMixin):
-    def __init__(self, id, username, discriminator, avatar, public_flags, api_key, status, is_admin):
-        self.id = id
-        self.username = username
-        self.discriminator = discriminator
-        self.avatar = avatar
-        self.public_flags = public_flags
-        self.api_key = api_key
-        self.status = status
-        self.is_admin = is_admin
+    def __init__(self, db: SQLAlchemy, user: UserModel):
+        self.db = db
+        self.id = user.id
+        self.username = user.username
+        self.discriminator = user.discriminator
+        self.avatar = user.avatar
+        self.public_flags = user.public_flags
+        self.api_key = user.api_key
+        self.flags_raw = user.flags
+        self.flags = Bitfield(user.flags)
+        self.user_model = user
 
     def get_user_cdms(self):
-        cdms = []
-        cursor = Library.connect_cdm()
-        cursor.execute("SELECT * FROM cdms WHERE uploaded_by = ?", (self.id,))
-        results = cursor.fetchall()
-        Library.close_cdm(cursor)
-
-        for result in results:
-            cdms.append(result[4])
-        return cdms
+        cdms = CDMModel.query.filter_by(uploaded_by=self.id).all()
+        return [x.code for x in cdms]
 
     def patch(self, data):
-        # loop keys in data dict and create a sql statement
-        disallowed_keys = ["id", "username", "discriminator",
-                           "avatar", "public_flags", "api_key"]
-        values = []
-        sql = "UPDATE users SET "
-        for key, value in data.items():
-            if key.lower() in disallowed_keys:
-                continue
-            sql += f"{key} = ?, "
-            values.append(value)
-        if len(values) == 0:
-            raise BadRequest("No data to update or update is not allowed")
-        sql = sql[:-2]
-        sql += f" WHERE id = {self.id}"
+        disallowed_keys = ["id", "username", "discriminator", "avatar", "public_flags", "api_key"]
 
-        db = Library.connect_cdm()
-        db.execute(sql, values)
-        Library.close_cdm(db)
+        for key, value in data.items():
+            # Skip attributes that cant be changed
+            if key in disallowed_keys:
+                logger.warning("{} cannot be updated".format(key))
+                continue
+            # change attribute
+            setattr(self.user_model, key, value)
+        # save changes
+        self.db.session.commit()
+        # get a new user object
+        return User(self.db, self.user_model)
 
     def to_json(self, api_key=False):
         return {
@@ -355,54 +382,65 @@ class User(UserMixin):
             "avatar": self.avatar,
             "public_flags": self.public_flags,
             "api_key": self.api_key if api_key else None,
-            "status": self.status,
-            "is_admin": self.is_admin
+            "flags": self.flags_raw,
         }
 
+    def update_flags(self, flags: Union[int, Bitfield], action: FlagAction):
+        # get bits from bitfield if it is one
+        if isinstance(flags, Bitfield):
+            flags = flags.bits
+
+        if action == FlagAction.ADD.value:
+            self.user_model.flags = self.flags.add(flags)
+        elif action == FlagAction.REMOVE.value:
+            self.user_model.flags = self.flags.remove(flags)
+        else:
+            raise BadRequest("Unknown flag action")
+
+        self.db.session.commit()
+        return User(self.db, self.user_model)
+
     @staticmethod
-    def get(user_id):
-        db = Library.connect_cdm()
-        user = db.execute(
-            "SELECT * FROM users WHERE id = ?", (user_id,)
-        ).fetchone()
+    def get(db: SQLAlchemy, user_id: str):
+        user = UserModel.query.filter_by(id=user_id).first()
         if not user:
             return None
 
-        user = User(
-            id=user[0], username=user[1], discriminator=user[2], avatar=user[
-                3], public_flags=user[4], api_key=user[5], status=user[6], is_admin=user[7]
-        )
-        Library.close_cdm(db)
-        return user
+        return User(db, user)
 
     @staticmethod
-    def create(userinfo):
-        db = Library.connect_cdm()
+    def create(db: SQLAlchemy, userinfo: dict):
         api_key = secrets.token_hex(32)
-        db.execute(
-            "INSERT INTO users (id, username, discriminator, avatar, public_flags, api_key) VALUES (?, ?, ?, ?, ?, ?)",
-            (userinfo.get("id"), userinfo.get("username"), userinfo.get(
-                "discriminator"), userinfo.get("avatar"), userinfo.get("public_flags"), api_key)
+        user = UserModel(
+            id=userinfo.get("id"),
+            username=userinfo.get("username"),
+            discriminator=userinfo.get("discriminator"),
+            avatar=userinfo.get("avatar"),
+            public_flags=userinfo.get("public_flags"),
+            api_key=api_key,
         )
-        Library.close_cdm(db)
+        db.session.add(user)
+        db.session.commit()
 
     @staticmethod
-    def update(userinfo):
-        db = Library.connect_cdm()
-        db.execute("UPDATE users SET username = ?, discriminator = ?, avatar = ?, public_flags = ? WHERE id = ?", (userinfo.get(
-            "username"), userinfo.get("discriminator"), userinfo.get("avatar"), userinfo.get("public_flags"), userinfo.get("id")))
-        Library.close_cdm(db)
+    def update(db: SQLAlchemy, userinfo: dict):
+        user = UserModel.query.filter_by(id=userinfo.get("id")).first()
+        if not user:
+            return None
+
+        user.username = userinfo.get("username")
+        user.discriminator = userinfo.get("discriminator")
+        user.avatar = userinfo.get("avatar")
+        user.public_flags = userinfo.get("public_flags")
+        db.session.commit()
 
     @staticmethod
     def user_is_in_guild(token):
         url = "https://discord.com/api/users/@me/guilds"
-        headers = {
-            "Authorization": f"Bearer {token}"
-        }
+        headers = {"Authorization": f"Bearer {token}"}
         r = requests.get(url, headers=headers)
         if not r.ok:
-            raise Exception(
-                f"Failed to get user guilds: [{r.status_code}] {r.text}")
+            raise Exception(f"Failed to get user guilds: [{r.status_code}] {r.text}")
         guilds = r.json()
         is_in_guild = any(guild.get("id") == config.GUILD_ID for guild in guilds)
         return is_in_guild
@@ -415,91 +453,72 @@ class User(UserMixin):
         }
         r = requests.get(url, headers=headers)
         if not r.ok:
-            raise Exception(
-                f"Failed to get guild member: [{r.status_code}] {r.text}")
+            raise Exception(f"Failed to get guild member: [{r.status_code}] {r.text}")
         data = r.json()
         return any(role == config.VERIFIED_ROLE_ID for role in data.get("roles"))
 
     @staticmethod
     def is_api_key_bot(api_key):
         """checks if the api key is from the bot"""
-        bot_key = base64.b64encode("{}:{}".format(
-            config.OAUTH2_CLIENT_ID, config.OAUTH2_CLIENT_SECRET).encode()).decode("utf8")
+        bot_key = base64.b64encode("{}:{}".format(config.OAUTH2_CLIENT_ID, config.OAUTH2_CLIENT_SECRET).encode()).decode("utf8")
         return api_key == bot_key
 
     @staticmethod
-    def get_user_by_api_key(api_key):
-        db = Library.connect_cdm()
-        user = db.execute(
-            "SELECT * FROM users WHERE api_key = ?", (api_key,)
-        ).fetchone()
+    def get_user_by_api_key(db: SQLAlchemy, api_key):
+        user = UserModel.query.filter_by(api_key=api_key).first()
         if not user:
             return None
 
-        user = User(
-            id=user[0], username=user[1], discriminator=user[2], avatar=user[
-                3], public_flags=user[4], api_key=user[5], status=user[6], is_admin=user[7]
-        )
-        Library.close_cdm(db)
-        return user
+        return User(db, user)
+
+    def check_status(self):
+        if self.flags.has(UserFlags.SUSPENDED) == 1:
+            raise Forbidden("Your account has been suspended.")
 
     @staticmethod
-    def is_api_key_valid(api_key):
+    def is_api_key_valid(db: SQLAlchemy, api_key: str):
         # allow the bot to pass
         if User.is_api_key_bot(api_key):
             return True
-        db = Library.connect_cdm()
-        user = db.execute(
-            "SELECT id, status, is_admin FROM users WHERE api_key = ?", (
-                api_key,)
-        ).fetchone()
-        Library.close_cdm(db)
+
+        user = User.get_user_by_api_key(db, api_key)
         if not user:
             return False
 
-        status = user[1]
-        role = user[2]  # TODO: Use role where fit
-
         # if the user is suspended, throw forbidden
-        if status == 1:
-            raise Forbidden("Your account has been suspended.")
-
-        # if we require admin, and the user is not admin, throw forbidden
-        # if require_admin and role == 0:
-        #     raise Forbidden("You do not have permission to do this.")
+        user.check_status()
 
         return True
 
     @staticmethod
-    def disable_user(user_id):
-        db = Library.connect_cdm()
-        # update the user record to set user_status to 1
-        db.execute("UPDATE users SET status = ? WHERE id = ?", (1, user_id))
-        Library.close_cdm(db)
+    def disable_user(db: SQLAlchemy, user_id: str):
+        user = UserModel.query.filter_by(id=user_id).first()
+        if not user:
+            raise NotFound("User not found")
+        flags = Bitfield(user.flags)
+        flags.add(UserFlags.SUSPENDED)
+        user.flags = flags.bits
+        db.session.commit()
 
     @staticmethod
-    def disable_users(user_ids):
-        print("Request to disable {} users: {}".format(
-            len(user_ids), ", ".join([str(x) for x in user_ids])))
+    def disable_users(db: SQLAlchemy, user_ids: list):
+        print("Request to disable {} users: {}".format(len(user_ids), ", ".join([str(x) for x in user_ids])))
         if len(user_ids) == 0:
             raise BadRequest("No data to update or update is not allowed")
-        a = ["id = ?"] * len(user_ids)
-        sql = "UPDATE users SET status = ? WHERE " + " OR ".join(a)
 
-        db = Library.connect_cdm()
-        db.execute(sql, (1, *user_ids))
-        Library.close_cdm(db)
+        for user_id in user_ids:
+            User.disable_user(db, user_id)
 
     @staticmethod
-    def enable_user(user_id):
-        db = Library.connect_cdm()
-        # update the user record to set user_status to 0
-        db.execute("UPDATE users SET status = ? WHERE id = ?", (0, user_id))
-        Library.close_cdm(db)
+    def enable_user(db: SQLAlchemy, user_id):
+        user = UserModel.query.filter_by(id=user_id).first()
+        if not user:
+            raise NotFound("User not found")
+        flags = Bitfield(user.flags)
+        flags.remove(UserFlags.SUSPENDED)
+        user.flags = flags.bits
+        db.session.commit()
 
     @staticmethod
     def get_user_count():
-        db = Library.connect_cdm()
-        count = db.execute("SELECT COUNT(*) FROM users").fetchone()[0]
-        Library.close_cdm(db)
-        return count
+        return UserModel.query.count()

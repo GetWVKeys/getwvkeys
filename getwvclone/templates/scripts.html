@@ -1,5 +1,4 @@
-{% extends "base.html" %} {% block title %}Scripts{% endblock %} {% block
-content %}
+{% extends "base.html" %} {% block title %}Scripts{% endblock %} {% block content %}
 <section class="scripts">
   <header>
     <h1 class="section-title">Scripts</h1>
@@ -7,7 +6,7 @@ content %}
   <div class="scripts-list">
     <ul>
       {%for script_name in script_names%}
-      <li><a href="/download/{{script_name}}"> {{script_name}} </a></li>
+      <li><a href="/scripts/{{script_name}}"> {{script_name}} </a></li>
       {%endfor%}
     </ul>
   </div>

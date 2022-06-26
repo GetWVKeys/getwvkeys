@@ -1,28 +1,63 @@
 import base64
 import json
 import os
+import pathlib
+import time
+import traceback
 from functools import update_wrapper, wraps
+from io import BytesIO
 from pathlib import Path
 from pprint import pprint
 from sqlite3 import DatabaseError
 
 import requests
 from dunamai import Style, Version
-from flask import (Flask, flash, jsonify, make_response, redirect,
-                   render_template, request, send_file, send_from_directory,
-                   session)
+from flask import (
+    Flask,
+    jsonify,
+    make_response,
+    redirect,
+    render_template,
+    request,
+    send_file,
+    send_from_directory,
+    session,
+)
 from flask_login import LoginManager, current_user, login_user, logout_user
 from oauthlib.oauth2 import WebApplicationClient
-from werkzeug.exceptions import (BadRequest, Forbidden, HTTPException,
-                                 Unauthorized)
+from oauthlib.oauth2.rfc6749.errors import OAuth2Error
+from werkzeug.exceptions import (
+    BadRequest,
+    Forbidden,
+    Gone,
+    HTTPException,
+    NotFound,
+    Unauthorized,
+)
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from getwvclone import libraries, config
-from getwvclone.utils import construct_logger, APIAction
+from getwvclone import config, libraries
+
+# these need to be kept
+from getwvclone.models.CDM import CDM
+from getwvclone.models.Key import Key
+from getwvclone.models.Shared import db
+from getwvclone.models.User import User
+from getwvclone.utils import (
+    APIAction,
+    Bitfield,
+    FlagAction,
+    UserFlags,
+    Validators,
+    construct_logger,
+)
 
 app = Flask(__name__.split(".")[0], root_path=str(Path(__file__).parent))
+app.config["SQLALCHEMY_DATABASE_URI"] = config.SQLALCHEMY_DATABASE_URI
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.secret_key = config.SECRET_KEY
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+db.init_app(app)
 
 # Logger setup
 logger = construct_logger()
@@ -33,200 +68,305 @@ login_manager.init_app(app)
 client = WebApplicationClient(config.OAUTH2_CLIENT_ID)
 
 # get current git commit sha
-sha = Version.from_git().serialize(style=Style.SemVer, dirty=True)
+sha = Version.from_git().serialize(style=Style.SemVer, dirty=True, format="{base}-post.{distance}+{commit}.{dirty}.{branch}")
 
+# create library instance
+library = libraries.Library(db)
+
+# create validators instance
+validators = Validators()
 
 # Utilities
-def authentication_required(exempt_methods=[], admin_only=False):
+def authentication_required(exempt_methods=[], flags_required: int = None):
     def decorator(func):
         @wraps(func)
         def wrapped_function(*args, **kwargs):
             if request.method in exempt_methods:
                 return func(*args, **kwargs)
-            elif config.LOGIN_DISABLED:
+            if config.LOGIN_DISABLED:
                 return func(*args, **kwargs)
-            elif not current_user.is_authenticated:
+
+            # handle api keys
+            if not current_user.is_authenticated:
                 # check if they passed in an api key
-                api_key = request.headers.get(
-                    "X-API-Key") or request.form.get("X-API-Key")
+                api_key = request.headers.get("X-API-Key") or request.form.get("X-API-Key") or request.headers.get("Authorization") or request.form.get("Authorization")
                 if not api_key:
                     raise Unauthorized("API Key Required")
+
+                # check if the key is a bot
+                if libraries.User.is_api_key_bot(api_key):
+                    return func(*args, **kwargs)
+
                 # check if the key is a valid user key
-                is_valid = libraries.User.is_api_key_valid(api_key)
-                if not is_valid:
+                user = libraries.User.get_user_by_api_key(db, api_key)
+
+                if not user:
                     raise Forbidden("Invalid API Key")
-                # user = libraries.User.get_user_by_api_key(api_key)
-                # if not user:
-                #     raise Forbidden("Invalid API Key")
-                # login_user(user, remember=True)
-            elif admin_only and not current_user.is_admin == 1:
-                raise Forbidden("This maze wasn't meant for you.")
+
+                login_user(user, remember=False)
+
+            # check if the user is enabled
+            current_user.check_status()
+
+            # check if the user has the required flags
+            if flags_required and not current_user.flags.has(flags_required):
+                raise Forbidden("Missing Access")
+
             return func(*args, **kwargs)
+
         return update_wrapper(wrapped_function, func)
+
     return decorator
+
+
+def log_date_time_string():
+    """Return the current time formatted for logging."""
+    monthname = [None, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    now = time.time()
+    year, month, day, hh, mm, ss, x, y, z = time.localtime(now)
+    s = "%02d/%3s/%04d %02d:%02d:%02d" % (day, monthname[month], year, hh, mm, ss)
+    return s
 
 
 @login_manager.user_loader
 def load_user(user_id):
-    return libraries.User.get(user_id)
+    return libraries.User.get(db, user_id)
 
 
-@app.route('/')
+@app.after_request
+def log_request_info(response):
+    user_id = current_user.id if current_user.is_authenticated else "N/A"
+    l = f'{request.remote_addr} - - [{log_date_time_string()}] "{request.method} {request.path}" {response.status_code} - {user_id}'
+
+    if request.data and len(request.data) > 0 and request.headers.get("Content-Type") == "application/json":
+        l += f"\nRequest Data: {request.data.decode()}"
+
+    logger.info(l)
+    return response
+
+
+@app.route("/")
 @authentication_required()
 def home():
-    return render_template("index.html", page_title='GetWVkeys', current_user=current_user, website_version=sha)
+    return render_template("index.html", page_title="GetWVkeys", current_user=current_user, website_version=sha)
 
 
-@app.route('/scripts')
+@app.route("/faq")
+def faq():
+    return render_template("faq.html", page_title="FAQ", current_user=current_user, website_version=sha)
+
+
+@app.route("/scripts")
 def scripts():
-    files = os.listdir(os.path.dirname(
-        os.path.abspath(__file__)) + '/download')
+    files = os.listdir(os.path.dirname(os.path.abspath(__file__)) + "/download")
     return render_template("scripts.html", script_names=files, current_user=current_user, website_version=sha)
 
 
-@app.route('/count')
+@app.route("/scripts/<file>")
+def downloadfile(file):
+    path = pathlib.Path(app.root_path, "download", file)
+    if not path.is_file():
+        raise NotFound("File not found")
+    print(current_user.is_authenticated)
+    if current_user.is_authenticated:
+        data = open(path, "r").read()
+        data = data.replace("__getwvkeys_api_key__", current_user.api_key, 1)
+        f = BytesIO(data.encode())
+        return send_file(f, as_attachment=True, download_name=path.name, mimetype="application/x-python-script")
+    return send_file(path, as_attachment=True)
+
+
+@app.route("/count")
 def count():
-    return str(libraries.Library().cached_number())
+    return str(library.get_keycount())
 
 
-@app.route('/favicon.ico')
+@app.route("/favicon.ico")
 def favicon():
-    return send_from_directory(os.path.join(app.root_path, 'static'),
-                               'favicon.ico', mimetype='image/vnd.microsoft.icon')
+    return send_from_directory(os.path.join(app.root_path, "static"), "favicon.ico", mimetype="image/vnd.microsoft.icon")
 
 
-@app.route('/findpssh', methods=['POST', 'GET'])
+@app.route("/search", methods=["POST", "GET"])
 @authentication_required()
-def find():
-    if request.method == 'POST':
-        pssh = request.stream.read().decode()
-        if pssh is None or pssh == "":
-            return ""
-        data = libraries.Library().match(pssh)
-        if data == {}:
-            return render_template("error.html", page_title='Error', error="Not Found in our Database But you can add it, contact us on our discord server to have the powers to add cache keys in the database ")
+def search():
+    if request.method == "POST":
+        query = request.stream.read().decode()
+        if query is None or query == "":
+            raise BadRequest("Missing or Invalid Search Query")
+        data = library.search(query)
+        if len(data) == 0:
+            raise NotFound("No keys found")
         else:
-            return render_template("cache.html", cache=data)
+            data = library.search_res_to_dict(query, data)
+            return render_template("cache.html", results=data)
     else:
-        return render_template("find.html", page_title='SEARCH DATABASE', current_user=current_user, website_version=sha)
+        return render_template("search.html", page_title="Search Database", current_user=current_user, website_version=sha)
 
 
-@app.route('/wv', methods=['POST'])
-@authentication_required()
-def wv():
-    try:
-        event_data = request.get_json(force=True)
-        (proxy, license_, pssh, headers, buildinfo, cache) = (event_data['proxy'], event_data['license'],
-                                                              event_data['pssh'],
-                                                              event_data['headers'], event_data['buildInfo'],
-                                                              event_data['cache'])
-
-        magic = libraries.Pywidevine(
-            proxy, license_, pssh, headers, buildinfo, cache=cache)
-        return magic.main()
-    except Exception as e:
-        return render_template("error.html", page_title='Error', error=str(e))
+@app.route("/keys", methods=["POST"])
+@authentication_required(flags_required=UserFlags.KEY_ADDING)
+def keys():
+    event_data = request.get_json()
+    keys = event_data.get("keys")
+    if not keys or len(keys) == 0:
+        raise BadRequest("Invalid Body")
+    return library.add_keys(keys, user_id=current_user.id)
 
 
-@app.route('/dev', methods=['POST'])
-@authentication_required()
-def dev():
-    try:
-        event_data = request.get_json(force=True)
-        (pssh, keys, access) = (
-            event_data['pssh'], event_data['keys'], event_data['access'])
-        magic = libraries.Library().dev_append(pssh, keys, access)
-        return magic
-    except Exception as e:
-        resp = {
-            "error": str(e)
-        }
-        return json.dumps(resp)
-
-
-@app.route('/upload', methods=['GET', 'POST'])
+@app.route("/upload", methods=["GET", "POST"])
 @authentication_required()
 def upload_file():
-    if request.method == 'POST':
+    if request.method == "POST":
         user = current_user.id
-        blob = request.files['blob']
-        key = request.files['key']
+        blob = request.files["blob"]
+        key = request.files["key"]
         blob_base = base64.b64encode(blob.stream.read()).decode()
         key_base = base64.b64encode(key.stream.read()).decode()
-        output = libraries.Library().update_cdm(blob_base, key_base, user)
-        return render_template('upload_complete.html', page_title="Success", buildinfo=output, website_version=sha)
-    elif request.method == 'GET':
-        return render_template('upload.html', current_user=current_user, website_version=sha)
+        output = library.update_cdm(blob_base, key_base, user)
+        return render_template("upload_complete.html", page_title="Success", buildinfo=output, website_version=sha)
+    elif request.method == "GET":
+        return render_template("upload.html", current_user=current_user, website_version=sha)
 
 
-@app.route('/api', methods=['POST', 'GET'])
+@app.route("/wv", methods=["POST"])
+@authentication_required()
+def wv():
+    event_data = request.get_json(force=True)
+    (proxy, license_url, pssh, headers, buildinfo, cache) = (
+        event_data.get("proxy", ""),
+        event_data["license_url"],
+        event_data["pssh"],
+        event_data.get("headers", ""),
+        event_data.get("buildInfo", ""),
+        event_data.get("cache", True),
+    )
+    if not pssh or not license_url:
+        raise BadRequest("Missing Fields")
+
+    magic = libraries.Pywidevine(library, proxy=proxy, license_url=license_url, pssh=pssh, headers=headers, buildinfo=buildinfo, cache=cache, user_id=current_user.id)
+    return magic.main(library)
+
+
+@app.route("/api", methods=["POST", "GET"])
 @authentication_required(exempt_methods=["GET"])
 def curl():
-    if request.method == 'POST':
-        try:
-            event_data = request.get_json(force=True)
-            (proxy, license_, pssh, headers, buildinfo, cache) = (
-                event_data['proxy'] if "proxy" in event_data else '', event_data['license'],
-                event_data['pssh'], event_data['headers'] if 'headers' in event_data else '',
-                event_data['buildInfo'] if 'buildInfo' in event_data else '',
-                event_data['cache'] if 'cache' in event_data else True)
-            magic = libraries.Pywidevine(
-                proxy, license_, pssh, headers, buildinfo, cache=cache)
-            return magic.main(curl=True)
-
-        except Exception as e:
-            return json.dumps({"error": str(e)})
+    if request.method == "POST":
+        event_data = request.get_json()
+        (proxy, license_url, pssh, headers, buildinfo, cache, server_certificate, disable_privacy) = (
+            event_data.get("proxy", ""),
+            event_data["license_url"],
+            event_data["pssh"],
+            event_data.get("headers", ""),
+            event_data.get("buildInfo", ""),
+            event_data.get("cache", True),
+            event_data.get("certificate", libraries.common_privacy_cert),
+            event_data.get("disable_privacy", False),
+        )
+        if not pssh or not license_url:
+            raise BadRequest("Missing Fields")
+        magic = libraries.Pywidevine(
+            library,
+            proxy=proxy,
+            license_url=license_url,
+            pssh=pssh,
+            headers=headers,
+            buildinfo=buildinfo,
+            cache=cache,
+            user_id=current_user.id,
+            server_certificate=server_certificate,
+            disable_privacy=disable_privacy,
+        )
+        return magic.main(library, curl=True)
     else:
         return render_template("api.html", current_user=current_user, website_version=sha)
 
 
-@app.route('/pywidevine', methods=['POST'])
+@app.route("/pywidevine", methods=["POST"])
 @authentication_required()
 def pywidevine():
-    try:
-        event_data = request.get_json(force=True)
-        (password, license_, pssh, headers, buildinfo, cache, challege, response) = (
-            event_data['password'] if 'password' in event_data else '', event_data['license'] if 'license' in event_data
-            else '', event_data['pssh'] if 'pssh' in event_data else '',
-            event_data['headers'] if 'headers' in event_data
-            else '', event_data['buildInfo'] if 'buildInfo' in event_data else '', event_data['cache'] if 'cache' in
-                                                                                                          event_data else True,
-            True if 'challege' in event_data else False, event_data['response'] if 'response' in
-                                                                                   event_data else None)
-        magic = libraries.Pywidevine(
-            password, license_, pssh, headers, buildinfo, cache=cache, response=response)
-        return magic.api()
-    except Exception as e:
-        error = {"Error": f"{str(e)}"}
-        return json.dumps(error)
+    event_data = request.get_json()
+    (proxy, license_url, pssh, headers, buildinfo, cache, response, server_certificate, disable_privacy) = (
+        event_data.get("proxy", ""),
+        event_data["license_url"],
+        event_data["pssh"],
+        event_data.get("headers", ""),
+        event_data.get("buildInfo", ""),
+        event_data.get("cache", True),
+        event_data.get("response"),
+        event_data.get("certificate", libraries.common_privacy_cert),
+        event_data.get("disable_privacy", False),
+    )
+    if not pssh or not license_url:
+        raise BadRequest("Missing Fields")
+    magic = libraries.Pywidevine(
+        library,
+        proxy=proxy,
+        license_url=license_url,
+        pssh=pssh,
+        headers=headers,
+        buildinfo=buildinfo,
+        cache=cache,
+        response=response,
+        user_id=current_user.id,
+        server_certificate=server_certificate,
+        disable_privacy=disable_privacy,
+    )
+    return magic.api(library)
 
 
-@app.route('/faq')
-def faq():
-    return render_template("faq.html", page_title='FAQ', current_user=current_user, website_version=sha)
+@app.route("/vinetrimmer", methods=["POST"])
+def vinetrimmer():
+    event_data = request.get_json()
+    # validate the request body
+    if not validators.vinetrimmer_validator(event_data):
+        return jsonify({"status_code": 400, "message": "Malformed Body"})
 
+    # get the data
+    (method, params, token) = (event_data["method"], event_data["params"], event_data["token"])
+    user = libraries.User.get_user_by_api_key(db, token)
+    if not user:
+        return jsonify({"status_code": 401, "message": "Invalid API Key"})
 
-@app.route('/download/<file>')
-def downloadfile(file):
-    path = os.path.join(app.root_path, "download", file)
-    if not os.path.isfile(path):
-        return "FILE NOT FOUND"
-    return send_file(path, as_attachment=True)
+    if not user.flags.has(UserFlags.VINETRIMMER):
+        return jsonify({"status_code": 403, "message": "Missing Access"})
+
+    if method == "GetKeysX":
+        # Validate params required for method
+        if not validators.key_exchange_validator(params):
+            return jsonify({"status_code": 400, "message": "Malformed Params"})
+        return jsonify({"status_code": 501, "message": "Method Not Implemented"})
+    elif method == "GetKeys":
+        # Validate params required for method
+        if not validators.keys_validator(params):
+            return jsonify({"status_code": 400, "message": "Malformed Params"})
+        (cdmkeyresponse, session_id) = (params["cdmkeyresponse"], params["session_id"])
+        magic = libraries.Pywidevine(library, user.id, response=cdmkeyresponse, session_id=session_id)
+        res = magic.vinetrimmer(library)
+        return jsonify({"status_code": 200, "message": res})
+    elif method == "GetChallenge":
+        # Validate params required for method
+        if not validators.challenge_validator(params):
+            return jsonify({"status_code": 400, "message": "Malformed Params"})
+        (init, cert, raw, licensetype, device) = (params["init"], params["cert"], params["raw"], params["licensetype"], params["device"])
+        magic = libraries.Pywidevine(library, user.id, pssh=init, buildinfo=device, server_certificate=cert)
+        res = magic.vinetrimmer(library)
+        return jsonify({"status_code": 200, "message": res})
+
+    return jsonify({"status_code": 400, "message": "Invalid Method"})
 
 
 # auth endpoints
 @app.route("/login")
 def login():
     if current_user.is_authenticated:
-        flash("You are already logged in.", "warning")
         return redirect("/")
     request_uri = client.prepare_request_uri(
         "https://discord.com/api/oauth2/authorize",
         redirect_uri=[
             config.OAUTH2_REDIRECT_URL,
-            f"http://{config.API_HOST}:{config.API_PORT}/login/callback"
+            config.OAUTH2_REDIRECT_URL_DEV,
         ][config.IS_DEVELOPMENT],
-        scope=["guilds", "guilds.members.read", "identify"]
+        scope=["guilds", "guilds.members.read", "identify"],
     )
     return render_template("login.html", auth_url=request_uri, current_user=current_user, website_version=sha)
 
@@ -235,44 +375,44 @@ def login():
 def login_callback():
     code = request.args.get("code")
     if not code:
-        return render_template("error.html", page_title='Error', error="No code provided")
+        return render_template("error.html", page_title="Error", error="No code provided")
     token_url, headers, body = client.prepare_token_request(
         "https://discord.com/api/oauth2/token",
         authorization_response=request.url,
         redirect_url=[
             config.OAUTH2_REDIRECT_URL,
-            f"http://{config.API_HOST}:{config.API_PORT}/login/callback"
+            config.OAUTH2_REDIRECT_URL_DEV,
         ][config.IS_DEVELOPMENT],
-        code=code
+        code=code,
     )
     token_response = requests.post(
         token_url,
         headers=headers,
         data=body,
-        auth=(config.OAUTH2_CLIENT_ID,
-              config.OAUTH2_CLIENT_SECRET),
+        auth=(config.OAUTH2_CLIENT_ID, config.OAUTH2_CLIENT_SECRET),
     )
     client.parse_request_body_response(json.dumps(token_response.json()))
     uri, headers, body = client.add_token("https://discord.com/api/oauth2/@me")
     info_response = requests.get(uri, headers=headers, data=body)
     info = info_response.json()
     userinfo = info.get("user")
-    user = libraries.User.get(userinfo.get("id"))
+    user = libraries.User.get(db, userinfo.get("id"))
     if not user:
-        libraries.User.create(userinfo)
-        user = libraries.User.get(userinfo.get("id"))
-    # update the user info in the database as some fields can change like username
-    libraries.User.update(userinfo)
+        libraries.User.create(db, userinfo)
+        user = libraries.User.get(db, userinfo.get("id"))
+    else:
+        # update the user info in the database as some fields can change like username
+        libraries.User.update(db, userinfo)
     # check if the user is in the getwvkeys server
     is_in_guild = libraries.User.user_is_in_guild(client.access_token)
     if not is_in_guild:
         session.clear()
-        return render_template("error.html", page_title="Error", error="You must be in our Discord support server and be verified to use this service. You can join our server here: https://discord.gg/sMBEwDEGQg"), 403
+        raise Forbidden("You must be in our Discord support server and be verified to use this service. You can join our server here: https://discord.gg/sMBEwDEGQg")
     # check if the user is verified
     user_is_verified = libraries.User.user_is_verified(client.access_token)
     if not user_is_verified:
         session.clear()
-        return render_template("error.html", page_title="Error", error="You must be verified to use this service. Please read the #rules channel."), 403
+        raise Forbidden("You must be verified to use this service. Please read the #rules channel.")
     login_user(user, True)
     # flash("Welcome, {}!".format(user.username), "success")
     resp = make_response(redirect("/"))
@@ -294,33 +434,8 @@ def user_profile():
     return render_template("profile.html", current_user=current_user, cdms=user_cdms, website_version=sha)
 
 
-# admin routes
-# @app.route("/admin/users/<id>", methods=["GET"])
-# @authentication_required(admin_only=True)
-# def admin_user(id):
-#     user = libraries.User.get(id)
-
-#     if request.method == "GET":
-#         """view user"""
-#         return render_template("admin_user.html", current_user=current_user, user=user, website_version=sha)
-#     elif request.method == "PATCH":
-#         """edit user"""
-#         data = request.get_json()
-#         if not data:
-#             return json.dumps({"error": "No data provided"}), 400
-#         try:
-#             user.patch(data)
-#             user = libraries.User.get(id)
-#             return jsonify(user.to_json()), 200
-#         except HTTPException as e:
-#             return json.dumps({"error": f"{e.description}"}), e.code
-#         except Exception as e:
-#             logger.error(e)
-#             return json.dumps({"error": "Bad Request"}), 400
-
-
 @app.route("/admin/api", methods=["POST"])
-@authentication_required(admin_only=True)
+@authentication_required(flags_required=UserFlags.ADMIN)
 def admin_api():
     data = request.get_json()
     if not data:
@@ -331,29 +446,29 @@ def admin_api():
         user_id = data.get("user_id")
         if not user_id:
             raise BadRequest("Bad Request")
-        libraries.User.disable_user(user_id)
-        return jsonify({"error": False}), 200
+        libraries.User.disable_user(db, user_id)
+        return jsonify({"error": False, "message": None}), 200
     elif action == APIAction.DISABLE_USER_BULK.value:
         user_ids = data.get("user_ids")
         if not user_ids:
             raise BadRequest("Bad Request")
-        libraries.User.disable_users(user_ids)
-        return jsonify({"error": False}), 200
+        libraries.User.disable_users(db, user_ids)
+        return jsonify({"error": False, "message": None}), 200
     elif action == APIAction.ENABLE_USER.value:
         user_id = data.get("user_id")
         if not user_id:
             raise BadRequest("Bad Request")
-        libraries.User.enable_user(user_id)
-        return jsonify({"error": False}), 200
+        libraries.User.enable_user(db, user_id)
+        return jsonify({"error": False, "message": None}), 200
     elif action == APIAction.KEY_COUNT.value:
-        return jsonify({"error": False, "message": libraries.Library().cached_number()}), 200
+        return jsonify({"error": False, "message": library.get_keycount()}), 200
     elif action == APIAction.USER_COUNT.value:
-        return jsonify({"error": False, "message": libraries.User.get_user_count()}), 200
+        return jsonify({"error": False, "message": libraries.User.get_user_count(db)}), 200
     elif action == APIAction.SEARCH.value:
         query = data.get("query")
         if not query:
             raise BadRequest("Bad Request")
-        results = libraries.Library.search(query)
+        results = library.search(query)
         keys = []
         pprint(results)
         for result in results:
@@ -362,45 +477,99 @@ def admin_api():
             for k in b:
                 keys.append(k.get("key"))
         return jsonify({"error": False, "message": keys}), 200
+    elif action == APIAction.UPDATE_PERMISSIONS.value:
+        user_id = data.get("user_id")
+        permissions = data.get("permissions")
+        permission_action = data.get("permission_action", FlagAction.ADD)
+        if not user_id or not permissions:
+            raise BadRequest("Bad Request")
+
+        # get user
+        user = libraries.User.get(db, user_id)
+        if not user:
+            raise NotFound("User not found")
+
+        print("Old flags: ", user.flags_raw)
+        user = user.update_flags(permissions, permission_action)
+        print("New flags: ", user.flags_raw)
+        return jsonify({"error": False, "message": None}), 200
 
     raise BadRequest("Bad Request")
 
 
 # error handlers
 @app.errorhandler(DatabaseError)
-def database_error(e):
-    logger.error("[Database] {}".format(e))
-    return render_template('error.html', page_title='Internal Server Error',
-                           error="Internal Server Error. Please try again later."), 500
+def database_error(e: DatabaseError):
+    logger.exception(e)
+    if request.method == "GET":
+        return render_template("error.html", title=str(e), details="", current_user=current_user, website_version=sha), 500
+    return jsonify({"error": True, "code": 500, "message": str(e)}), 500
+
+
+@app.errorhandler(Exception)
+def database_error(e: Exception):
+    logger.exception(e)
+    if request.method == "GET":
+        return render_template("error.html", title=str(e), details="", current_user=current_user, website_version=sha), 400
+    return jsonify({"error": True, "code": 400, "message": str(e)}), 400
 
 
 @app.errorhandler(HTTPException)
 def http_exception(e: HTTPException):
     if request.method == "GET":
-        if e.code == 401 or e.code == 403:
+        if e.code == 401:
             return app.login_manager.unauthorized()
-        return render_template('error.html', page_title=e.name, error=e.description), e.code
-    else:
-        return jsonify({
-            "error": True,
-            "code": e.code,
-            "message": e.description
-        }), e.code
+        return render_template("error.html", title=e.name, details=e.description, current_user=current_user, website_version=sha), e.code
+    return jsonify({"error": True, "code": e.code, "message": e.description}), e.code
+
+
+@app.errorhandler(Gone)
+def gone_exception(e: Gone):
+    if request.method == "GET":
+        return render_template("error.html", title=e.name, details="The page you are looking for is no longer available.", current_user=current_user, website_version=sha), e.code
+    return jsonify({"error": True, "code": 500, "message": "The page you are looking for is no longer available."}), e.code
+
+
+@app.errorhandler(OAuth2Error)
+def oauth2_error(e: OAuth2Error):
+    logger.exception(e)
+    return render_template("error.html", title=e.description, details="The code was probably already used or is invalid.", current_user=current_user, website_version=sha), e.status_code
 
 
 @login_manager.unauthorized_handler
 def unauthorized_callback():
-    return redirect('/login?next=' + request.path)
+    return redirect("/login?next=" + request.path)
 
 
 # routes that are removed
-@app.route('/pssh')
+@app.route("/pssh")
 def pssh():
-    return render_template("error.html", page_title='Gone', error="This page is no longer available."), 410
+    raise Gone()
+
+
+# routes that have been moved
+@app.route("/findpssh")
+def findpssh():
+    return redirect("/search", 301)
+
+
+@app.route("/dev")
+def dev():
+    return redirect("/keys", 301)
+
+
+@app.route("/download/<file>")
+def downloadfile_old(file):
+    return redirect("/scripts/{}".format(file), 301)
 
 
 def main():
-    app.run(config.API_HOST, config.API_PORT, debug=config.IS_DEVELOPMENT)
+    app.run(config.API_HOST, config.API_PORT, debug=config.IS_DEVELOPMENT, use_reloader=False)
+
+
+def setup():
+    with app.app_context():
+        db.create_all()
 
 
 if __name__ == "__main__":

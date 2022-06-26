@@ -91,10 +91,12 @@ async function generating_request() {
     return await response.arrayBuffer();
   }
   async function decrypt_response(license_response, headers) {
-    license_response_base64String = btoa(String.fromCharCode.apply(null, new Uint8Array(license_response)));
+    license_response_base64String = btoa(
+      String.fromCharCode.apply(null, new Uint8Array(license_response))
+    );
     const dicted = {
       license_response: license_response_base64String,
-      license: document.getElementById("license").value,
+      license_url: document.getElementById("license").value,
       headers: headers,
       pssh: document.getElementById("pssh").value,
       buildInfo: document.getElementById("buildInfo").value,
@@ -136,7 +138,7 @@ async function server_request() {
   async function server_request_data() {
     document.getElementById("demo").innerHTML = "Sending Request Through Server";
     const dicted = {
-      license: document.getElementById("license").value,
+      license_url: document.getElementById("license").value,
       headers: document.getElementById("headers").value,
       pssh: document.getElementById("pssh").value,
       buildInfo: document.getElementById("buildInfo").value,
@@ -156,8 +158,26 @@ async function server_request() {
     return await response.text();
   }
   const response = await server_request_data();
-  document.getElementById("demo").innerHTML = response;
+  const elem = document.getElementById("demo");
+  setInnerHTML(elem, response);
 
   formButton.disabled = false;
   formButton.value = "Send";
+}
+
+const setInnerHTML = function (elm, html) {
+  elm.innerHTML = html;
+  Array.from(elm.querySelectorAll("script")).forEach((oldScript) => {
+    const newScript = document.createElement("script");
+    Array.from(oldScript.attributes).forEach((attr) =>
+      newScript.setAttribute(attr.name, attr.value)
+    );
+    newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+    oldScript.parentNode.replaceChild(newScript, oldScript);
+  });
+};
+
+function parseUnixTimestamp(timestamp) {
+  const date = new Date(timestamp * 1000);
+  return date.toLocaleString();
 }

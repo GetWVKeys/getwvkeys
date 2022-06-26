@@ -6,10 +6,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% block title %}{% endblock %} - GetWVKeys</title>
     <link rel="stylesheet" href="{{url_for('static', filename='main.css')}}" />
-    {% block js %}
-    <script defer src="{{url_for('static', filename='main.js')}}"></script>
-    {% endblock %}
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" integrity="sha512-KfkfwYDsLkIlwQp6LFnl8zNdLGxu9YAA1QvwINks4PhcElQSvqcyVLLD9aMhXd13uQjoXtEKNosOWaZqXgel0g==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css"
+      integrity="sha512-KfkfwYDsLkIlwQp6LFnl8zNdLGxu9YAA1QvwINks4PhcElQSvqcyVLLD9aMhXd13uQjoXtEKNosOWaZqXgel0g=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
   </head>
   <body>
     {% include 'partials/nav.html' %}
@@ -25,5 +28,9 @@
 
     <main>{% block content %}{% endblock %}</main>
     <footer>{% include 'partials/footer.html' %}</footer>
+
+    {% block js %}
+    <script defer src="{{url_for('static', filename='main.js')}}"></script>
+    {% endblock %}
   </body>
 </html>

@@ -528,3 +528,15 @@ button[type="enable"]:focus {
   border-color: #146c43;
   box-shadow: rgb(60, 153, 110) 0 0 0 0.25rem;
 }
+.error-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.error-title {
+  margin: 0 0 32px 0;
+}
+.error-subtitle {
+}
+.error-details {
+}
