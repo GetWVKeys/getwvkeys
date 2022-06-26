@@ -286,8 +286,8 @@ def pywidevine():
     event_data = request.get_json()
     (proxy, license_url, pssh, headers, buildinfo, cache, response, server_certificate, disable_privacy) = (
         event_data.get("proxy", ""),
-        event_data["license_url"],
-        event_data["pssh"],
+        event_data.get("license_url"),
+        event_data.get("pssh"),
         event_data.get("headers", ""),
         event_data.get("buildInfo", ""),
         event_data.get("cache", True),
