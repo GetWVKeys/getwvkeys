@@ -13,7 +13,7 @@ class CDM(db.Model):
     client_id_blob_filename = db.Column(db.Text, nullable=False)
     device_private_key = db.Column(db.Text, nullable=False)
     code = db.Column(db.Text, nullable=False)
-    uploaded_by = db.Column(db.String(18), ForeignKey("users.id"), nullable=False)
+    uploaded_by = db.Column(db.String(18), ForeignKey("users.id"), nullable=True)
 
     def to_json(self):
         return {
