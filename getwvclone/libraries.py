@@ -255,7 +255,8 @@ class Pywidevine:
     def api(self, library: Library):
         if self.cache:
             cached = self.library.search(self.pssh)
-            resp = jsonify(cached)
+            results = self.library.search_res_to_dict(self.kid, cached)
+            resp = jsonify(results)
             resp.headers["X-Cached"] = True
             return resp
         if self.response is None:
