@@ -471,7 +471,7 @@ def admin_api():
     elif action == APIAction.KEY_COUNT.value:
         return jsonify({"error": False, "message": library.get_keycount()}), 200
     elif action == APIAction.USER_COUNT.value:
-        return jsonify({"error": False, "message": libraries.User.get_user_count(db)}), 200
+        return jsonify({"error": False, "message": libraries.User.get_user_count()}), 200
     elif action == APIAction.SEARCH.value:
         query = data.get("query")
         if not query:
