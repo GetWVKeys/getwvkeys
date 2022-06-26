@@ -167,7 +167,6 @@ def downloadfile(file):
     path = pathlib.Path(app.root_path, "download", file)
     if not path.is_file():
         raise NotFound("File not found")
-    print(current_user.is_authenticated)
     if current_user.is_authenticated:
         data = open(path, "r").read()
         data = data.replace("__getwvkeys_api_key__", current_user.api_key, 1)
@@ -234,8 +233,8 @@ def wv():
     event_data = request.get_json(force=True)
     (proxy, license_url, pssh, headers, buildinfo, cache) = (
         event_data.get("proxy", ""),
-        event_data["license_url"],
-        event_data["pssh"],
+        event_data.get("license_url"),
+        event_data.get("pssh"),
         event_data.get("headers", ""),
         event_data.get("buildInfo", ""),
         event_data.get("cache", True),
@@ -254,12 +253,12 @@ def curl():
         event_data = request.get_json()
         (proxy, license_url, pssh, headers, buildinfo, cache, server_certificate, disable_privacy) = (
             event_data.get("proxy", ""),
-            event_data["license_url"],
-            event_data["pssh"],
+            event_data.get("license_url"),
+            event_data.get("pssh"),
             event_data.get("headers", ""),
             event_data.get("buildInfo", ""),
             event_data.get("cache", True),
-            event_data.get("certificate", libraries.common_privacy_cert),
+            event_data.get("certificate"),
             event_data.get("disable_privacy", False),
         )
         if not pssh or not license_url:
@@ -293,7 +292,7 @@ def pywidevine():
         event_data.get("buildInfo", ""),
         event_data.get("cache", True),
         event_data.get("response"),
-        event_data.get("certificate", libraries.common_privacy_cert),
+        event_data.get("certificate"),
         event_data.get("disable_privacy", False),
     )
     if not pssh or not license_url:
