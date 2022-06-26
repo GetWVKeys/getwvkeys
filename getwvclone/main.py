@@ -109,7 +109,7 @@ def authentication_required(exempt_methods=[], flags_required: int = None):
 
             # check if the user has the required flags
             if flags_required and not current_user.flags.has(flags_required):
-                raise Forbidden("Insufficient Permissions")
+                raise Forbidden("Missing Access")
 
             return func(*args, **kwargs)
 
