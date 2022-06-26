@@ -516,7 +516,10 @@ class User(UserMixin):
             raise BadRequest("No data to update or update is not allowed")
 
         for user_id in user_ids:
-            User.disable_user(db, user_id)
+            try:
+                User.disable_user(db, user_id)
+            except NotFound:
+                continue
 
     @staticmethod
     def enable_user(db: SQLAlchemy, user_id):
