@@ -68,6 +68,7 @@ def construct_logger():
 
     # construct the logger
     logger = logging.getLogger("getwvkeys")
+    logger.setLevel(config.CONSOLE_LOG_LEVEL)
     logger.addHandler(stream)
     logger.addHandler(file_handler)
     return logger
