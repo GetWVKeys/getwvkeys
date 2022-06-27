@@ -44,12 +44,8 @@ from getwvclone.models.CDM import CDM
 from getwvclone.models.Key import Key
 from getwvclone.models.Shared import db
 from getwvclone.models.User import User
-from getwvclone.utils import (
-    UserFlags,
-    Validators,
-    construct_logger,
-)
 from getwvclone.redis import Redis
+from getwvclone.utils import UserFlags, Validators, construct_logger
 
 app = Flask(__name__.split(".")[0], root_path=str(Path(__file__).parent))
 app.config["SQLALCHEMY_DATABASE_URI"] = config.SQLALCHEMY_DATABASE_URI
