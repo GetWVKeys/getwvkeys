@@ -10,14 +10,16 @@ from getwvclone import config
 from getwvclone.pssh_utils import parse_pssh
 
 
-class APIAction(Enum):
-    DISABLE_USER = "disable"
-    DISABLE_USER_BULK = "disable_bulk"
-    ENABLE_USER = "enable"
-    KEY_COUNT = "keycount"
-    USER_COUNT = "usercount"
-    SEARCH = "search"
-    UPDATE_PERMISSIONS = "update_permissions"
+class OPCode(Enum):
+    DISABLE_USER = 0
+    DISABLE_USER_BULK = 1
+    ENABLE_USER = 2
+    KEY_COUNT = 3
+    USER_COUNT = 4
+    SEARCH = 5
+    UPDATE_PERMISSIONS = 6
+    QUARANTINE = 7
+    REPLY = 8
 
 
 class UserFlags(Enum):
