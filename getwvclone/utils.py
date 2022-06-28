@@ -113,9 +113,17 @@ def extract_kid_from_pssh(pssh: str):
             return parsed_pssh.key_ids[0]
         elif len(parsed_pssh.key_ids) > 1:
             logger.warning("Multiple key ids found in pssh! {}".format(pssh))
-            return parsed_pssh.data.key_ids[0]
-        elif len(parsed_pssh.key_ids) == 0 and parsed_pssh.data.content_id:
-            return parsed_pssh.data.content_id
+            return parsed_pssh.key_ids[0]
+        elif len(parsed_pssh.key_ids) == 0:
+            if len(parsed_pssh.data.key_ids) == 0 and parsed_pssh.data.content_id:
+                return parsed_pssh.data.content_id
+            elif len(parsed_pssh.data.key_ids) == 1:
+                return parsed_pssh.data.key_ids[0]
+            elif len(parsed_pssh.data.key_ids) > 1:
+                logger.warning("Multiple key ids found in pssh! {}".format(pssh))
+                return parsed_pssh.data.key_ids[0]
+            else:
+                raise Exception("No KID or Content ID was found in the PSSH.")
         else:
             raise Exception("No KID or Content ID was found in the PSSH.")
     except Exception as e:
