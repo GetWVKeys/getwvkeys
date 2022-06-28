@@ -1,0 +1,76 @@
+diff --git a/getwvclone/download/getwvkeys.py b/getwvclone/download/getwvkeys.py
+index c37e1c0..c0187f9 100644
+--- a/getwvclone/download/getwvkeys.py
++++ b/getwvclone/download/getwvkeys.py
+@@ -5,7 +5,7 @@ import sys
+
+ import requests
+
+-version = "4.0"
++version = "4.1"
+
+
+ # Change your headers here
+@@ -48,8 +48,12 @@ class GetwvCloneApi:
+             print("[-] Failed to generate license request: [{}] {}".format(r.status_code, r.text))
+             exit(1)
+
+-        if "cached" in r.headers:
+-            print(r.json())
++        if r.headers.get("X-Cached"):
++            cached = r.json()
++            if args.verbose:
++                print(json.dumps(cached, indent=4))
++            for k in cached["keys"]:
++                print("--key {}".format(k["key"]))
+             input("[+] Press Enter To Continue with request")
+             self.args.cache = False
+             return self.generate_request()
+@@ -79,7 +83,12 @@ class GetwvCloneApi:
+         if args.verbose:
+             print("[+] Sending License URL Request")
+         license_response = post_request(args, license_request)
+-        print("\n" + self.decrypter(base64.b64encode(license_response).decode()))
++        keys = self.decrypter(base64.b64encode(license_response).decode())
++        keys = json.loads(keys)
++        if args.verbose:
++            print(json.dumps(keys, indent=4))
++        for k in keys["keys"]:
++            print("--key {}".format(k))
+
+
+ if __name__ == "__main__":
+@@ -87,27 +96,26 @@ if __name__ == "__main__":
+     print(f"\n{' ' * 6}pywidevine-api {version}\n{' ' * 7} from getwvkeys \n\n")
+
+     parser = argparse.ArgumentParser()
+-    parser.add_argument("-url", help="LICENSE URL")
++    parser.add_argument("-url", help="License URL")
+     parser.add_argument("-pssh", help="PSSH")
+-    parser.add_argument("-auth", help="Auth Key from getwvkeys.cc")
++    parser.add_argument("-auth", help="GetWVKeys API Key")
+     parser.add_argument("--verbose", "-v", help="increase output verbosity", action="store_true")
+     parser.add_argument("--cache", "-c", help="Cache On. default is OFF", default=False, action="store_true")
+     parser.add_argument("--buildinfo", "-b", default="", help="Buildinfo", required=False)
+
+     args = parser.parse_args()
+-    args.auth = getwvkeys_api_key if getwvkeys_api_key != "__getwvkeys_api_key__" else None
++    args.auth = getwvkeys_api_key if getwvkeys_api_key != "__getwvkeys_api_key__" else args.auth
+
+     while (args.url is None or args.pssh is None) or (args.url == "" or args.pssh == ""):
+-        args.url = input("Enter LICENSE URL:")
+-        args.pssh = input("Enter PSSH:")
++        args.url = input("Enter License URL: ")
++        args.pssh = input("Enter PSSH: ")
+         if not args.auth:
+-            args.auth = input("Enter GetWVKeys API Key:")
++            args.auth = input("Enter GetWVKeys API Key: ")
+
+     if len(sys.argv) == 1:
+         parser.print_help()
+         print()
+         args.buildinfo = ""
+-        args.cache = True
+         args.verbose = False
+
+     try:
