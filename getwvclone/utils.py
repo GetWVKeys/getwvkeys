@@ -109,14 +109,15 @@ def extract_kid_from_pssh(pssh: str):
     logger = logging.getLogger("getwvkeys")
     try:
         parsed_pssh = parse_pssh(pssh)
-        if len(parsed_pssh.key_ids) == 0:
-            if len(parsed_pssh.data.key_ids) == 0:
-                raise Exception("No key id found in pssh")
-            elif len(parsed_pssh.data.key_ids) > 1:
-                logger.warning("Multiple key ids found in pssh! {}".format(pssh))
-                return parsed_pssh.data.key_ids
-            else:
-                return parsed_pssh.data.key_ids[0]
+        if len(parsed_pssh.key_ids) == 1:
+            return parsed_pssh.key_ids[0]
+        elif len(parsed_pssh.key_ids) > 1:
+            logger.warning("Multiple key ids found in pssh! {}".format(pssh))
+            return parsed_pssh.data.key_ids[0]
+        elif len(parsed_pssh.key_ids) == 0 and parsed_pssh.data.content_id:
+            return parsed_pssh.data.content_id
+        else:
+            raise Exception("No KID or Content ID was found in the PSSH.")
     except Exception as e:
         raise e
 
