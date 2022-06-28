@@ -65,8 +65,6 @@ class Library:
             # Try to parse the query as a PSSH and extract a KID
             try:
                 query = extract_kid_from_pssh(query)
-                if isinstance(query, list):
-                    query = query[0]
             except Exception as e:
                 logger.exception(e)
                 raise e
@@ -166,8 +164,6 @@ class Pywidevine:
         if self.pssh:
             try:
                 self.kid = extract_kid_from_pssh(self.pssh)
-                if isinstance(self.kid, list):
-                    self.kid = self.kid[0]
             except Exception as e:
                 logger.exception(e)
                 raise e
