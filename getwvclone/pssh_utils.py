@@ -3,6 +3,8 @@ import struct
 
 from getwvclone.pywidevine.cdm.formats.widevine_pssh_data_pb2 import WidevinePsshData
 
+WIDEVINE_SYSTEM_ID = base64.b16decode("EDEF8BA979D64ACEA3C827DCD51D21ED")
+
 
 def int_to_bytes(x: int) -> bytes:
     return x.to_bytes((x.bit_length() + 7) // 8, "big")
