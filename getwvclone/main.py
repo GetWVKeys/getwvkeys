@@ -28,15 +28,7 @@ from flask import (
 from flask_login import LoginManager, current_user, login_user, logout_user
 from oauthlib.oauth2 import WebApplicationClient
 from oauthlib.oauth2.rfc6749.errors import OAuth2Error
-from werkzeug.exceptions import (
-    BadRequest,
-    Forbidden,
-    Gone,
-    HTTPException,
-    NotFound,
-    Unauthorized,
-    UnsupportedMediaType,
-)
+from werkzeug.exceptions import BadRequest, Forbidden, Gone, HTTPException, NotFound, Unauthorized, UnsupportedMediaType, ImATeapot
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from getwvclone import config, libraries
@@ -250,6 +242,8 @@ def wv():
     )
     if not pssh or not license_url:
         raise BadRequest("Missing Fields")
+    if license_url in config.BLACKLISTED_URLS:
+        raise ImATeapot()
 
     magic = libraries.Pywidevine(library, proxy=proxy, license_url=license_url, pssh=pssh, headers=headers, buildinfo=buildinfo, cache=cache, user_id=current_user.id)
     return magic.main(library)
@@ -272,6 +266,8 @@ def curl():
         )
         if not pssh or not license_url:
             raise BadRequest("Missing Fields")
+        if license_url in config.BLACKLISTED_URLS:
+            raise ImATeapot()
         magic = libraries.Pywidevine(
             library,
             proxy=proxy,
@@ -306,6 +302,8 @@ def pywidevine():
     )
     if not pssh or not license_url:
         raise BadRequest("Missing Fields")
+    if license_url in config.BLACKLISTED_URLS:
+        raise ImATeapot()
     magic = libraries.Pywidevine(
         library,
         proxy=proxy,

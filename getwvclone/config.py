@@ -26,7 +26,7 @@ DEFAULT_CDMS = [
     "AZ1122/aosp_kenzo/kenzo:7.1.2/NZH544/doveki08121232:userdebug/test-keys",
     "AZ1122/aosp_kenzo/kenzo:7.1.2/NZH545/doveki08121232:userdebug/test-keys",
 ]
-APPENDERS = ["staff_getwvkeys", "seopsta0197123"]
+APPENDERS = ["seopsta0197f78c7034"]
 GUILD_ID = "948675767754174465"
 VERIFIED_ROLE_ID = "970332150891155607"
 ELITE_ROLE_ID = "956263275887218808"
@@ -38,3 +38,4 @@ LOG_DATE_FORMAT = "%I:%M:%S"
 WVK_LOG_FILE_PATH = pathlib.Path(os.getcwd(), "logs", f"GWVK_{time.strftime('%Y-%m-%d')}.log")
 WZ_LOG_FILE_PATH = pathlib.Path(os.getcwd(), "logs", f"ACCESS_{time.strftime('%Y-%m-%d')}.log")
 SQLALCHEMY_DATABASE_URI = os.environ["SQLALCHEMY_DATABASE_URI"]
+BLACKLISTED_URLS = ["https://disney.playback.edge.bamgrid.com/widevine/v1/obtain-license"]
