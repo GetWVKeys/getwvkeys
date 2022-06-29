@@ -157,6 +157,11 @@ class Pywidevine:
         self.user_id = user_id
         self.server_certificate = server_certificate
         self.proxy = proxy
+        if isinstance(self.proxy, str):
+            try:
+                self.proxy = json.loads(self.proxy)
+            except json.JSONDecodeError:
+                self.proxy = {}
         self.store_request = {}
         self.session_id = session_id
 
