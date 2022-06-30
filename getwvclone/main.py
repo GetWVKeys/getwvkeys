@@ -45,7 +45,8 @@ from getwvclone.models.Key import Key
 from getwvclone.models.Shared import db
 from getwvclone.models.User import User
 from getwvclone.redis import Redis
-from getwvclone.utils import UserFlags, Validators, construct_logger
+from getwvclone.utils import Blacklist, UserFlags, Validators, construct_logger
+import validators as validationlib
 
 app = Flask(__name__.split(".")[0], root_path=str(Path(__file__).parent))
 app.config["SQLALCHEMY_DATABASE_URI"] = config.SQLALCHEMY_DATABASE_URI
@@ -73,6 +74,9 @@ validators = Validators()
 
 # initialize redis instance
 redis = Redis(app, library)
+
+# initialize blacklist class
+blacklist = Blacklist()
 
 # Utilities
 def authentication_required(exempt_methods=[], flags_required: int = None):
@@ -195,7 +199,7 @@ def favicon():
 def search():
     if request.method == "POST":
         query = request.stream.read().decode()
-        if query is None or query == "":
+        if not query or query == "":
             raise BadRequest("Missing or Invalid Search Query")
         data = library.search(query)
         if len(data) == 0:
@@ -212,7 +216,7 @@ def search():
 def keys():
     event_data = request.get_json()
     keys = event_data.get("keys")
-    if not keys or len(keys) == 0:
+    if not keys or not isinstance(keys, list) or len(keys) == 0:
         raise BadRequest("Invalid Body")
     return library.add_keys(keys, user_id=current_user.id)
 
@@ -238,15 +242,15 @@ def wv():
     event_data = request.get_json(force=True)
     (proxy, license_url, pssh, headers, buildinfo, cache) = (
         event_data.get("proxy", ""),
-        event_data.get("license_url"),
-        event_data.get("pssh"),
+        event_data["license_url"],
+        event_data["pssh"],
         event_data.get("headers", ""),
         event_data.get("buildInfo", ""),
         event_data.get("cache", True),
     )
-    if not pssh or not license_url:
-        raise BadRequest("Missing Fields")
-    if license_url in config.BLACKLISTED_URLS:
+    if not pssh or not license_url or not validationlib.url(license_url):
+        raise BadRequest("Missing or Invalid Fields")
+    if blacklist.is_url_blacklisted(license_url):
         raise ImATeapot()
 
     magic = libraries.Pywidevine(library, proxy=proxy, license_url=license_url, pssh=pssh, headers=headers, buildinfo=buildinfo, cache=cache, user_id=current_user.id)
@@ -260,8 +264,8 @@ def curl():
         event_data = request.get_json()
         (proxy, license_url, pssh, headers, buildinfo, cache, server_certificate, disable_privacy) = (
             event_data.get("proxy", ""),
-            event_data.get("license_url"),
-            event_data.get("pssh"),
+            event_data["license_url"],
+            event_data["pssh"],
             event_data.get("headers", ""),
             event_data.get("buildInfo", ""),
             event_data.get("cache", True),
@@ -270,7 +274,7 @@ def curl():
         )
         if not pssh or not license_url:
             raise BadRequest("Missing Fields")
-        if license_url in config.BLACKLISTED_URLS:
+        if blacklist.is_url_blacklisted(license_url):
             raise ImATeapot()
         magic = libraries.Pywidevine(
             library,
@@ -295,8 +299,8 @@ def pywidevine():
     event_data = request.get_json()
     (proxy, license_url, pssh, headers, buildinfo, cache, response, server_certificate, disable_privacy) = (
         event_data.get("proxy", ""),
-        event_data.get("license_url"),
-        event_data.get("pssh"),
+        event_data["license_url"],
+        event_data["pssh"],
         event_data.get("headers", ""),
         event_data.get("buildInfo", ""),
         event_data.get("cache", True),
@@ -304,9 +308,9 @@ def pywidevine():
         event_data.get("certificate"),
         event_data.get("disable_privacy", False),
     )
-    if not pssh or not license_url:
-        raise BadRequest("Missing Fields")
-    if license_url in config.BLACKLISTED_URLS:
+    if not pssh or not license_url or not validationlib.url(license_url):
+        raise BadRequest("Missing or Invalid Fields")
+    if blacklist.is_url_blacklisted(license_url):
         raise ImATeapot()
     magic = libraries.Pywidevine(
         library,

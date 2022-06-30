@@ -1,6 +1,7 @@
 import logging
 import logging.handlers
 from enum import Enum
+import re
 from typing import Union
 
 from cerberus import Validator
@@ -181,3 +182,33 @@ class Bitfield:
         if isinstance(bit, UserFlags):
             bit = bit.value
         return (self.bits & bit) == bit
+
+
+class BlacklistEntry:
+    def __init__(self, obj) -> None:
+        self.url = obj["url"]
+        self.partial = obj["partial"]
+
+        if self.partial:
+            self.url = re.compile(self.url)
+
+    def matches(self, url: str):
+        if self.partial:
+            m = self.url.match(url)
+            return m is not None
+        else:
+            return self.url == url
+
+
+class Blacklist:
+    def __init__(self) -> None:
+        self.blacklist: list[BlacklistEntry] = list()
+
+        for x in config.DEFAULT_BLACKLISTED_URLS:
+            self.blacklist.append(BlacklistEntry(x))
+
+    def is_url_blacklisted(self, url: str):
+        for entry in self.blacklist:
+            if entry.matches(url):
+                return True
+        return False
