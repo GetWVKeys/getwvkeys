@@ -536,7 +536,9 @@ button[type="enable"]:focus {
 .error-title {
   margin: 0 0 32px 0;
 }
-.error-subtitle {
-}
-.error-details {
+
+pre {
+  white-space: pre-wrap;
+  background-color: #222228;
+  margin-left: 30px;
 }
