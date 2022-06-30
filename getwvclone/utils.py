@@ -1,7 +1,7 @@
 import logging
 import logging.handlers
-from enum import Enum
 import re
+from enum import Enum
 from typing import Union
 
 from cerberus import Validator
