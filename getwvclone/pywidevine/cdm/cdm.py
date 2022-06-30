@@ -319,10 +319,10 @@ class Cdm:
 
         if lic_hmac.digest() != signed_license.Signature:
             self.logger.info("license signature doesn't match - writing bin so they can be debugged")
-            with open("original_lic.bin", "wb") as f:
-                f.write(base64.b64decode(license_b64))
-            with open("parsed_lic.bin", "wb") as f:
-                f.write(signed_license.SerializeToString())
+            # with open("original_lic.bin", "wb") as f:
+            #     f.write(base64.b64decode(license_b64))
+            # with open("parsed_lic.bin", "wb") as f:
+            #     f.write(signed_license.SerializeToString())
             self.logger.info("continuing anyway")
 
         self.logger.debug("key count: {}".format(len(signed_license.Msg.Key)))
