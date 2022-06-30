@@ -9,6 +9,7 @@ from pathlib import Path
 from sqlite3 import DatabaseError
 
 import requests
+import validators as validationlib
 from dunamai import Style, Version
 from flask import (
     Flask,
@@ -46,7 +47,6 @@ from getwvclone.models.Shared import db
 from getwvclone.models.User import User
 from getwvclone.redis import Redis
 from getwvclone.utils import Blacklist, UserFlags, Validators, construct_logger
-import validators as validationlib
 
 app = Flask(__name__.split(".")[0], root_path=str(Path(__file__).parent))
 app.config["SQLALCHEMY_DATABASE_URI"] = config.SQLALCHEMY_DATABASE_URI
