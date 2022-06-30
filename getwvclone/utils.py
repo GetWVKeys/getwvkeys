@@ -1,5 +1,6 @@
 import logging
 import logging.handlers
+import re
 from enum import Enum
 from typing import Union
 
@@ -10,14 +11,16 @@ from getwvclone import config
 from getwvclone.pssh_utils import parse_pssh
 
 
-class APIAction(Enum):
-    DISABLE_USER = "disable"
-    DISABLE_USER_BULK = "disable_bulk"
-    ENABLE_USER = "enable"
-    KEY_COUNT = "keycount"
-    USER_COUNT = "usercount"
-    SEARCH = "search"
-    UPDATE_PERMISSIONS = "update_permissions"
+class OPCode(Enum):
+    DISABLE_USER = 0
+    DISABLE_USER_BULK = 1
+    ENABLE_USER = 2
+    KEY_COUNT = 3
+    USER_COUNT = 4
+    SEARCH = 5
+    UPDATE_PERMISSIONS = 6
+    QUARANTINE = 7
+    REPLY = 8
 
 
 class UserFlags(Enum):
@@ -179,3 +182,33 @@ class Bitfield:
         if isinstance(bit, UserFlags):
             bit = bit.value
         return (self.bits & bit) == bit
+
+
+class BlacklistEntry:
+    def __init__(self, obj) -> None:
+        self.url = obj["url"]
+        self.partial = obj["partial"]
+
+        if self.partial:
+            self.url = re.compile(self.url)
+
+    def matches(self, url: str):
+        if self.partial:
+            m = self.url.match(url)
+            return m is not None
+        else:
+            return self.url == url
+
+
+class Blacklist:
+    def __init__(self) -> None:
+        self.blacklist: list[BlacklistEntry] = list()
+
+        for x in config.DEFAULT_BLACKLISTED_URLS:
+            self.blacklist.append(BlacklistEntry(x))
+
+    def is_url_blacklisted(self, url: str):
+        for entry in self.blacklist:
+            if entry.matches(url):
+                return True
+        return False

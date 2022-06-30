@@ -22,18 +22,9 @@ For Windows (Powershell): `$env:OAUTHLIB_INSECURE_TRANSPORT=1`
 
 # Database Migrations
 
-## Running migrations
-
-- `python migrate.py up database.db`
-- `python migrate.py up cdms.db`
-
-## Creating migrations
-
-- `python migrate.py create <database file.db> <migration name> <direction - up or down>`
-
-This will create a new migration file with a filename in the form of:
-`<unix timestamp>.<migration name>.<direction>.<database name>.sql`
+`poetry run setup`
 
 # Deploy
+
 Example deploy command for staging:
 `poetry run gunicorn -w 4 -b 0.0.0.0:8081 getwvclone.main:app`

@@ -7,11 +7,13 @@ from dotenv import load_dotenv
 
 IS_DEVELOPMENT = bool(os.environ.get("DEVELOPMENT", False))
 load_dotenv(".env.dev" if IS_DEVELOPMENT else ".env")
+
 SECRET_KEY = os.environ["SECRET_KEY"]  # generate secret offline with os.urandom(16).hex()
 OAUTH2_CLIENT_ID = os.environ["OAUTH2_CLIENT_ID"]  # Discord OAuth Client ID
 OAUTH2_CLIENT_SECRET = os.environ["OAUTH2_CLIENT_SECRET"]  # Discord OAuth Client Secret
 OAUTH2_REDIRECT_URL = os.environ["OAUTH2_REDIRECT_URL"]  # Discord OAuth Callback URL
-OAUTH2_REDIRECT_URL_DEV = os.environ["OAUTH2_REDIRECT_URL_DEV"]  # Discord OAuth Callback URL for local development
+SQLALCHEMY_DATABASE_URI = os.environ["SQLALCHEMY_DATABASE_URI"]
+REDIS_URI = os.environ["REDIS_URI"]
 
 API_HOST = "0.0.0.0"
 API_PORT = int(os.environ.get("API_PORT", 8080))
@@ -37,5 +39,17 @@ LOG_FORMAT = "[%(asctime)s] [%(name)s] [%(funcName)s:%(lineno)d] %(levelname)s: 
 LOG_DATE_FORMAT = "%I:%M:%S"
 WVK_LOG_FILE_PATH = pathlib.Path(os.getcwd(), "logs", f"GWVK_{time.strftime('%Y-%m-%d')}.log")
 WZ_LOG_FILE_PATH = pathlib.Path(os.getcwd(), "logs", f"ACCESS_{time.strftime('%Y-%m-%d')}.log")
-SQLALCHEMY_DATABASE_URI = os.environ["SQLALCHEMY_DATABASE_URI"]
-BLACKLISTED_URLS = ["https://disney.playback.edge.bamgrid.com/widevine/v1/obtain-license"]
+DEFAULT_BLACKLISTED_URLS = [
+    {
+        "url": "https://disney.playback.edge.bamgrid.com/widevine/v1/obtain-license",
+        "partial": False,
+    },
+    {
+        "url": ".*amazon.*",
+        "partial": True,
+    },
+    {
+        "url": ".*netflix.*",
+        "partial": True,
+    },
+]
