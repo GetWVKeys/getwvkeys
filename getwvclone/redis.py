@@ -2,7 +2,7 @@ import json
 
 import redis
 
-from getwvclone import libraries
+from getwvclone import config, libraries
 from getwvclone.models.Shared import db
 from getwvclone.utils import OPCode
 
@@ -11,7 +11,7 @@ class Redis:
     def __init__(self, app, library: libraries.Library) -> None:
         self.app = app
         self.library = library
-        self.redis = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True, encoding="utf-8", password=None)
+        self.redis = redis.Redis.from_url(config.REDIS_URI, decode_responses=True, encoding="utf8")
         self.p = self.redis.pubsub(ignore_subscribe_messages=True)
         self.p.subscribe(**{"api": self.redis_message_handler})
         self.redis_thread = self.p.run_in_thread(daemon=True)
