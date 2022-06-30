@@ -372,10 +372,7 @@ def login():
         return redirect("/")
     request_uri = client.prepare_request_uri(
         "https://discord.com/api/oauth2/authorize",
-        redirect_uri=[
-            config.OAUTH2_REDIRECT_URL,
-            config.OAUTH2_REDIRECT_URL_DEV,
-        ][config.IS_DEVELOPMENT],
+        redirect_uri=config.OAUTH2_REDIRECT_URL,
         scope=["guilds", "guilds.members.read", "identify"],
     )
     return render_template("login.html", auth_url=request_uri, current_user=current_user, website_version=sha)
@@ -389,10 +386,7 @@ def login_callback():
     token_url, headers, body = client.prepare_token_request(
         "https://discord.com/api/oauth2/token",
         authorization_response=request.url,
-        redirect_url=[
-            config.OAUTH2_REDIRECT_URL,
-            config.OAUTH2_REDIRECT_URL_DEV,
-        ][config.IS_DEVELOPMENT],
+        redirect_url=config.OAUTH2_REDIRECT_URL,
         code=code,
     )
     token_response = requests.post(
