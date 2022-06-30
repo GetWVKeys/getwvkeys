@@ -13,6 +13,7 @@ OAUTH2_CLIENT_ID = os.environ["OAUTH2_CLIENT_ID"]  # Discord OAuth Client ID
 OAUTH2_CLIENT_SECRET = os.environ["OAUTH2_CLIENT_SECRET"]  # Discord OAuth Client Secret
 OAUTH2_REDIRECT_URL = os.environ["OAUTH2_REDIRECT_URL"]  # Discord OAuth Callback URL
 SQLALCHEMY_DATABASE_URI = os.environ["SQLALCHEMY_DATABASE_URI"]
+REDIS_URI = os.environ["REDIS_URI"]
 
 API_HOST = "0.0.0.0"
 API_PORT = int(os.environ.get("API_PORT", 8080))
