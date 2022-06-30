@@ -38,4 +38,17 @@ LOG_FORMAT = "[%(asctime)s] [%(name)s] [%(funcName)s:%(lineno)d] %(levelname)s: 
 LOG_DATE_FORMAT = "%I:%M:%S"
 WVK_LOG_FILE_PATH = pathlib.Path(os.getcwd(), "logs", f"GWVK_{time.strftime('%Y-%m-%d')}.log")
 WZ_LOG_FILE_PATH = pathlib.Path(os.getcwd(), "logs", f"ACCESS_{time.strftime('%Y-%m-%d')}.log")
-BLACKLISTED_URLS = ["https://disney.playback.edge.bamgrid.com/widevine/v1/obtain-license"]
+DEFAULT_BLACKLISTED_URLS = [
+    {
+        "url": "https://disney.playback.edge.bamgrid.com/widevine/v1/obtain-license",
+        "partial": False,
+    },
+    {
+        "url": ".*amazon.*",
+        "partial": True,
+    },
+    {
+        "url": ".*netflix.*",
+        "partial": True,
+    },
+]
