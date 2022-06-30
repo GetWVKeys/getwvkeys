@@ -3,14 +3,13 @@ import json
 import os
 import pathlib
 import time
-import traceback
 from functools import update_wrapper, wraps
 from io import BytesIO
 from pathlib import Path
-from pprint import pprint
 from sqlite3 import DatabaseError
 
 import requests
+import validators as validationlib
 from dunamai import Style, Version
 from flask import (
     Flask,
@@ -46,13 +45,8 @@ from getwvclone.models.CDM import CDM
 from getwvclone.models.Key import Key
 from getwvclone.models.Shared import db
 from getwvclone.models.User import User
-from getwvclone.utils import (
-    APIAction,
-    FlagAction,
-    UserFlags,
-    Validators,
-    construct_logger,
-)
+from getwvclone.redis import Redis
+from getwvclone.utils import Blacklist, UserFlags, Validators, construct_logger
 
 app = Flask(__name__.split(".")[0], root_path=str(Path(__file__).parent))
 app.config["SQLALCHEMY_DATABASE_URI"] = config.SQLALCHEMY_DATABASE_URI
@@ -77,6 +71,12 @@ library = libraries.Library(db)
 
 # create validators instance
 validators = Validators()
+
+# initialize redis instance
+redis = Redis(app, library)
+
+# initialize blacklist class
+blacklist = Blacklist()
 
 # Utilities
 def authentication_required(exempt_methods=[], flags_required: int = None):
@@ -199,7 +199,7 @@ def favicon():
 def search():
     if request.method == "POST":
         query = request.stream.read().decode()
-        if query is None or query == "":
+        if not query or query == "":
             raise BadRequest("Missing or Invalid Search Query")
         data = library.search(query)
         if len(data) == 0:
@@ -216,7 +216,7 @@ def search():
 def keys():
     event_data = request.get_json()
     keys = event_data.get("keys")
-    if not keys or len(keys) == 0:
+    if not keys or not isinstance(keys, list) or len(keys) == 0:
         raise BadRequest("Invalid Body")
     return library.add_keys(keys, user_id=current_user.id)
 
@@ -242,15 +242,15 @@ def wv():
     event_data = request.get_json(force=True)
     (proxy, license_url, pssh, headers, buildinfo, cache) = (
         event_data.get("proxy", ""),
-        event_data.get("license_url"),
-        event_data.get("pssh"),
+        event_data["license_url"],
+        event_data["pssh"],
         event_data.get("headers", ""),
         event_data.get("buildInfo", ""),
         event_data.get("cache", True),
     )
-    if not pssh or not license_url:
-        raise BadRequest("Missing Fields")
-    if license_url in config.BLACKLISTED_URLS:
+    if not pssh or not license_url or not validationlib.url(license_url):
+        raise BadRequest("Missing or Invalid Fields")
+    if blacklist.is_url_blacklisted(license_url):
         raise ImATeapot()
 
     magic = libraries.Pywidevine(library, proxy=proxy, license_url=license_url, pssh=pssh, headers=headers, buildinfo=buildinfo, cache=cache, user_id=current_user.id)
@@ -264,8 +264,8 @@ def curl():
         event_data = request.get_json()
         (proxy, license_url, pssh, headers, buildinfo, cache, server_certificate, disable_privacy) = (
             event_data.get("proxy", ""),
-            event_data.get("license_url"),
-            event_data.get("pssh"),
+            event_data["license_url"],
+            event_data["pssh"],
             event_data.get("headers", ""),
             event_data.get("buildInfo", ""),
             event_data.get("cache", True),
@@ -274,7 +274,7 @@ def curl():
         )
         if not pssh or not license_url:
             raise BadRequest("Missing Fields")
-        if license_url in config.BLACKLISTED_URLS:
+        if blacklist.is_url_blacklisted(license_url):
             raise ImATeapot()
         magic = libraries.Pywidevine(
             library,
@@ -299,8 +299,8 @@ def pywidevine():
     event_data = request.get_json()
     (proxy, license_url, pssh, headers, buildinfo, cache, response, server_certificate, disable_privacy) = (
         event_data.get("proxy", ""),
-        event_data.get("license_url"),
-        event_data.get("pssh"),
+        event_data["license_url"],
+        event_data["pssh"],
         event_data.get("headers", ""),
         event_data.get("buildInfo", ""),
         event_data.get("cache", True),
@@ -308,9 +308,9 @@ def pywidevine():
         event_data.get("certificate"),
         event_data.get("disable_privacy", False),
     )
-    if not pssh or not license_url:
-        raise BadRequest("Missing Fields")
-    if license_url in config.BLACKLISTED_URLS:
+    if not pssh or not license_url or not validationlib.url(license_url):
+        raise BadRequest("Missing or Invalid Fields")
+    if blacklist.is_url_blacklisted(license_url):
         raise ImATeapot()
     magic = libraries.Pywidevine(
         library,
@@ -376,10 +376,7 @@ def login():
         return redirect("/")
     request_uri = client.prepare_request_uri(
         "https://discord.com/api/oauth2/authorize",
-        redirect_uri=[
-            config.OAUTH2_REDIRECT_URL,
-            config.OAUTH2_REDIRECT_URL_DEV,
-        ][config.IS_DEVELOPMENT],
+        redirect_uri=config.OAUTH2_REDIRECT_URL,
         scope=["guilds", "guilds.members.read", "identify"],
     )
     return render_template("login.html", auth_url=request_uri, current_user=current_user, website_version=sha)
@@ -393,10 +390,7 @@ def login_callback():
     token_url, headers, body = client.prepare_token_request(
         "https://discord.com/api/oauth2/token",
         authorization_response=request.url,
-        redirect_url=[
-            config.OAUTH2_REDIRECT_URL,
-            config.OAUTH2_REDIRECT_URL_DEV,
-        ][config.IS_DEVELOPMENT],
+        redirect_url=config.OAUTH2_REDIRECT_URL,
         code=code,
     )
     token_response = requests.post(
@@ -446,63 +440,6 @@ def logout():
 def user_profile():
     user_cdms = current_user.get_user_cdms()
     return render_template("profile.html", current_user=current_user, cdms=user_cdms, website_version=sha)
-
-
-@app.route("/admin/api", methods=["POST"])
-@authentication_required(flags_required=UserFlags.ADMIN)
-def admin_api():
-    data = request.get_json()
-    if not data:
-        raise BadRequest("Bad Request")
-
-    action = data.get("action")
-    if action == APIAction.DISABLE_USER.value:
-        user_id = data.get("user_id")
-        if not user_id:
-            raise BadRequest("Bad Request")
-        libraries.User.disable_user(db, user_id)
-        return jsonify({"error": False, "message": None}), 200
-    elif action == APIAction.DISABLE_USER_BULK.value:
-        user_ids = data.get("user_ids")
-        if not user_ids:
-            raise BadRequest("Bad Request")
-        libraries.User.disable_users(db, user_ids)
-        return jsonify({"error": False, "message": None}), 200
-    elif action == APIAction.ENABLE_USER.value:
-        user_id = data.get("user_id")
-        if not user_id:
-            raise BadRequest("Bad Request")
-        libraries.User.enable_user(db, user_id)
-        return jsonify({"error": False, "message": None}), 200
-    elif action == APIAction.KEY_COUNT.value:
-        return jsonify({"error": False, "message": library.get_keycount()}), 200
-    elif action == APIAction.USER_COUNT.value:
-        return jsonify({"error": False, "message": libraries.User.get_user_count()}), 200
-    elif action == APIAction.SEARCH.value:
-        query = data.get("query")
-        if not query:
-            raise BadRequest("Bad Request")
-        results = library.search(query)
-        results = library.search_res_to_dict(query, results)
-        return jsonify({"error": False, "message": results}), 200
-    elif action == APIAction.UPDATE_PERMISSIONS.value:
-        user_id = data.get("user_id")
-        permissions = data.get("permissions")
-        permission_action = data.get("permission_action", FlagAction.ADD)
-        if not user_id or not permissions:
-            raise BadRequest("Bad Request")
-
-        # get user
-        user = libraries.User.get(db, user_id)
-        if not user:
-            raise NotFound("User not found")
-
-        print("Old flags: ", user.flags_raw)
-        user = user.update_flags(permissions, permission_action)
-        print("New flags: ", user.flags_raw)
-        return jsonify({"error": False, "message": None}), 200
-
-    raise BadRequest("Bad Request")
 
 
 # error handlers
