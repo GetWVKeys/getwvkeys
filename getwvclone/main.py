@@ -242,8 +242,8 @@ def wv():
     event_data = request.get_json(force=True)
     (proxy, license_url, pssh, headers, buildinfo, cache) = (
         event_data.get("proxy", ""),
-        event_data["license_url"],
-        event_data["pssh"],
+        event_data.get("license_url"),
+        event_data.get("pssh"),
         event_data.get("headers", ""),
         event_data.get("buildInfo", ""),
         event_data.get("cache", True),
@@ -264,8 +264,8 @@ def curl():
         event_data = request.get_json()
         (proxy, license_url, pssh, headers, buildinfo, cache, server_certificate, disable_privacy) = (
             event_data.get("proxy", ""),
-            event_data["license_url"],
-            event_data["pssh"],
+            event_data.get("license_url"),
+            event_data.get("pssh"),
             event_data.get("headers", ""),
             event_data.get("buildInfo", ""),
             event_data.get("cache", True),
@@ -299,8 +299,8 @@ def pywidevine():
     event_data = request.get_json()
     (proxy, license_url, pssh, headers, buildinfo, cache, response, server_certificate, disable_privacy) = (
         event_data.get("proxy", ""),
-        event_data["license_url"],
-        event_data["pssh"],
+        event_data.get("license_url"),
+        event_data.get("pssh"),
         event_data.get("headers", ""),
         event_data.get("buildInfo", ""),
         event_data.get("cache", True),
