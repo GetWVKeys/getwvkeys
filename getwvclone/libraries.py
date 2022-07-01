@@ -274,9 +274,9 @@ class Pywidevine:
             res = base64.b64encode(challenge).decode()
             return res
         else:
-            if self.pssh not in Library.store_request:
+            wvdecrypt = Library.store_request.get(self.pssh)
+            if not wvdecrypt:
                 raise BadRequest("PSSH CHALLENGE WAS NOT GENERATED FIRST")
-            wvdecrypt = Library.store_request[self.pssh]
             wvdecrypt.decrypt_license(self.response)
             for _, y in enumerate(wvdecrypt.get_content_key()):
                 (kid, _) = y.split(":")
@@ -301,9 +301,9 @@ class Pywidevine:
             res = base64.b64encode(challenge).decode()
             return {"challenge": res, "session_id": self.session_id}
         else:
-            if self.session_id not in Library.store_request:
+            wvdecrypt = Library.store_request.get(self.session_id)
+            if not wvdecrypt:
                 raise BadRequest("PSSH CHALLENGE WAS NOT GENERATED FIRST")
-            wvdecrypt = Library.store_request[self.session_id]
             wvdecrypt.decrypt_license(self.response)
             for _, y in enumerate(wvdecrypt.get_content_key()):
                 (kid, _) = y.split(":")
