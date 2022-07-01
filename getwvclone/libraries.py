@@ -268,7 +268,7 @@ class Pywidevine:
                 wvdecrypt.set_server_certificate(self.server_certificate)
             challenge = wvdecrypt.create_challenge()
             if len(Library.store_request) > 60:
-                self.store_request.pop()
+                self.store_request.popitem()
             Library.store_request[self.pssh] = wvdecrypt
 
             res = base64.b64encode(challenge).decode()
@@ -294,7 +294,7 @@ class Pywidevine:
             wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(library, self.buildinfo))
             challenge = wvdecrypt.create_challenge()
             if len(Library.store_request) > 60:
-                self.store_request.pop()
+                self.store_request.popitem()
             self.session_id = wvdecrypt.session.hex()
             Library.store_request[self.session_id] = wvdecrypt
 
