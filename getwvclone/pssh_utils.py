@@ -19,7 +19,7 @@ def parse_pssh(pssh_b64):
         size = reader.read_int(4)
         box_type = reader.read_bytes(4)
         if box_type != b"pssh":
-            raise Exception("Invalid box type 0x%s, not 'pssh'" % box_type.encode("hex"))
+            raise Exception("Invalid box type 0x%s, not 'pssh'" % box_type.hex())
         version_and_flags = reader.read_int(4)
         version = version_and_flags >> 24
         if version > 1:
