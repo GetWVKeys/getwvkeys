@@ -461,11 +461,12 @@ def database_error(e: Exception):
 
 @app.errorhandler(HTTPException)
 def http_exception(e: HTTPException):
-    logger.error(e)
     if request.method == "GET":
         if e.code == 401:
             return app.login_manager.unauthorized()
+        logger.error(e)
         return render_template("error.html", title=e.name, details=e.description, current_user=current_user, website_version=sha), e.code
+    logger.error(e)
     return jsonify({"error": True, "code": e.code, "message": e.description}), e.code
 
 
