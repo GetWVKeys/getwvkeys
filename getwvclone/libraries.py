@@ -8,7 +8,7 @@ from urllib.parse import urlsplit
 
 import requests
 import yaml
-from flask import jsonify, make_response, render_template
+from flask import jsonify, render_template
 from flask_login import UserMixin
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.exceptions import BadRequest, Forbidden, NotFound
@@ -250,11 +250,8 @@ class Pywidevine:
         # caching
         data = self._cache_keys()
         if curl:
-            a = jsonify(data)
-            a.headers.set("X-Session-ID", wvdecrypt.session.hex())
-        r = make_response(render_template("success.html", page_title="Success", results=data))
-        r.headers.set("X-Session-ID", wvdecrypt.session.hex())
-        return r
+            return jsonify(data)
+        return render_template("success.html", page_title="Success", results=data)
 
     def api(self, library: Library):
         if self.cache:
@@ -274,8 +271,7 @@ class Pywidevine:
                 self.store_request.popitem()
             Library.store_request[self.pssh] = wvdecrypt
 
-            res = make_response(base64.b64encode(challenge).decode())
-            res.headers.set("X-Session-ID", wvdecrypt.session.hex())
+            res = base64.b64encode(challenge).decode()
             return res
         else:
             wvdecrypt = Library.store_request.get(self.pssh)
@@ -286,9 +282,7 @@ class Pywidevine:
                 (kid, _) = y.split(":")
                 self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, y))
             output = self._cache_keys()
-            r = jsonify(output)
-            r.headers.set("X-Session-ID", wvdecrypt.session.hex())
-            return r
+            return output
 
     def vinetrimmer(self, library: Library):
         # TODO: implement cache
