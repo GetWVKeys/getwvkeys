@@ -1,11 +1,10 @@
 import random
 
 from getwvclone.config import DEFAULT_CDMS
-from getwvclone.libraries import Library
 
 
 class DeviceConfig:
-    def __init__(self, library: Library, device):
+    def __init__(self, library, device):
         if device == "" or device is None:
             device = random.choice(DEFAULT_CDMS)
         loaded = library.cdm_selector(device)
