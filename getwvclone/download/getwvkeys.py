@@ -2,6 +2,7 @@ import argparse
 import base64
 import json
 import sys
+
 import requests
 
 version = "4.2"
