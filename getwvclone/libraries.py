@@ -429,6 +429,11 @@ class User(UserMixin):
         self.db.session.commit()
         return User(self.db, self.user_model)
 
+    def reset_api_key(self):
+        api_key = secrets.token_hex(32)
+        self.user_model.api_key = api_key
+        self.db.session.commit()
+
     @staticmethod
     def get(db: SQLAlchemy, user_id: str):
         user = UserModel.query.filter_by(id=user_id).first()
