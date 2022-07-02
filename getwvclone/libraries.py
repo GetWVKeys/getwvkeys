@@ -42,6 +42,8 @@ common_privacy_cert = (
     "7gLwDS6NWYYQSqzE3Udf2W7pzk4ybyG4PHBYV3s4cyzdq8amvtE/sNSdOKReuHpfQ="
 )
 
+sessions = dict()
+
 
 class Library:
     def __init__(self, db: SQLAlchemy):
@@ -264,7 +266,6 @@ class Pywidevine:
 
         if self.response is None:
             # challenge generation
-
             wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(library, self.buildinfo))
 
             # set server certificate if provided
@@ -274,20 +275,20 @@ class Pywidevine:
             # get the challenge
             challenge = wvdecrypt.create_challenge()
 
-            # if len(Library.sessions) > 30:
+            # if len(sessions) > 30:
             #     self.store_request = {}
             # store the session
             self.session_id = wvdecrypt.session.hex()
-            Library.sessions[self.session_id] = wvdecrypt
+            sessions[self.session_id] = wvdecrypt
 
             return jsonify({"challenge": base64.b64encode(challenge).decode(), "session_id": self.session_id})
 
         # license decryption
-        if self.session_id not in Library.sessions:
+        if self.session_id not in sessions:
             raise BadRequest("Session not found, did you generate a challenge first?")
 
         # get the session
-        wvdecrypt: WvDecrypt = Library.sessions[self.session_id]
+        wvdecrypt: WvDecrypt = sessions[self.session_id]
 
         # decrypt the license
         wvdecrypt.decrypt_license(self.response)
@@ -307,17 +308,17 @@ class Pywidevine:
         if self.response is None:
             wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(library, self.buildinfo))
             challenge = wvdecrypt.create_challenge()
-            # if len(Library.sessions) > 30:
+            # if len(sessions) > 30:
             #     self.store_request = {}
             self.session_id = wvdecrypt.session.hex()
-            Library.sessions[self.session_id] = wvdecrypt
+            sessions[self.session_id] = wvdecrypt
 
             res = base64.b64encode(challenge).decode()
             return {"challenge": res, "session_id": self.session_id}
         else:
-            if self.session_id not in Library.sessions:
+            if self.session_id not in sessions:
                 raise BadRequest("Session not found, did you generate a challenge first?")
-            wvdecrypt = Library.sessions[self.session_id]
+            wvdecrypt = sessions[self.session_id]
             wvdecrypt.decrypt_license(self.response)
             for _, y in enumerate(wvdecrypt.get_content_key()):
                 (kid, _) = y.split(":")
