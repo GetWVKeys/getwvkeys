@@ -73,7 +73,9 @@ library = libraries.Library(db)
 validators = Validators()
 
 # initialize redis instance
-redis = Redis(app, library)
+if not config.IS_STAGING:
+    # TODO: currently staging can reply which is unintended, but ignoring stuff like disabling users might not be ideal
+    redis = Redis(app, library)
 
 # initialize blacklist class
 blacklist = Blacklist()
