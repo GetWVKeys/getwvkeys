@@ -21,6 +21,7 @@ class OPCode(Enum):
     UPDATE_PERMISSIONS = 6
     QUARANTINE = 7
     REPLY = 8
+    RESET_API_KEY = 9
 
 
 class UserFlags(Enum):
