@@ -242,7 +242,12 @@ class Pywidevine:
 
         decode = self.post_data(self.license_url, self.headers, challenge, self.proxy)
 
-        wvdecrypt.decrypt_license(decode)
+        try:
+            wvdecrypt.decrypt_license(decode)
+        except ValueError as e:
+            r = make_response(BadRequest(str(e)))
+            r.headers.set("X-Session-ID", wvdecrypt.session.hex())
+            return r
         for _, y in enumerate(wvdecrypt.get_content_key()):
             (kid, _) = y.split(":")
             self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, y))
@@ -281,7 +286,12 @@ class Pywidevine:
             wvdecrypt = Library.store_request.get(self.pssh)
             if not wvdecrypt:
                 raise BadRequest("PSSH CHALLENGE WAS NOT GENERATED FIRST")
-            wvdecrypt.decrypt_license(self.response)
+            try:
+                wvdecrypt.decrypt_license(self.response)
+            except ValueError as e:
+                r = make_response(BadRequest(str(e)))
+                r.headers.set("X-Session-ID", wvdecrypt.session.hex())
+                return r
             for _, y in enumerate(wvdecrypt.get_content_key()):
                 (kid, _) = y.split(":")
                 self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, y))
