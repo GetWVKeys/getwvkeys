@@ -2,11 +2,10 @@ import argparse
 import base64
 import json
 import sys
-
 import requests
 
-version = "4.1"
-
+version = "4.2"
+API_URL = "__getwvkeys_api_url__"
 
 # Change your headers here
 def headers():
@@ -28,7 +27,8 @@ def post_request(arg, challenge):
 # Do Not Change Anything in this class
 class GetwvCloneApi:
     def __init__(self, arg) -> None:
-        self.baseurl = "https://getwvkeys.cc"
+        # dynamic injection of the API url
+        self.baseurl = "https://getwvkeys.cc" if API_URL == "__getwvkeys_api_url__" else API_URL
         self.api_url = self.baseurl + "/pywidevine"
         self.args = arg
         self.args.headers = headers()
@@ -48,24 +48,40 @@ class GetwvCloneApi:
             print("[-] Failed to generate license request: [{}] {}".format(r.status_code, r.text))
             exit(1)
 
+        data = r.json()
+
         if r.headers.get("X-Cached"):
-            cached = r.json()
             if args.verbose:
-                print(json.dumps(cached, indent=4))
-            for k in cached["keys"]:
+                print(json.dumps(data, indent=4))
+            print("\n" * 5)
+            print("[+] Keys:")
+            for k in data["keys"]:
                 print("--key {}".format(k["key"]))
             input("[+] Press Enter To Continue with request")
             self.args.cache = False
             return self.generate_request()
-        if self.args.verbose:
-            print("[+] License Request Generated ")
 
-        return base64.b64decode(r.text).decode("ISO-8859-1")
+        self.session_id = data["session_id"]
+        challenge = data["challenge"]
+
+        if self.args.verbose:
+            print("[+] License Request Generated\n", challenge)
+            print("[+] Session ID:", self.session_id)
+
+        return base64.b64decode(challenge)
 
     def decrypter(self, license_response):
         if self.args.verbose:
             print("[+] Decrypting with License Request and Response ")
-        data = {"pssh": self.args.pssh, "response": license_response, "license_url": self.args.url, "headers": self.args.headers, "buildInfo": self.args.buildinfo, "cache": self.args.cache}
+        data = {
+            "pssh": self.args.pssh,
+            "response": license_response,
+            "license_url": self.args.url,
+            "headers": self.args.headers,
+            "buildInfo": self.args.buildinfo,
+            "cache": self.args.cache,
+            "session_id": self.session_id,
+        }
         header = {"X-API-Key": args.auth, "Content-Type": "application/json"}
         r = requests.post(self.api_url, json=data, headers=header)
         if not r.ok:
@@ -76,18 +92,23 @@ class GetwvCloneApi:
                 exit(1)
             print("[-] Failed to decrypt license: [{}] {}".format(r.status_code, r.text))
             exit(1)
-        return r.text
+        return r.json()
 
     def main(self):
         license_request = self.generate_request()
         if args.verbose:
             print("[+] Sending License URL Request")
         license_response = post_request(args, license_request)
-        keys = self.decrypter(base64.b64encode(license_response).decode())
-        keys = json.loads(keys)
+        decrypt_response = self.decrypter(base64.b64encode(license_response).decode())
+        keys = decrypt_response["keys"]
+        session_id = decrypt_response["session_id"]
+
         if args.verbose:
-            print(json.dumps(keys, indent=4))
-        for k in keys["keys"]:
+            print(json.dumps(decrypt_response, indent=4))
+            print("Decryption Session ID:", session_id)
+        print("\n" * 5)
+        print("[+] Keys:")
+        for k in keys:
             print("--key {}".format(k))
 
 

@@ -24,6 +24,7 @@ from getwvclone.utils import (
     UserFlags,
     extract_kid_from_pssh,
 )
+from getwvclone.pywidevine.cdm import deviceconfig
 
 logger = logging.getLogger("getwvkeys")
 
@@ -46,7 +47,7 @@ class Library:
     def __init__(self, db: SQLAlchemy):
         self.db = db
 
-    store_request = {}
+    sessions = {}
 
     def cache_keys(self, cached_keys: list[CachedKey]):
         for cached_key in cached_keys:
@@ -189,7 +190,7 @@ class Pywidevine:
                 )
             return results
 
-        results = {"kid": self.kid, "license_url": self.license_url, "added_at": self.time, "keys": list()}
+        results = {"kid": self.kid, "license_url": self.license_url, "added_at": self.time, "keys": list(), "session_id": self.session_id}
         for key in self.content_keys:
             # s = urlsplit(self.license_url)
             # license_url = "{}//{}".format(s.scheme, s.netloc)
@@ -233,8 +234,6 @@ class Pywidevine:
         except (Exception,):
             self.headers = self.yamldomagic(self.headers)
 
-        from getwvclone.pywidevine.cdm import deviceconfig
-
         wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(library, self.buildinfo))
         if self.server_certificate:
             wvdecrypt.set_server_certificate(self.server_certificate)
@@ -249,6 +248,8 @@ class Pywidevine:
 
         # caching
         data = self._cache_keys()
+        # close the session
+        wvdecrypt.close_session()
         if curl:
             return jsonify(data)
         return render_template("success.html", page_title="Success", results=data)
@@ -260,58 +261,71 @@ class Pywidevine:
             resp = jsonify(results)
             resp.headers["X-Cached"] = True
             return resp
+
         if self.response is None:
-            from getwvclone.pywidevine.cdm import deviceconfig
+            # challenge generation
 
             wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(library, self.buildinfo))
+
+            # set server certificate if provided
             if self.server_certificate:
                 wvdecrypt.set_server_certificate(self.server_certificate)
-            challenge = wvdecrypt.create_challenge()
-            if len(Library.store_request) > 60:
-                self.store_request.popitem()
-            Library.store_request[self.pssh] = wvdecrypt
 
-            res = base64.b64encode(challenge).decode()
-            return res
-        else:
-            wvdecrypt = Library.store_request.get(self.pssh)
-            if not wvdecrypt:
-                raise BadRequest("PSSH CHALLENGE WAS NOT GENERATED FIRST")
-            wvdecrypt.decrypt_license(self.response)
-            for _, y in enumerate(wvdecrypt.get_content_key()):
-                (kid, _) = y.split(":")
-                self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, y))
-            output = self._cache_keys()
-            return output
+            # get the challenge
+            challenge = wvdecrypt.create_challenge()
+
+            # if len(Library.sessions) > 30:
+            #     self.store_request = {}
+            # store the session
+            self.session_id = wvdecrypt.session.hex()
+            Library.sessions[self.session_id] = wvdecrypt
+
+            return jsonify({"challenge": base64.b64encode(challenge).decode(), "session_id": self.session_id})
+
+        # license decryption
+        if self.session_id not in Library.sessions:
+            raise BadRequest("Session not found, did you generate a challenge first?")
+
+        # get the session
+        wvdecrypt: WvDecrypt = Library.sessions[self.session_id]
+
+        # decrypt the license
+        wvdecrypt.decrypt_license(self.response)
+
+        for _, y in enumerate(wvdecrypt.get_content_key()):
+            (kid, _) = y.split(":")
+            self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, y))
+        output = self._cache_keys()
+        # close the session
+        wvdecrypt.close_session()
+        return jsonify(output)
 
     def vinetrimmer(self, library: Library):
         # TODO: implement cache
         # if self.cache:
         #    return self.library.search(self.pssh)
         if self.response is None:
-            from getwvclone.pywidevine.cdm import deviceconfig
-
             wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(library, self.buildinfo))
             challenge = wvdecrypt.create_challenge()
-            if len(Library.store_request) > 60:
-                self.store_request.popitem()
+            # if len(Library.sessions) > 30:
+            #     self.store_request = {}
             self.session_id = wvdecrypt.session.hex()
-            Library.store_request[self.session_id] = wvdecrypt
+            Library.sessions[self.session_id] = wvdecrypt
 
             res = base64.b64encode(challenge).decode()
             return {"challenge": res, "session_id": self.session_id}
         else:
-            wvdecrypt = Library.store_request.get(self.session_id)
-            if not wvdecrypt:
-                raise BadRequest("PSSH CHALLENGE WAS NOT GENERATED FIRST")
+            if self.session_id not in Library.sessions:
+                raise BadRequest("Session not found, did you generate a challenge first?")
+            wvdecrypt = Library.sessions[self.session_id]
             wvdecrypt.decrypt_license(self.response)
             for _, y in enumerate(wvdecrypt.get_content_key()):
                 (kid, _) = y.split(":")
                 self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, y))
             keys = self._cache_keys(vt=True)
-            return {
-                "keys": keys,
-            }
+            # close the session
+            wvdecrypt.close_session()
+            return {"keys": keys, "session_id": self.session_id}
 
 
 class WvDecrypt:
@@ -351,6 +365,9 @@ class WvDecrypt:
 
                 signing_key = "{}:{}".format(kid, key)
                 return signing_key
+
+    def close_session(self):
+        self.cdm.close_session(self.session)
 
 
 class User(UserMixin):
