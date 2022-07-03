@@ -73,7 +73,9 @@ library = libraries.Library(db)
 validators = Validators()
 
 # initialize redis instance
-redis = Redis(app, library)
+if not config.IS_STAGING:
+    # TODO: currently staging can reply which is unintended, but ignoring stuff like disabling users might not be ideal
+    redis = Redis(app, library)
 
 # initialize blacklist class
 blacklist = Blacklist()
@@ -179,6 +181,7 @@ def downloadfile(file):
     if current_user.is_authenticated:
         data = open(path, "r").read()
         data = data.replace("__getwvkeys_api_key__", current_user.api_key, 1)
+        data = data.replace("__getwvkeys_api_url__", config.API_URL, 1)
         f = BytesIO(data.encode())
         return send_file(f, as_attachment=True, download_name=path.name, mimetype="application/x-python-script")
     return send_file(path, as_attachment=True)
@@ -297,7 +300,7 @@ def curl():
 @authentication_required()
 def pywidevine():
     event_data = request.get_json()
-    (proxy, license_url, pssh, headers, buildinfo, cache, response, server_certificate, disable_privacy) = (
+    (proxy, license_url, pssh, headers, buildinfo, cache, response, server_certificate, disable_privacy, session_id) = (
         event_data.get("proxy", ""),
         event_data.get("license_url"),
         event_data.get("pssh"),
@@ -307,8 +310,9 @@ def pywidevine():
         event_data.get("response"),
         event_data.get("certificate"),
         event_data.get("disable_privacy", False),
+        event_data.get("session_id"),
     )
-    if not pssh or not license_url or not validationlib.url(license_url):
+    if not pssh or not license_url or not validationlib.url(license_url) or (response and not session_id):
         raise BadRequest("Missing or Invalid Fields")
     if blacklist.is_url_blacklisted(license_url):
         raise ImATeapot()
@@ -324,6 +328,7 @@ def pywidevine():
         user_id=current_user.id,
         server_certificate=server_certificate,
         disable_privacy=disable_privacy,
+        session_id=session_id,
     )
     return magic.api(library)
 

@@ -6,7 +6,8 @@ import time
 from dotenv import load_dotenv
 
 IS_DEVELOPMENT = bool(os.environ.get("DEVELOPMENT", False))
-load_dotenv(".env.dev" if IS_DEVELOPMENT else ".env")
+IS_STAGING = bool(os.environ.get("STAGING", False))
+load_dotenv(".env.dev" if IS_DEVELOPMENT else ".env.staging" if IS_STAGING else ".env")
 
 SECRET_KEY = os.environ["SECRET_KEY"]  # generate secret offline with os.urandom(16).hex()
 OAUTH2_CLIENT_ID = os.environ["OAUTH2_CLIENT_ID"]  # Discord OAuth Client ID
@@ -17,6 +18,7 @@ REDIS_URI = os.environ["REDIS_URI"]
 
 API_HOST = "0.0.0.0"
 API_PORT = int(os.environ.get("API_PORT", 8080))
+API_URL = os.environ.get("API_URL", "https://getwvkeys.cc")
 
 PROXY = {}
 DEFAULT_CDMS = [

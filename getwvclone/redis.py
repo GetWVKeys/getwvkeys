@@ -98,6 +98,18 @@ class Redis:
             elif op == OPCode.QUARANTINE.value:
                 # TODO: Implement
                 self.publish_error(reply_to, "Not implemented")
+            elif op == OPCode.RESET_API_KEY.value:
+                user_id = d.get("user_id")
+                with self.app.app_context():
+                    user = libraries.User.get(db, user_id)
+                    if not user:
+                        self.publish_error(reply_to, "User not found")
+                        return
+                    try:
+                        user.reset_api_key()
+                        self.publish_response(reply_to, "API Key has been reset for user {}".format(user.username))
+                    except Exception as e:
+                        self.publish_error(reply_to, "Error resetting API Key for {}: {}".format(user.username, str(e)))
             else:
                 self.publish_error(reply_to, "Unknown OPCode {}".format(op))
         except json.JSONDecodeError:
