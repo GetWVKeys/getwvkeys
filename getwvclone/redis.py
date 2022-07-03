@@ -39,28 +39,37 @@ class Redis:
                     self.publish_error(reply_to, "No user_id found in message")
                     return
                 with self.app.app_context():
-                    libraries.User.disable_user(db, user_id)
-                    self.publish_response(reply_to)
+                    try:
+                        libraries.User.disable_user(db, user_id)
+                        self.publish_response(reply_to)
+                    except Exception as e:
+                        self.publish_error(reply_to, "Error disablng user {}: {}".format(user_id, e))
             elif op == OPCode.DISABLE_USER_BULK.value:
                 user_ids = d.get("user_ids")
                 if not user_ids:
                     self.publish_error(reply_to, "No user_ids found in message")
                     return
                 with self.app.app_context():
-                    libraries.User.disable_users(db, user_ids)
-                    self.publish_response(
-                        reply_to,
-                    )
+                    try:
+                        libraries.User.disable_users(db, user_ids)
+                        self.publish_response(
+                            reply_to,
+                        )
+                    except Exception as e:
+                        self.publish_error(reply_to, "Error disablng users: {}".format(e))
             elif op == OPCode.ENABLE_USER.value:
                 user_id = d.get("user_id")
                 if not user_id:
                     self.publish_error(reply_to, "No user_id found in message")
                     return
                 with self.app.app_context():
-                    libraries.User.enable_user(db, user_id)
-                    self.publish_response(
-                        reply_to,
-                    )
+                    try:
+                        libraries.User.enable_user(db, user_id)
+                        self.publish_response(
+                            reply_to,
+                        )
+                    except Exception as e:
+                        self.publish_error(reply_to, "Error enabling user {}: {}".format(user_id, e))
             elif op == OPCode.KEY_COUNT.value:
                 with self.app.app_context():
                     self.publish_response(reply_to, self.library.get_keycount())
@@ -73,9 +82,12 @@ class Redis:
                     self.publish_error(reply_to, "No query found in message")
                     return
                 with self.app.app_context():
-                    results = self.library.search(query)
-                    results = self.library.search_res_to_dict(query, results)
-                    self.publish_response(reply_to, results)
+                    try:
+                        results = self.library.search(query)
+                        results = self.library.search_res_to_dict(query, results)
+                        self.publish_response(reply_to, results)
+                    except Exception as e:
+                        self.publish_error(reply_to, "Error searching: {}".format(e))
             elif op == OPCode.UPDATE_PERMISSIONS.value:
                 user_id = d.get("user_id")
                 permissions = d.get("permissions")
@@ -84,17 +96,20 @@ class Redis:
                     self.publish_error(reply_to, "No user_id or permissions found in message")
                     return
                 with self.app.app_context():
-                    user = libraries.User.get(db, user_id)
-                    if not user:
-                        self.publish_error(reply_to, "User not found")
-                        return
+                    try:
+                        user = libraries.User.get(db, user_id)
+                        if not user:
+                            self.publish_error(reply_to, "User not found")
+                            return
 
-                    print("Old flags: ", user.flags_raw)
-                    user = user.update_flags(permissions, permission_action)
-                    print("New flags: ", user.flags_raw)
-                    self.publish_response(
-                        reply_to,
-                    )
+                        print("Old flags: ", user.flags_raw)
+                        user = user.update_flags(permissions, permission_action)
+                        print("New flags: ", user.flags_raw)
+                        self.publish_response(
+                            reply_to,
+                        )
+                    except Exception as e:
+                        self.publish_error(reply_to, "Error updating permissions for {}: {}".format(user_id, e))
             elif op == OPCode.QUARANTINE.value:
                 # TODO: Implement
                 self.publish_error(reply_to, "Not implemented")
