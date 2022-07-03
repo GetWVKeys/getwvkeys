@@ -73,7 +73,7 @@ library = libraries.Library(db)
 validators = Validators()
 
 # initialize redis instance
-if config.IS_STAGING:
+if not config.IS_STAGING:
     # TODO: currently staging can reply which is unintended, but ignoring stuff like disabling users might not be ideal
     redis = Redis(app, library)
 
