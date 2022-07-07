@@ -55,3 +55,18 @@ DEFAULT_BLACKLISTED_URLS = [
         "partial": True,
     },
 ]
+# List of CDMs that should use the blacklist, these are considered to be GetWVKeys CDMs.
+SYSTEM_CDMS = [
+    "xiaomi/whyred/whyred:9/PKQ1.180904.001/V10.3.1.0.PEIMIXM:user/release-keys",
+    "Xiaomi/nitrogen/nitrogen:10/QKQ1.190910.002/V12.0.1.0.QEDMIXM:user/release-keys",
+    "Xiaomi/nitrogen/nitrogen:9/PKQ1.181007.001/V11.0.2.2.PEDCNXM:user/release-keys",
+    "Xiaomi/nitrogen/nitrogen:9/PKQ1.181007.001/V11.0.2.3.PEDCNXM:user/release-keys",
+    "Xiaomi/nitrogen/nitrogen:9/PKQ1.181007.001/V11.0.2.4.PEDCNXM:user/release-keys",
+    "Xiaomi/nitrogen/nitrogen:9/PKQ1.181007.001/V11.0.2.5.PEDCNXM:user/release-keys",
+    "AZ1122/aosp_kenzo/kenzo:7.1.2/NZH541/doveki08121232:userdebug/test-keys",
+    "AZ1122/aosp_kenzo/kenzo:7.1.2/NZH542/doveki08121232:userdebug/test-keys",
+    "AZ1122/aosp_kenzo/kenzo:7.1.2/NZH543/doveki08121232:userdebug/test-keys",
+    "AZ1122/aosp_kenzo/kenzo:7.1.2/NZH544/doveki08121232:userdebug/test-keys",
+    "AZ1122/aosp_kenzo/kenzo:7.1.2/NZH545/doveki08121232:userdebug/test-keys",
+    "Android/sdk_phone_x86_64/generic_x86_64:10/QSR1.210820.001/7663313:userdebug/test-keys",
+]

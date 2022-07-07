@@ -45,6 +45,10 @@ common_privacy_cert = (
 sessions = dict()
 
 
+def get_random_cdm():
+    return secrets.choice(config.DEFAULT_CDMS)
+
+
 class Library:
     def __init__(self, db: SQLAlchemy):
         self.db = db
@@ -134,11 +138,11 @@ class Pywidevine:
         library: Library,
         user_id,
         # TODO: we really shouldn't do this, but vinetrimmer doesn't send license urls without modifications
+        buildinfo,
         license_url="VINETRIMMER",
         pssh=None,
         proxy={},
         headers={},
-        buildinfo=None,
         cache=False,
         response=None,
         challenge=False,
