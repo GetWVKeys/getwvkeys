@@ -248,12 +248,17 @@ def wv():
         event_data.get("license_url"),
         event_data.get("pssh"),
         event_data.get("headers", ""),
-        event_data.get("buildInfo", ""),
+        event_data.get("buildInfo"),
         event_data.get("cache", True),
     )
     if not pssh or not license_url or not validationlib.url(license_url):
         raise BadRequest("Missing or Invalid Fields")
-    if blacklist.is_url_blacklisted(license_url):
+
+    if not buildinfo:
+        buildinfo = libraries.get_random_cdm()
+
+    # check if the license url is blacklisted, but only run this check on GetWVKeys owned CDMs
+    if buildinfo in config.SYSTEM_CDMS and blacklist.is_url_blacklisted(license_url):
         raise ImATeapot()
 
     magic = libraries.Pywidevine(library, proxy=proxy, license_url=license_url, pssh=pssh, headers=headers, buildinfo=buildinfo, cache=cache, user_id=current_user.id)
@@ -270,14 +275,19 @@ def curl():
             event_data.get("license_url"),
             event_data.get("pssh"),
             event_data.get("headers", ""),
-            event_data.get("buildInfo", ""),
+            event_data.get("buildInfo"),
             event_data.get("cache", True),
             event_data.get("certificate"),
             event_data.get("disable_privacy", False),
         )
         if not pssh or not license_url:
             raise BadRequest("Missing Fields")
-        if blacklist.is_url_blacklisted(license_url):
+
+        if not buildinfo:
+            buildinfo = libraries.get_random_cdm()
+
+        # check if the license url is blacklisted, but only run this check on GetWVKeys owned CDMs
+        if buildinfo in config.SYSTEM_CDMS and blacklist.is_url_blacklisted(license_url):
             raise ImATeapot()
         magic = libraries.Pywidevine(
             library,
@@ -305,7 +315,7 @@ def pywidevine():
         event_data.get("license_url"),
         event_data.get("pssh"),
         event_data.get("headers", ""),
-        event_data.get("buildInfo", ""),
+        event_data.get("buildInfo"),
         event_data.get("cache", True),
         event_data.get("response"),
         event_data.get("certificate"),
@@ -314,8 +324,14 @@ def pywidevine():
     )
     if not pssh or not license_url or not validationlib.url(license_url) or (response and not session_id):
         raise BadRequest("Missing or Invalid Fields")
-    if blacklist.is_url_blacklisted(license_url):
+
+    if not buildinfo:
+        buildinfo = libraries.get_random_cdm()
+
+    # check if the license url is blacklisted, but only run this check on GetWVKeys owned CDMs
+    if buildinfo in config.SYSTEM_CDMS and blacklist.is_url_blacklisted(license_url):
         raise ImATeapot()
+
     magic = libraries.Pywidevine(
         library,
         proxy=proxy,

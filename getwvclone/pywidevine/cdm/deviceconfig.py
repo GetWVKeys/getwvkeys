@@ -1,12 +1,7 @@
-import random
-
-from getwvclone.config import DEFAULT_CDMS
-
-
 class DeviceConfig:
     def __init__(self, library, device):
-        if device == "" or device is None:
-            device = random.choice(DEFAULT_CDMS)
+        if not device or device == "":
+            raise Exception("No CDM selected.")
         loaded = library.cdm_selector(device)
 
         if loaded is not None:
@@ -20,7 +15,7 @@ class DeviceConfig:
             self.vmp = False
             self.send_key_control_nonce = True
         else:
-            raise Exception(f"No CDM ASSOSIATED WITH THIS ID FOUND IN OUR " f"SYSTEM EITHER LEAVE IT EMPTY OR UPLOAD THIS CDM FIRST")
+            raise Exception(f"NO CDM ASSOSIATED WITH THIS ID FOUND IN OUR " f"SYSTEM EITHER LEAVE IT EMPTY OR UPLOAD THIS CDM FIRST")
 
     def __repr__(self):
         return "DeviceConfig(name={}, description={}, security_level={}, session_id_type={}," " private_key_available={}, vmp={})".format(
