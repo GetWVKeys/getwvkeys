@@ -436,7 +436,7 @@ def login_callback():
     is_in_guild = libraries.User.user_is_in_guild(client.access_token)
     if not is_in_guild:
         session.clear()
-        raise Forbidden("You must be in our Discord support server and be verified to use this service. You can join our server here: https://discord.gg/sMBEwDEGQg")
+        raise Forbidden("You must be in our Discord support server and be verified to use this service. You can join our server here: https://discord.gg/UEt4R3nPJN")
     # check if the user is verified
     user_is_verified = libraries.User.user_is_verified(client.access_token)
     if not user_is_verified:
