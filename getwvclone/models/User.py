@@ -3,7 +3,7 @@ from getwvclone.models.Shared import db
 
 class User(db.Model):
     __tablename__ = "users"
-    id = db.Column(db.String(18), primary_key=True, nullable=False, unique=True)
+    id = db.Column(db.String(255), primary_key=True, nullable=False, unique=True)
     username = db.Column(db.String(255), nullable=False)
     discriminator = db.Column(db.String(255), nullable=False)
     avatar = db.Column(db.String(255), nullable=True)
