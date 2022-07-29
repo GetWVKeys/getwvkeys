@@ -57,7 +57,7 @@ DEFAULT_BLACKLISTED_URLS = [
     {
         "url": "*hbo.com*",
         "partial": True,
-    }
+    },
     {
         "url": "*hulu.playback.edge.bamgrid.com*",
         "partial": True,
