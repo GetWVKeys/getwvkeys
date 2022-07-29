@@ -47,13 +47,17 @@ DEFAULT_BLACKLISTED_URLS = [
         "partial": False,
     },
     {
-        "url": ".*amazon.*",
+        "url": "*amazon*",
         "partial": True,
     },
     {
-        "url": ".*netflix.*",
+        "url": "*netflix*",
         "partial": True,
     },
+    {
+        "url": "*hbo.com*",
+        "partial": True,
+    }
 ]
 # List of CDMs that should use the blacklist, these are considered to be GetWVKeys CDMs.
 SYSTEM_CDMS = [
