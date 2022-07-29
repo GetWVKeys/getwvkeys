@@ -58,6 +58,10 @@ DEFAULT_BLACKLISTED_URLS = [
         "url": "*hbo.com*",
         "partial": True,
     }
+    {
+        "url": "*hulu.playback.edge.bamgrid.com*",
+        "partial": True,
+    }
 ]
 # List of CDMs that should use the blacklist, these are considered to be GetWVKeys CDMs.
 SYSTEM_CDMS = [
