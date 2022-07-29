@@ -43,27 +43,27 @@ WVK_LOG_FILE_PATH = pathlib.Path(os.getcwd(), "logs", f"GWVK_{time.strftime('%Y-
 WZ_LOG_FILE_PATH = pathlib.Path(os.getcwd(), "logs", f"ACCESS_{time.strftime('%Y-%m-%d')}.log")
 DEFAULT_BLACKLISTED_URLS = [
     {
-        "url": "*disney.playback.edge.bamgrid.com*",
+        "url": ".*disney\.playback\.edge\.bamgrid\.com.*",
         "partial": True,
     },
     {
-        "url": "*amazon*",
+        "url": ".*amazon.com.*",
         "partial": True,
     },
     {
-        "url": "*netflix*",
+        "url": ".*netflix.com.*",
         "partial": True,
     },
     {
-        "url": "*hbo.com*",
+        "url": ".*hbo.com.*",
         "partial": True,
     },
     {
-        "url": "*hulu.playback.edge.bamgrid.com*",
+        "url": ".*hulu\.playback\.edge\.bamgrid\.com.*",
         "partial": True,
     },
     {
-        "url": "*primevideo.com*",
+        "url": ".*primevideo.com.*",
         "partial": True,
     },
 ]
