@@ -43,8 +43,8 @@ WVK_LOG_FILE_PATH = pathlib.Path(os.getcwd(), "logs", f"GWVK_{time.strftime('%Y-
 WZ_LOG_FILE_PATH = pathlib.Path(os.getcwd(), "logs", f"ACCESS_{time.strftime('%Y-%m-%d')}.log")
 DEFAULT_BLACKLISTED_URLS = [
     {
-        "url": "https://disney.playback.edge.bamgrid.com/widevine/v1/obtain-license",
-        "partial": False,
+        "url": "*disney.playback.edge.bamgrid.com*",
+        "partial": True,
     },
     {
         "url": "*amazon*",
@@ -61,7 +61,11 @@ DEFAULT_BLACKLISTED_URLS = [
     {
         "url": "*hulu.playback.edge.bamgrid.com*",
         "partial": True,
-    }
+    },
+    {
+        "url": "*primevideo.com*",
+        "partial": True,
+    },
 ]
 # List of CDMs that should use the blacklist, these are considered to be GetWVKeys CDMs.
 SYSTEM_CDMS = [
