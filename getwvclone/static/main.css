@@ -455,11 +455,10 @@ input[name="login"]:focus {
   padding-bottom: 16px;
 }
 .cdm-item {
-  min-width: 55rem;
+  min-width: 50rem;
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: space-between;
 }
 .section-divider {
   margin: 32px 0 12px 0;
@@ -554,6 +553,7 @@ pre {
   background-color: #dc3545;
   border: 0;
   transition: transform 0.2s ease-in;
+  margin: 0 16px;
 }
 
 .delete-button:hover {
