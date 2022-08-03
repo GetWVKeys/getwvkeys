@@ -181,3 +181,28 @@ function parseUnixTimestamp(timestamp) {
   const date = new Date(timestamp * 1000);
   return date.toLocaleString();
 }
+
+function deleteCdm(id) {
+  const doDelete = confirm("Are you sure you want to delete this CDM?");
+  if (!doDelete) return;
+  const apiKey = getCookie("api_key");
+  fetch(`/me/cdms/${id}`, {
+    method: "DELETE",
+    headers: {
+      Accept: "application/json, text/plain, */*",
+      "Content-Type": "application/json",
+      "X-API-Key": apiKey,
+    },
+  })
+    .catch((e) => {
+      alert(`Error deleting CDM: ${e}`);
+    })
+    .then(async (r) => {
+      const text = await r.json();
+      if (!r.ok) alert(`An error occurred: ${text.message}`);
+      else {
+        alert(text.message);
+        location.reload();
+      }
+    });
+}
