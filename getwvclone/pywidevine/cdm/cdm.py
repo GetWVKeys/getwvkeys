@@ -26,20 +26,19 @@ class Cdm:
     def open_session(self, init_data_b64, device, raw_init_data=None, offline=False):
         self.logger.debug("open_session(init_data_b64={}, device={}".format(init_data_b64, device))
         self.logger.info("opening new cdm session")
-        if device.session_id_type == 'android':
+        if device.session_id_type == "android":
             # format: 16 random hexdigits, 2 digit counter, 14 0s
-            rand_ascii = ''.join(random.choice('ABCDEF0123456789') for _ in range(16))
-            counter = '01'  # this resets regularly so its fine to use 01
-            rest = '00000000000000'
+            rand_ascii = "".join(random.choice("ABCDEF0123456789") for _ in range(16))
+            counter = "01"  # this resets regularly so its fine to use 01
+            rest = "00000000000000"
             session_id = rand_ascii + counter + rest
-            session_id = session_id.encode('ascii')
-        elif device.session_id_type == 'chrome':
+            session_id = session_id.encode("ascii")
+        elif device.session_id_type == "chrome":
             rand_bytes = get_random_bytes(16)
             session_id = rand_bytes
         else:
             # other formats NYI
-            self.logger.error("device type is unusable")
-            return 1
+            raise Exception("Device Type is unusable")
 
         self.raw_pssh = raw_init_data and isinstance(raw_init_data, (bytes, bytearray))
         if self.raw_pssh:
@@ -51,8 +50,7 @@ class Cdm:
         if init_data:
             new_session = Session(session_id, init_data, device, offline)
         else:
-
-            return 1
+            raise Exception("Invalid Init Data")
         self.sessions[session_id] = new_session
         self.logger.info("session opened and init data parsed successfully")
         return session_id
@@ -82,16 +80,14 @@ class Cdm:
             self.logger.info("cdm session closed")
             return 0
         else:
-            self.logger.info("session {} not found".format(session_id))
-            return 1
+            raise Exception("Invalid Session ID")
 
     def set_service_certificate(self, session_id, cert_b64):
         self.logger.debug("set_service_certificate(session_id={}, cert={})".format(session_id, cert_b64))
         self.logger.info("setting service certificate")
 
         if session_id not in self.sessions:
-            self.logger.error("session id doesn't exist")
-            return 1
+            raise Exception("Invalid Session ID")
 
         session = self.sessions[session_id]
 
@@ -109,15 +105,13 @@ class Cdm:
             try:
                 service_certificate.ParseFromString(message.Msg)
             except DecodeError:
-                self.logger.error("failed to parse service certificate")
-                return 1
+                raise DecodeError("Failed to parse service certificate as SignedMessage")
         else:
             self.logger.debug("service cert provided as signeddevicecertificate")
             try:
                 service_certificate.ParseFromString(base64.b64decode(cert_b64))
             except DecodeError:
-                self.logger.error("failed to parse service certificate")
-                return 1
+                raise DecodeError("Failed to parse service certificate as SignedDeviceCertificate")
 
         self.logger.debug("service certificate:")
         for line in text_format.MessageToString(service_certificate).splitlines():
@@ -133,8 +127,7 @@ class Cdm:
         self.logger.info("getting license request")
 
         if session_id not in self.sessions:
-            self.logger.error("session ID does not exist")
-            return 1
+            raise Exception("Invalid Session ID")
 
         session = self.sessions[session_id]
 
@@ -150,28 +143,27 @@ class Cdm:
         try:
             client_id.ParseFromString(f)
         except DecodeError:
-            self.logger.error("client id failed to parse as protobuf")
-            return 1
+            raise Exception("Client ID failed to parse as Protobuf")
 
         self.logger.debug("building license request")
         if not self.raw_pssh:
-            license_request.Type = wv_proto2.SignedLicenseRequest.MessageType.Value('LICENSE_REQUEST')
+            license_request.Type = wv_proto2.SignedLicenseRequest.MessageType.Value("LICENSE_REQUEST")
             license_request.Msg.ContentId.CencId.Pssh.CopyFrom(session.init_data)
         else:
-            license_request.Type = wv_proto2.SignedLicenseRequestRaw.MessageType.Value('LICENSE_REQUEST')
+            license_request.Type = wv_proto2.SignedLicenseRequestRaw.MessageType.Value("LICENSE_REQUEST")
             license_request.Msg.ContentId.CencId.Pssh = session.init_data  # bytes
 
         if session.offline:
-            license_type = wv_proto2.LicenseType.Value('OFFLINE')
+            license_type = wv_proto2.LicenseType.Value("OFFLINE")
         else:
-            license_type = wv_proto2.LicenseType.Value('DEFAULT')
+            license_type = wv_proto2.LicenseType.Value("DEFAULT")
         license_request.Msg.ContentId.CencId.LicenseType = license_type
         license_request.Msg.ContentId.CencId.RequestId = session_id
-        license_request.Msg.Type = wv_proto2.LicenseRequest.RequestType.Value('NEW')
+        license_request.Msg.Type = wv_proto2.LicenseRequest.RequestType.Value("NEW")
         license_request.Msg.RequestTime = int(time.time())
-        license_request.Msg.ProtocolVersion = wv_proto2.ProtocolVersion.Value('CURRENT')
+        license_request.Msg.ProtocolVersion = wv_proto2.ProtocolVersion.Value("CURRENT")
         if session.device_config.send_key_control_nonce:
-            license_request.Msg.KeyControlNonce = random.randrange(1, 2 ** 31)
+            license_request.Msg.KeyControlNonce = random.randrange(1, 2**31)
 
         if session.privacy_mode:
             if session.device_config.vmp:
@@ -182,8 +174,7 @@ class Cdm:
                     try:
                         vmp_hashes.ParseFromString(f.read())
                     except DecodeError:
-                        self.logger.error("vmp hashes failed to parse as protobuf")
-                        return 1
+                        raise Exception("VMP Hashes failed to parse as Protobuf")
                 client_id._FileHashes.CopyFrom(vmp_hashes)
             self.logger.debug("privacy mode & service certificate loaded, encrypting client id")
             self.logger.debug("unencrypted client id:")
@@ -198,7 +189,7 @@ class Cdm:
             try:
                 service_public_key = RSA.importKey(session.service_certificate._DeviceCertificate.PublicKey)
             except:
-                raise Exception("404 - Wrong license body")
+                raise Exception("Failed to import public key")
             service_cipher = PKCS1_OAEP.new(service_public_key)
 
             encrypted_cid_key = service_cipher.encrypt(cid_aes_key)
@@ -219,8 +210,7 @@ class Cdm:
             key = RSA.importKey(base64.b64decode(session.device_config.device_private_key_filename).decode())
             session.device_key = key
         else:
-            self.logger.error("need device private key, other methods unimplemented")
-            return 1
+            raise Exception("Need device private key, other methods unimplemented")
 
         self.logger.debug("signing license request")
 
@@ -242,21 +232,18 @@ class Cdm:
         self.logger.info("decrypting provided license")
 
         if session_id not in self.sessions:
-            self.logger.error("session does not exist")
-            return 1
+            raise Exception("Invalid Session ID")
 
         session = self.sessions[session_id]
 
         if not session.license_request:
-            self.logger.error("generate a license request first!")
-            return 1
+            raise Exception("No license request available, generate one first")
 
         signed_license = wv_proto2.SignedLicense()
         try:
             signed_license.ParseFromString(base64.b64decode(license_b64))
         except DecodeError:
-            self.logger.error("unable to parse license - check protobufs")
-            return 1
+            raise Exception("Unable to parse license")
 
         session.license = signed_license
 
@@ -305,17 +292,16 @@ class Cdm:
         auth_cmac_combined_1 = auth_cmac_key_1 + auth_cmac_key_2
         auth_cmac_combined_2 = auth_cmac_key_3 + auth_cmac_key_4
 
-        session.derived_keys['enc'] = enc_cmac_key
-        session.derived_keys['auth_1'] = auth_cmac_combined_1
-        session.derived_keys['auth_2'] = auth_cmac_combined_2
+        session.derived_keys["enc"] = enc_cmac_key
+        session.derived_keys["auth_1"] = auth_cmac_combined_1
+        session.derived_keys["auth_2"] = auth_cmac_combined_2
 
-        self.logger.debug('verifying license signature')
+        self.logger.debug("verifying license signature")
 
-        lic_hmac = HMAC.new(session.derived_keys['auth_1'], digestmod=SHA256)
+        lic_hmac = HMAC.new(session.derived_keys["auth_1"], digestmod=SHA256)
         lic_hmac.update(signed_license.Msg.SerializeToString())
 
-        self.logger.debug(
-            "calculated sig: {} actual sig: {}".format(lic_hmac.hexdigest(), binascii.hexlify(signed_license.Signature)))
+        self.logger.debug("calculated sig: {} actual sig: {}".format(lic_hmac.hexdigest(), binascii.hexlify(signed_license.Signature)))
 
         if lic_hmac.digest() != signed_license.Signature:
             self.logger.info("license signature doesn't match - writing bin so they can be debugged")
@@ -330,12 +316,12 @@ class Cdm:
             if key.Id:
                 key_id = key.Id
             else:
-                key_id = wv_proto2.License.KeyContainer.KeyType.Name(key.Type).encode('utf-8')
+                key_id = wv_proto2.License.KeyContainer.KeyType.Name(key.Type).encode("utf-8")
             encrypted_key = key.Key
             iv = key.Iv
             key_type = wv_proto2.License.KeyContainer.KeyType.Name(key.Type)
 
-            cipher = AES.new(session.derived_keys['enc'], AES.MODE_CBC, iv=iv)
+            cipher = AES.new(session.derived_keys["enc"], AES.MODE_CBC, iv=iv)
             decrypted_key = cipher.decrypt(encrypted_key)
             if key_type == "OPERATOR_SESSION":
                 permissions = []
@@ -355,5 +341,4 @@ class Cdm:
         if session_id in self.sessions:
             return self.sessions[session_id].keys
         else:
-            self.logger.error("session not found")
-            return 1
+            raise Exception("Invalid Session ID")
