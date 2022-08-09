@@ -43,15 +43,27 @@ WVK_LOG_FILE_PATH = pathlib.Path(os.getcwd(), "logs", f"GWVK_{time.strftime('%Y-
 WZ_LOG_FILE_PATH = pathlib.Path(os.getcwd(), "logs", f"ACCESS_{time.strftime('%Y-%m-%d')}.log")
 DEFAULT_BLACKLISTED_URLS = [
     {
-        "url": "https://disney.playback.edge.bamgrid.com/widevine/v1/obtain-license",
-        "partial": False,
-    },
-    {
-        "url": ".*amazon.*",
+        "url": ".*disney\.playback\.edge\.bamgrid\.com.*",
         "partial": True,
     },
     {
-        "url": ".*netflix.*",
+        "url": ".*amazon.com.*",
+        "partial": True,
+    },
+    {
+        "url": ".*netflix.com.*",
+        "partial": True,
+    },
+    {
+        "url": ".*hbo.com.*",
+        "partial": True,
+    },
+    {
+        "url": ".*hulu\.playback\.edge\.bamgrid\.com.*",
+        "partial": True,
+    },
+    {
+        "url": ".*primevideo.com.*",
         "partial": True,
     },
 ]
