@@ -13,6 +13,6 @@ class Key(db.Model):
         nullable=False,
     )
     added_at = db.Column(db.Integer, nullable=False, default=int(time.time()))
-    added_by = db.Column(db.String(18), ForeignKey("users.id"), nullable=True)
+    added_by = db.Column(db.String(255), ForeignKey("users.id"), nullable=True)
     license_url = db.Column(db.Text, nullable=False)
     key_ = db.Column(db.String(255), nullable=False)

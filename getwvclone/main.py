@@ -436,7 +436,7 @@ def login_callback():
     is_in_guild = libraries.User.user_is_in_guild(client.access_token)
     if not is_in_guild:
         session.clear()
-        raise Forbidden("You must be in our Discord support server and be verified to use this service. You can join our server here: https://discord.gg/sMBEwDEGQg")
+        raise Forbidden("You must be in our Discord support server and be verified to use this service. You can join our server here: https://discord.gg/UEt4R3nPJN")
     # check if the user is verified
     user_is_verified = libraries.User.user_is_verified(client.access_token)
     if not user_is_verified:
@@ -463,6 +463,22 @@ def user_profile():
     return render_template("profile.html", current_user=current_user, cdms=user_cdms, website_version=sha)
 
 
+@app.route("/me/cdms/<id>", methods=["DELETE"])
+@authentication_required()
+def user_delete_cdm(id):
+    if not id:
+        raise BadRequest("No CDM ID provided")
+    current_user.delete_cdm(id)
+    return jsonify({"status_code": 200, "message": "CDM Deleted"})
+
+
+@app.route("/me/cdms", methods=["GET"])
+@authentication_required()
+def user_get_cdms():
+    user_cdms = current_user.get_user_cdms()
+    return jsonify({"status_code": 200, "message": user_cdms})
+
+
 # error handlers
 @app.errorhandler(DatabaseError)
 def database_error(e: DatabaseError):
@@ -474,7 +490,6 @@ def database_error(e: DatabaseError):
 
 @app.errorhandler(Exception)
 def database_error(e: Exception):
-    logger.exception(e)
     if request.method == "GET":
         return render_template("error.html", title=str(e), details="", current_user=current_user, website_version=sha), 400
     return jsonify({"error": True, "code": 400, "message": str(e)}), 400
@@ -482,7 +497,6 @@ def database_error(e: Exception):
 
 @app.errorhandler(HTTPException)
 def http_exception(e: HTTPException):
-    logger.error(e)
     if request.method == "GET":
         if e.code == 401:
             return app.login_manager.unauthorized()

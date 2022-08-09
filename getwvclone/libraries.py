@@ -390,7 +390,7 @@ class User(UserMixin):
 
     def get_user_cdms(self):
         cdms = CDMModel.query.filter_by(uploaded_by=self.id).all()
-        return [x.code for x in cdms]
+        return [{"id": x.id, "code": x.code, "session_id_type": x.session_id_type, "security_level": x.security_level} for x in cdms]
 
     def patch(self, data):
         disallowed_keys = ["id", "username", "discriminator", "avatar", "public_flags", "api_key"]
@@ -436,6 +436,16 @@ class User(UserMixin):
     def reset_api_key(self):
         api_key = secrets.token_hex(32)
         self.user_model.api_key = api_key
+        self.db.session.commit()
+
+    def delete_cdm(self, id):
+        cdm: CDMModel = CDMModel.query.filter_by(id=id).first()
+        if cdm is None:
+            raise NotFound("CDM not found")
+        # check if uploaded_by is null, or if its not the users cdm
+        if not cdm.uploaded_by or (cdm.uploaded_by and cdm.uploaded_by != self.id):
+            raise Forbidden("Missing Access")
+        self.db.session.delete(cdm)
         self.db.session.commit()
 
     @staticmethod

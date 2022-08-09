@@ -434,6 +434,10 @@ input[name="login"]:focus {
   display: flex;
   flex-direction: column;
 }
+.flex-row {
+  display: flex;
+  flex-direction: row;
+}
 .apikey-container > label {
   text-align: center;
   font-size: 1.3rem;
@@ -455,7 +459,6 @@ input[name="login"]:focus {
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: space-between;
 }
 .section-divider {
   margin: 32px 0 12px 0;
@@ -541,4 +544,25 @@ pre {
   white-space: pre-wrap;
   background-color: #222228;
   margin-left: 30px;
+}
+
+.delete-button {
+  border-radius: 4px;
+  color: #fffffe;
+  font-size: 1.125rem;
+  background-color: #dc3545;
+  border: 0;
+  transition: transform 0.2s ease-in;
+  margin: 0 16px;
+}
+
+.delete-button:hover {
+  transform: scale(1.02);
+  cursor: pointer;
+  background-color: #bb2d3b;
+}
+
+.delete-button:active {
+  border-color: #b02a37;
+  box-shadow: rgb(225, 83, 97) 0 0 0 0.15rem;
 }
