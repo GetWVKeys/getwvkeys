@@ -45,7 +45,7 @@ async function server_request() {
       },
       body: document.getElementById("pssh").value,
     });
-    return await response.text();
+    return await response.json();
   }
   const response = await server_request_data();
   setInnerHTML(document.getElementById("demo"), response);
@@ -54,7 +54,37 @@ async function server_request() {
   formButton.value = "Send";
 }
 
-const setInnerHTML = function (elm, html) {
+const setInnerHTML = function (elm, data) {
+  let html = `<h2>Cached Key</h2>
+  <p style="font-family: 'Courier'">KID: ${data["kid"]}</p>
+  `;
+  if (data["keys"] && data["keys"].length == 0) {
+    html += `<p>No keys found</p>`;
+  } else {
+    html += data["keys"]
+      .map(
+        (key) => `<ol>
+        <li style="font-family: 'Courier'">
+        <ul>
+          <li style="font-family: 'Courier'">Key: ${key["key"]}</li>
+          <li style="font-family: 'Courier'">License URL: ${key["license_url"]}</li>
+          <li style="font-family: 'Courier'">
+            Added At: <span name="timestamp">${key["added_at"]}</span>
+          </li>
+        </ul>
+      </li>
+    </ol>`
+      )
+      .join();
+  }
+  html += `
+  <script>
+    for (const timestampElem of document.getElementsByName("timestamp")) {
+      const timestamp = timestampElem.innerHTML;
+      const parsed = parseUnixTimestamp(timestamp);
+      timestampElem.innerHTML = parsed;
+    }
+  </script>`;
   elm.innerHTML = html;
   Array.from(elm.querySelectorAll("script")).forEach((oldScript) => {
     const newScript = document.createElement("script");
