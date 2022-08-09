@@ -81,7 +81,7 @@ if not config.IS_STAGING:
 blacklist = Blacklist()
 
 # Utilities
-def authentication_required(exempt_methods=[], flags_required: int = None):
+def authentication_required(exempt_methods=[], flags_required: int = None, ignore_suspended: bool = False):
     def decorator(func):
         @wraps(func)
         def wrapped_function(*args, **kwargs):
@@ -110,7 +110,7 @@ def authentication_required(exempt_methods=[], flags_required: int = None):
                 login_user(user, remember=False)
 
             # check if the user is enabled
-            current_user.check_status()
+            current_user.check_status(ignore_suspended)
 
             # check if the user has the required flags
             if flags_required and not current_user.flags.has(flags_required):
@@ -450,7 +450,7 @@ def login_callback():
 
 
 @app.route("/logout")
-@authentication_required()
+@authentication_required(ignore_suspended=True)
 def logout():
     logout_user()
     return redirect("/")
