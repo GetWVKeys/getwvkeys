@@ -519,8 +519,8 @@ class User(UserMixin):
 
         return User(db, user)
 
-    def check_status(self):
-        if self.flags.has(UserFlags.SUSPENDED) == 1:
+    def check_status(self, ignore_suspended=False):
+        if self.flags.has(UserFlags.SUSPENDED) == 1 and not ignore_suspended:
             raise Forbidden("Your account has been suspended.")
 
     @staticmethod
