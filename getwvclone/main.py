@@ -205,11 +205,8 @@ def search():
         if not query or query == "":
             raise BadRequest("Missing or Invalid Search Query")
         data = library.search(query)
-        if len(data) == 0:
-            raise NotFound("No keys found")
-        else:
-            data = library.search_res_to_dict(query, data)
-            return render_template("cache.html", results=data)
+        data = library.search_res_to_dict(query, data)
+        return jsonify(data)
     else:
         return render_template("search.html", page_title="Search Database", current_user=current_user, website_version=sha)
 
