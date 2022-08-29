@@ -42,6 +42,11 @@ from flask import (
     session,
 )
 from flask_login import LoginManager, current_user, login_user, logout_user
+
+# these need to be kept
+from getwvclone.models.Shared import db
+from getwvclone.redis import Redis
+from getwvclone.utils import Blacklist, UserFlags, Validators, construct_logger
 from oauthlib.oauth2 import WebApplicationClient
 from oauthlib.oauth2.rfc6749.errors import OAuth2Error
 from werkzeug.exceptions import (
@@ -57,11 +62,6 @@ from werkzeug.exceptions import (
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from getwvkeys import config, libraries
-
-# these need to be kept
-from getwvkeys.models.Shared import db
-from getwvkeys.redis import Redis
-from getwvkeys.utils import Blacklist, UserFlags, Validators, construct_logger
 
 app = Flask(__name__.split(".")[0], root_path=str(Path(__file__).parent))
 app.config["SQLALCHEMY_DATABASE_URI"] = config.SQLALCHEMY_DATABASE_URI
@@ -280,45 +280,45 @@ def wv():
     return magic.main()
 
 
-@app.route("/api", methods=["POST", "GET"])
-@authentication_required()
-def curl():
-    if request.method == "POST":
-        event_data = request.get_json()
-        (proxy, license_url, pssh, headers, buildinfo, cache, server_certificate, disable_privacy) = (
-            event_data.get("proxy", ""),
-            event_data.get("license_url"),
-            event_data.get("pssh"),
-            event_data.get("headers", ""),
-            event_data.get("buildInfo"),
-            event_data.get("cache", True),
-            event_data.get("certificate"),
-            event_data.get("disable_privacy", False),
-        )
-        if not pssh or not license_url:
-            raise BadRequest("Missing Fields")
+# @app.route("/api", methods=["POST", "GET"])
+# @authentication_required(exempt_methods=["GET"])
+# def curl():
+#     if request.method == "POST":
+#         event_data = request.get_json()
+#         (proxy, license_url, pssh, headers, buildinfo, cache, server_certificate, disable_privacy) = (
+#             event_data.get("proxy", ""),
+#             event_data.get("license_url"),
+#             event_data.get("pssh"),
+#             event_data.get("headers", ""),
+#             event_data.get("buildInfo"),
+#             event_data.get("cache", True),
+#             event_data.get("certificate"),
+#             event_data.get("disable_privacy", False),
+#         )
+#         if not pssh or not license_url:
+#             raise BadRequest("Missing Fields")
 
-        if not buildinfo:
-            buildinfo = libraries.get_random_cdm()
+#         if not buildinfo:
+#             buildinfo = libraries.get_random_cdm()
 
-        # check if the license url is blacklisted, but only run this check on GetWVKeys owned CDMs
-        if buildinfo in config.SYSTEM_CDMS and blacklist.is_url_blacklisted(license_url):
-            raise ImATeapot()
-        magic = libraries.Pywidevine(
-            library,
-            proxy=proxy,
-            license_url=license_url,
-            pssh=pssh,
-            headers=headers,
-            buildinfo=buildinfo,
-            cache=cache,
-            user_id=current_user.id,
-            server_certificate=server_certificate,
-            disable_privacy=disable_privacy,
-        )
-        return magic.main(curl=True)
-    else:
-        return render_template("api.html", current_user=current_user, website_version=sha)
+#         # check if the license url is blacklisted, but only run this check on GetWVKeys owned CDMs
+#         if buildinfo in config.SYSTEM_CDMS and blacklist.is_url_blacklisted(license_url):
+#             raise ImATeapot()
+#         magic = libraries.Pywidevine(
+#             library,
+#             proxy=proxy,
+#             license_url=license_url,
+#             pssh=pssh,
+#             headers=headers,
+#             buildinfo=buildinfo,
+#             cache=cache,
+#             user_id=current_user.id,
+#             server_certificate=server_certificate,
+#             disable_privacy=disable_privacy,
+#         )
+#         return magic.main(library, curl=True)
+#     else:
+#         return render_template("api.html", current_user=current_user, website_version=sha)
 
 
 @app.route("/pywidevine", methods=["POST"])
@@ -362,6 +362,26 @@ def pywidevine():
         session_id=session_id,
     )
     return magic.api()
+
+
+@app.route("/vdocipher", methods=["GET", "POST"])
+@authentication_required()
+def vdocipher():
+    if request.method == "GET":
+        return render_template("vdocipher.html", current_user=current_user, website_version=sha)
+    else:
+        event_data = request.get_json()
+        (pssh, token, cache, web) = (
+            event_data.get("pssh"),
+            event_data.get("token"),
+            event_data.get("cache", True),
+            event_data.get("web", False),
+        )
+        if not pssh or not token:
+            raise BadRequest("Missing or Invalid Fields")
+
+        magic = libraries.VDOCipher(library, pssh, token, cache, current_user.id, web)
+        return magic.run()
 
 
 @app.route("/vinetrimmer", methods=["POST"])
@@ -544,6 +564,11 @@ class Moved(HTTPException):
 # routes that are removed
 @app.route("/pssh")
 def pssh():
+    raise Moved("This route is no longer available, please use /pywidevine instead")
+
+
+@app.route("/api")
+def api():
     raise Moved("This route is no longer available, please use /pywidevine instead")
 
 

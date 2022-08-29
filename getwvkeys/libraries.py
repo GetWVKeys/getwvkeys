@@ -67,6 +67,10 @@ def get_random_cdm():
     return secrets.choice(config.DEFAULT_CDMS)
 
 
+def get_random_vdocipher_cdm():
+    return secrets.choice(config.VDOCIPHER_KEYS)
+
+
 class Library:
     def __init__(self, db: SQLAlchemy):
         self.db = db
@@ -349,6 +353,112 @@ class Pywidevine:
             # close the session
             wvdecrypt.close_session()
             return {"keys": keys, "session_id": self.session_id}
+
+
+class VDOCipher:
+    def __init__(self, library: Library, pssh: str, token: str, cache: bool, user_id: str, web: bool):
+        self.library = library
+        self.pssh = pssh
+        self.token = token
+        self.cache = cache
+        self.buildinfo = get_random_vdocipher_cdm()
+        self.user_id = user_id
+        self.web = web
+
+        self.session_id = None
+        self.license_url = "https://license.vdocipher.com/auth"
+        self.time = int(time.time())
+        self.content_keys: list[CachedKey] = list()
+
+        try:
+            self.kid = extract_kid_from_pssh(self.pssh)
+        except Exception as e:
+            logger.exception(e)
+            raise BadRequest(f"Failed to extract KID from PSSH: {e}")
+
+    def patch_token(self, new_data: str):
+        try:
+            # decode the original token
+            old_data = base64.b64decode(self.token.encode()).decode()
+            old_data = json.loads(old_data)
+            # replace the license request data
+            old_data["licenseRequest"] = new_data
+            # re-encode the token
+            new_token = json.dumps(old_data)
+            return base64.b64encode(new_token.encode()).decode()
+        except Exception as e:
+            logger.exception(e)
+            raise BadRequest(f"Error patching token, possibly invalid token was provided: {e}")
+
+    def _cache_keys(self):
+        self.library.cache_keys(self.content_keys)
+
+        results = {"kid": self.kid, "license_url": self.license_url, "added_at": self.time, "keys": list(), "session_id": self.session_id}
+        for key in self.content_keys:
+            results["keys"].append(key.key)
+
+        return results
+
+    def post_data(self, token):
+        headers = {"Content-Type": "application/json", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:104.0) Gecko/20100101 Firefox/104.0"}
+        r = requests.post(url=self.license_url, json={"token": token}, headers=headers, timeout=10)
+        if r.status_code != 200:
+            raise Exception(f"Error {r.status_code}: {r.text}")
+
+        return r.json()["license"]
+
+    def get_cert(self):
+        cert_token = self.patch_token("CAQ=")
+        return self.post_data(cert_token)
+
+    def run(self):
+        # cache
+        if self.cache:
+            cached = self.library.search(self.pssh)
+            results = self.library.search_res_to_dict(self.kid, cached)
+            resp = jsonify(results)
+            resp.headers["X-Cached"] = True
+            return resp
+
+        # get server certificate
+        cert = self.get_cert()
+
+        # generate challenge
+        wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(self.library, self.buildinfo))
+
+        # save the session id
+        self.session_id = wvdecrypt.session.hex()
+
+        # set server certificate
+        wvdecrypt.set_server_certificate(cert)
+
+        # get the challenge
+        challenge = wvdecrypt.create_challenge()
+
+        # patch token with challenge
+        license_token = self.patch_token(base64.b64encode(challenge).decode())
+
+        # post the license token
+        license = self.post_data(license_token)
+
+        # decrypt the license
+        wvdecrypt.decrypt_license(license)
+
+        for _, y in enumerate(wvdecrypt.get_content_key()):
+            (kid, _) = y.split(":")
+            self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, y))
+
+        # caching
+        data = self._cache_keys()
+
+        # close the session
+        wvdecrypt.close_session()
+
+        if self.web:
+            return render_template("success.html", page_title="Success", results=data)
+
+        # return the keys
+        return jsonify(data)
 
 
 class WvDecrypt:
