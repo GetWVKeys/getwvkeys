@@ -206,9 +206,9 @@ class Bitfield:
 
 class BlacklistEntry:
     def __init__(self, obj) -> None:
-        self.url = obj["url"]
-        self.partial = obj["partial"]
-        self.name = obj["name"]
+        self.url: str = obj["url"]
+        self.partial: bool = obj["partial"]
+        self.reason: str = obj["reason"]
 
         if self.partial:
             self.url = re.compile(self.url)
