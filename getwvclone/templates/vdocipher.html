@@ -1,0 +1,72 @@
+{% extends "base.html" %} {% block title %}VdoCipher{% endblock %} {% block content %}
+{% block js %}
+<script defer src="{{url_for('static', filename='vdocipher.js')}}"></script>
+{% endblock %}
+<section class="wdvn-request">
+  <header>
+    <h1 class="section-title">VdoCipher</h1>
+  </header>
+  <div class="form-container">
+    <form>
+      <div class="form-item">
+        <label for="pssh">PSSH:</label>
+        <input
+          data-lpignore="true"
+          type="text"
+          id="pssh"
+          name="pssh"
+          placeholder="AAAAUnBzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAADIiKnZkb2NpcGhlcjo2ZWYwNmQzZTM1NDE0ZGEzODgwNDJkYTNlMDg5NjI0Y0jj3JWbBg=="
+        />
+      </div>
+      <div class="form-item">
+        <label for="token">Token:</label>
+        <input
+          data-lpignore="true"
+          type="text"
+          id="token"
+          name="token"
+          placeholder="eyJvdHAiOiAiVEhJUyBJUyBBTiBFWEFNUExFIFRPS0VOIiwgInBsYXliYWNrSW5mbyI6ICJUSElTIElTIEFOIEVYQU1QTEUgVE9LRU4iLCAiaHJlZiI6ICJodHRwczovL3d3dy52ZG9jaXBoZXIuY29tLyIsICJ0ZWNoIjogInd2IiwgImxpY2Vuc2VSZXF1ZXN0IjogIlRISVMgSVMgQU4gRVhBTVBMRSBUT0tFTiJ9"
+        />
+      </div>
+      <div class="form-item">
+        <label for="cache">Cache:</label>
+        <input type="checkbox" id="cache" name="cache" checked />
+      </div>
+      <input type="submit" value="Send" />
+    </form>
+  </div>
+  <div class="info-container">
+    <span id="key-count-text">Total key count: </span>
+    <span id="key-count">Loading... </span>
+    <div class="result-container" id="demo">
+      <pre>Send a request to see the result.</pre>
+    </div>
+  </div>
+  <div class="donation-container">
+    <table>
+      <tbody>
+        <tr>
+          <th>Coin</th>
+          <th>Address</th>
+          <th>Network</th>
+        </tr>
+        <tr>
+          <td>BTC&nbsp;&nbsp;</td>
+          <td>&nbsp;&nbsp;15nor8BBBaDpwsbf1r7NjMhCP1mnCUtNeM&nbsp;&nbsp;</td>
+          <td>&nbsp;&nbsp;Bitcoin</td>
+        </tr>
+        <tr>
+          <td>ETH&nbsp;&nbsp;</td>
+          <td>&nbsp;&nbsp;0x91af349007877eb1528e5aed186f740febae68f3&nbsp;&nbsp;</td>
+          <td>&nbsp;&nbsp;Ethereum</td>
+        </tr>
+        <tr>
+          <td>Doge&nbsp;&nbsp;</td>
+          <td>&nbsp;&nbsp;D7rQQtHVQKyd67JQwWcK8q1JkyDabc1ZvB&nbsp;&nbsp;</td>
+          <td>&nbsp;&nbsp;Dogecoin</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

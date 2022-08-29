@@ -41,10 +41,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from getwvclone import config, libraries
 
 # these need to be kept
-from getwvclone.models.CDM import CDM
-from getwvclone.models.Key import Key
 from getwvclone.models.Shared import db
-from getwvclone.models.User import User
 from getwvclone.redis import Redis
 from getwvclone.utils import Blacklist, UserFlags, Validators, construct_logger
 
@@ -262,7 +259,7 @@ def wv():
         raise ImATeapot()
 
     magic = libraries.Pywidevine(library, proxy=proxy, license_url=license_url, pssh=pssh, headers=headers, buildinfo=buildinfo, cache=cache, user_id=current_user.id)
-    return magic.main(library)
+    return magic.main()
 
 
 @app.route("/api", methods=["POST", "GET"])
@@ -346,7 +343,27 @@ def pywidevine():
         disable_privacy=disable_privacy,
         session_id=session_id,
     )
-    return magic.api(library)
+    return magic.api()
+
+
+@app.route("/vdocipher", methods=["GET", "POST"])
+@authentication_required()
+def vdocipher():
+    if request.method == "GET":
+        return render_template("vdocipher.html", current_user=current_user, website_version=sha)
+    else:
+        event_data = request.get_json()
+        (pssh, token, cache, web) = (
+            event_data.get("pssh"),
+            event_data.get("token"),
+            event_data.get("cache", True),
+            event_data.get("web", False),
+        )
+        if not pssh or not token:
+            raise BadRequest("Missing or Invalid Fields")
+
+        magic = libraries.VDOCipher(library, pssh, token, cache, current_user.id, web)
+        return magic.run()
 
 
 @app.route("/vinetrimmer", methods=["POST"])
@@ -522,10 +539,19 @@ def unauthorized_callback():
     return redirect("/login?next=" + request.path)
 
 
+class Moved(HTTPException):
+    code = 410
+
+
 # routes that are removed
 @app.route("/pssh")
 def pssh():
-    raise Gone()
+    raise Moved("This route is no longer available, please use /pywidevine instead")
+
+
+@app.route("/api")
+def api():
+    raise Moved("This route is no longer available, please use /pywidevine instead")
 
 
 # routes that have been moved

@@ -81,4 +81,20 @@ SYSTEM_CDMS = [
     "AZ1122/aosp_kenzo/kenzo:7.1.2/NZH544/doveki08121232:userdebug/test-keys",
     "AZ1122/aosp_kenzo/kenzo:7.1.2/NZH545/doveki08121232:userdebug/test-keys",
     "Android/sdk_phone_x86_64/generic_x86_64:10/QSR1.210820.001/7663313:userdebug/test-keys",
+    "Xiaomi/nitrogen/nitrogen:10/QKQ1.190910.002/V12.0.1.1.QEDMIXM:user/release-keys",
+    "Xiaomi/nitrogen/nitrogen:10/QKQ1.190910.022/V12.0.1.0.QEDMIXM:user/release-keys",
+    "Xiaomi/nitrogen/nitrogen:10/QKQ1.190913.002/V12.0.1.0.QEDMIXM:user/release-keys",
+    "Xiaomi/nitrogen/nitrogen:10/QKQ1.194910.002/V12.0.1.0.QEDMIXM:user/release-keys",
+    "AZ1122/nitrogen/nitrogen:10/QKQ1.190910.002/V12.5.1.0.QEDMIXM:user/release-keys",
+]
+
+# List of CDMs that are allowed to be used for VDOcipher.
+VDOCIPHER_KEYS = [
+    "Xiaomi/nitrogen/nitrogen:9/PKQ1.181007.001/V11.0.2.4.PEDCNXM:user/release-keys",
+    "Xiaomi/nitrogen/nitrogen:9/PKQ1.181007.001/V11.0.2.5.PEDCNXM:user/release-keys",
+    "Xiaomi/nitrogen/nitrogen:10/QKQ1.190910.002/V12.0.1.1.QEDMIXM:user/release-keys",
+    "Xiaomi/nitrogen/nitrogen:10/QKQ1.190910.022/V12.0.1.0.QEDMIXM:user/release-keys",
+    "Xiaomi/nitrogen/nitrogen:10/QKQ1.190913.002/V12.0.1.0.QEDMIXM:user/release-keys",
+    "Xiaomi/nitrogen/nitrogen:10/QKQ1.194910.002/V12.0.1.0.QEDMIXM:user/release-keys",
+    "AZ1122/nitrogen/nitrogen:10/QKQ1.190910.002/V12.5.1.0.QEDMIXM:user/release-keys",
 ]
