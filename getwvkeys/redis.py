@@ -42,6 +42,10 @@ class Redis:
         payload = {"op": OPCode.REPLY.value, "d": {"error": False, "message": msg}}
         self.redis.publish(reply_address, json.dumps(payload))
 
+    def publish_message(self, op: OPCode, msg):
+        payload = {"op": op.value, "d": {"error": False, "message": msg}}
+        self.redis.publish("bot", json.dumps(payload))
+
     def redis_message_handler(self, msg):
         try:
             data = json.loads(msg.get("data"))
@@ -128,9 +132,6 @@ class Redis:
                         )
                     except Exception as e:
                         self.publish_error(reply_to, "Error updating permissions for {}: {}".format(user_id, e))
-            elif op == OPCode.QUARANTINE.value:
-                # TODO: Implement
-                self.publish_error(reply_to, "Not implemented")
             elif op == OPCode.RESET_API_KEY.value:
                 user_id = d.get("user_id")
                 with self.app.app_context():

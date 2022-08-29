@@ -208,6 +208,7 @@ class BlacklistEntry:
     def __init__(self, obj) -> None:
         self.url = obj["url"]
         self.partial = obj["partial"]
+        self.name = obj["name"]
 
         if self.partial:
             self.url = re.compile(self.url)
@@ -232,3 +233,9 @@ class Blacklist:
             if entry.matches(url):
                 return True
         return False
+
+    def get_blacklist_entry(self, url: str):
+        for entry in self.blacklist:
+            if entry.matches(url):
+                return entry
+        return None

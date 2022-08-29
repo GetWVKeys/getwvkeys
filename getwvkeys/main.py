@@ -42,11 +42,13 @@ from flask import (
     session,
 )
 from flask_login import LoginManager, current_user, login_user, logout_user
+from getwvclone import config, libraries
 
+# these need to be kept
 # these need to be kept
 from getwvclone.models.Shared import db
 from getwvclone.redis import Redis
-from getwvclone.utils import Blacklist, UserFlags, Validators, construct_logger
+from getwvclone.utils import Blacklist, OPCode, UserFlags, Validators, construct_logger
 from oauthlib.oauth2 import WebApplicationClient
 from oauthlib.oauth2.rfc6749.errors import OAuth2Error
 from werkzeug.exceptions import (
@@ -54,14 +56,12 @@ from werkzeug.exceptions import (
     Forbidden,
     Gone,
     HTTPException,
-    ImATeapot,
+    Locked,
     NotFound,
     Unauthorized,
     UnsupportedMediaType,
 )
 from werkzeug.middleware.proxy_fix import ProxyFix
-
-from getwvkeys import config, libraries
 
 app = Flask(__name__.split(".")[0], root_path=str(Path(__file__).parent))
 app.config["SQLALCHEMY_DATABASE_URI"] = config.SQLALCHEMY_DATABASE_URI
@@ -152,6 +152,27 @@ def log_date_time_string():
     year, month, day, hh, mm, ss, x, y, z = time.localtime(now)
     s = "%02d/%3s/%04d %02d:%02d:%02d" % (day, monthname[month], year, hh, mm, ss)
     return s
+
+
+def is_request_blocked(buildinfo: str, url: str):
+    is_blocked = buildinfo in config.SYSTEM_CDMS and blacklist.is_url_blacklisted(url)
+    return is_blocked
+
+
+def block_handler(req: Request, license_url: str, buildinfo: str, pssh: str):
+    entry = blacklist.get_blacklist_entry(license_url)
+    redis.publish_message(
+        OPCode.QUARANTINE,
+        {
+            "user_id": current_user.id,
+            "ip": req.remote_addr,
+            "url": license_url,
+            "buildinfo": buildinfo,
+            "pssh": pssh,
+            "reason": entry.reason if entry else "Unknown",
+        },
+    )
+    raise Locked()
 
 
 @login_manager.user_loader
@@ -273,8 +294,8 @@ def wv():
         buildinfo = libraries.get_random_cdm()
 
     # check if the license url is blacklisted, but only run this check on GetWVKeys owned CDMs
-    if buildinfo in config.SYSTEM_CDMS and blacklist.is_url_blacklisted(license_url):
-        raise ImATeapot()
+    if is_request_blocked(buildinfo, license_url):
+        block_handler(request, license_url, buildinfo, pssh)
 
     magic = libraries.Pywidevine(library, proxy=proxy, license_url=license_url, pssh=pssh, headers=headers, buildinfo=buildinfo, cache=cache, user_id=current_user.id)
     return magic.main()
@@ -344,8 +365,8 @@ def pywidevine():
         buildinfo = libraries.get_random_cdm()
 
     # check if the license url is blacklisted, but only run this check on GetWVKeys owned CDMs
-    if buildinfo in config.SYSTEM_CDMS and blacklist.is_url_blacklisted(license_url):
-        raise ImATeapot()
+    if is_request_blocked(buildinfo, license_url):
+        block_handler(request, license_url, buildinfo, pssh)
 
     magic = libraries.Pywidevine(
         library,
