@@ -43,7 +43,7 @@ class Redis:
         self.redis.publish(reply_address, json.dumps(payload))
 
     def publish_message(self, op: OPCode, msg):
-        payload = {"op": op.value, "d": {"error": False, "message": msg}}
+        payload = {"op": op.value, "d": msg}
         self.redis.publish("bot", json.dumps(payload))
 
     def redis_message_handler(self, msg):
