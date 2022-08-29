@@ -160,6 +160,7 @@ def is_request_blocked(buildinfo: str, url: str):
 
 
 def block_handler(req: Request, license_url: str, buildinfo: str, pssh: str):
+    libraries.User.disable_user(db, current_user.id)
     entry = blacklist.get_blacklist_entry(license_url)
     redis.publish_message(
         OPCode.QUARANTINE,
