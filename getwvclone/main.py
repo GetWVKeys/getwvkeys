@@ -163,6 +163,7 @@ def home():
 
 
 @app.route("/faq")
+@authentication_required()
 def faq():
     return render_template("faq.html", page_title="FAQ", current_user=current_user, website_version=sha)
 
@@ -263,7 +264,7 @@ def wv():
 
 
 @app.route("/api", methods=["POST", "GET"])
-@authentication_required(exempt_methods=["GET"])
+@authentication_required()
 def curl():
     if request.method == "POST":
         event_data = request.get_json()
