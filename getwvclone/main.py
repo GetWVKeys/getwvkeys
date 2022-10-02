@@ -176,6 +176,7 @@ def scripts():
 
 
 @app.route("/scripts/<file>")
+@authentication_required()
 def downloadfile(file):
     path = pathlib.Path(app.root_path, "download", file)
     if not path.is_file():
