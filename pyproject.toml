@@ -8,12 +8,12 @@ authors = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.9"
+python = ">=3.9,<4.0"
 Flask = "^2.1.2"
 Flask-Login = "^0.6.1"
-oauthlib = "^3.2.0"
+oauthlib = "3.2.1"
 requests = "^2.27.1"
-protobuf = "3.20.1"
+protobuf = "3.20.2"
 pycryptodomex = "^3.14.1"
 PyYAML = "^6.0"
 coloredlogs = "^15.0.1"
