@@ -169,6 +169,7 @@ def faq():
 
 
 @app.route("/scripts")
+@authentication_required()
 def scripts():
     files = os.listdir(os.path.dirname(os.path.abspath(__file__)) + "/download")
     return render_template("scripts.html", script_names=files, current_user=current_user, website_version=sha)
