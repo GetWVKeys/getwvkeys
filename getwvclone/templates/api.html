@@ -1,4 +1,5 @@
-{% extends "base.html" %} {% block title %}API Request{% endblock %} {% block content %}
+{% extends "base.html" %} {% block title %}API Request{% endblock %} {% block
+content %}
 <section class="api-request">
   <header>
     <h1 class="section-title">Send API Request</h1>
@@ -8,11 +9,14 @@
       <h2>Curl</h2>
       <pre>
         <code>
-          curl https://getwvkeys.cc/api \
-          -d "{\"license_url\": "https://cwip-shaka-proxy.appspot.com/no_auth\", \"pssh\": \"AAAAp3Bzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAAIcSEFF0U4YtQlb9i61PWEIgBNcSEPCTfpp3yFXwptQ4ZMXZ82USEE1LDKJawVjwucGYPFF+4rUSEJAqBRprNlaurBkm/A9dkjISECZHD0KW1F0Eqbq7RC4WmAAaDXdpZGV2aW5lX3Rlc3QiFnNoYWthX2NlYzViZmY1ZGM0MGRkYzlI49yVmwY=\", \"cache\": false}" \ 
-          -H "Referer: https://getwvkeys.cc" \
+          curl -L -X POST "https://getwvkeys.cc/api" \
+          -H "X-API-Key: {{current_user.api_key if current_user.api_key else "YOUR API KEY HERE" }}" \
           -H "Content-Type: application/json" \
-          -H "X-API-Key: {{current_user.api_key if current_user.api_key else "YOUR API KEY HERE" }}"
+          -d "{
+              \"license_url\": \"https://cwip-shaka-proxy.appspot.com/no_auth\",
+              \"pssh\": \"AAAAp3Bzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAAIcSEFF0U4YtQlb9i61PWEIgBNcSEPCTfpp3yFXwptQ4ZMXZ82USEE1LDKJawVjwucGYPFF+4rUSEJAqBRprNlaurBkm/A9dkjISECZHD0KW1F0Eqbq7RC4WmAAaDXdpZGV2aW5lX3Rlc3QiFnNoYWthX2NlYzViZmY1ZGM0MGRkYzlI49yVmwY=\",
+              \"cache\": false
+          }"
         </code>
       </pre>
     </div>
