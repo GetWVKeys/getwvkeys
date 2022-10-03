@@ -529,11 +529,6 @@ def pssh():
     raise Moved("This route is no longer available, please use /pywidevine instead")
 
 
-@app.route("/api")
-def api():
-    raise Moved("This route is no longer available, please use /pywidevine instead")
-
-
 # routes that have been moved
 @app.route("/findpssh", methods=["GET", "POST"])
 def findpssh():
