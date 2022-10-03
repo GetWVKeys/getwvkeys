@@ -298,7 +298,7 @@ def curl():
             server_certificate=server_certificate,
             disable_privacy=disable_privacy,
         )
-        return magic.main(library, curl=True)
+        return magic.main(curl=True)
     else:
         return render_template("api.html", current_user=current_user, website_version=sha)
 
