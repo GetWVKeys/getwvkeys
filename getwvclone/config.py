@@ -87,14 +87,3 @@ SYSTEM_CDMS = [
     "Xiaomi/nitrogen/nitrogen:10/QKQ1.194910.002/V12.0.1.0.QEDMIXM:user/release-keys",
     "AZ1122/nitrogen/nitrogen:10/QKQ1.190910.002/V12.5.1.0.QEDMIXM:user/release-keys",
 ]
-
-# List of CDMs that are allowed to be used for VDOcipher.
-VDOCIPHER_KEYS = [
-    "Xiaomi/nitrogen/nitrogen:9/PKQ1.181007.001/V11.0.2.4.PEDCNXM:user/release-keys",
-    "Xiaomi/nitrogen/nitrogen:9/PKQ1.181007.001/V11.0.2.5.PEDCNXM:user/release-keys",
-    "Xiaomi/nitrogen/nitrogen:10/QKQ1.190910.002/V12.0.1.1.QEDMIXM:user/release-keys",
-    "Xiaomi/nitrogen/nitrogen:10/QKQ1.190910.022/V12.0.1.0.QEDMIXM:user/release-keys",
-    "Xiaomi/nitrogen/nitrogen:10/QKQ1.190913.002/V12.0.1.0.QEDMIXM:user/release-keys",
-    "Xiaomi/nitrogen/nitrogen:10/QKQ1.194910.002/V12.0.1.0.QEDMIXM:user/release-keys",
-    "AZ1122/nitrogen/nitrogen:10/QKQ1.190910.002/V12.5.1.0.QEDMIXM:user/release-keys",
-]
