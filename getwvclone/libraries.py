@@ -178,7 +178,7 @@ class Pywidevine:
                 self.kid = extract_kid_from_pssh(self.pssh)
             except Exception as e:
                 logger.exception(e)
-                raise e
+                raise BadRequest(f"Failed to extract KID from PSSH: {e}")
 
     def _cache_keys(self, vt=False):
         self.library.cache_keys(self.content_keys)
@@ -213,17 +213,17 @@ class Pywidevine:
                 else yaml.safe_load(headers)
             )
         except Exception as e:
-            raise BadRequest("Wrong headers:\n" + str(e))
+            raise BadRequest(f"Wrong headers: {str(e)}")
 
     @staticmethod
     def post_data(license_url, headers, challenge, proxy):
         r = requests.post(url=license_url, data=challenge, headers=headers, proxies=proxy, timeout=10, verify=False)
         if r.status_code != 200:
-            raise Exception(f"Error {r.status_code}:\n" + r.text)
+            raise Exception(f"Error {r.status_code}: {r.text}")
 
         return base64.b64encode(r.content)
 
-    def main(self, library: Library, curl=False):
+    def main(self, curl=False):
         # Cached
         if self.cache:
             result = self.library.search(self.kid)
@@ -240,7 +240,7 @@ class Pywidevine:
         except (Exception,):
             self.headers = self.yamldomagic(self.headers)
 
-        wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(library, self.buildinfo))
+        wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(self.library, self.buildinfo))
         if self.server_certificate:
             wvdecrypt.set_server_certificate(self.server_certificate)
         challenge = wvdecrypt.create_challenge()
@@ -260,7 +260,7 @@ class Pywidevine:
             return jsonify(data)
         return render_template("success.html", page_title="Success", results=data)
 
-    def api(self, library: Library):
+    def api(self):
         if self.cache:
             cached = self.library.search(self.pssh)
             results = self.library.search_res_to_dict(self.kid, cached)
@@ -270,7 +270,7 @@ class Pywidevine:
 
         if self.response is None:
             # challenge generation
-            wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(library, self.buildinfo))
+            wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(self.library, self.buildinfo))
 
             # set server certificate if provided
             if self.server_certificate:
