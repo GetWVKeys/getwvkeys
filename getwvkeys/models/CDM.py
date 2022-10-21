@@ -18,7 +18,7 @@
 
 from sqlalchemy import ForeignKey
 
-from getwvclone.models.Shared import db
+from getwvkeys.models.Shared import db
 
 
 class CDM(db.Model):

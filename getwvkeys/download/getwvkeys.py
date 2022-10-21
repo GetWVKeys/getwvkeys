@@ -44,7 +44,7 @@ def post_request(arg, challenge):
 
 
 # Do Not Change Anything in this class
-class GetwvCloneApi:
+class GetWVKeysApi:
     def __init__(self, arg) -> None:
         # dynamic injection of the API url
         self.baseurl = "https://getwvkeys.cc" if API_URL == "__getwvkeys_api_url__" else API_URL
@@ -159,7 +159,7 @@ if __name__ == "__main__":
         args.verbose = False
 
     try:
-        start = GetwvCloneApi(args)
+        start = GetWVKeysApi(args)
         start.main()
     except Exception as e:
         raise

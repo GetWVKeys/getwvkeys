@@ -56,12 +56,12 @@ from werkzeug.exceptions import (
 )
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from getwvclone import config, libraries
+from getwvkeys import config, libraries
 
 # these need to be kept
-from getwvclone.models.Shared import db
-from getwvclone.redis import Redis
-from getwvclone.utils import Blacklist, UserFlags, Validators, construct_logger
+from getwvkeys.models.Shared import db
+from getwvkeys.redis import Redis
+from getwvkeys.utils import Blacklist, UserFlags, Validators, construct_logger
 
 app = Flask(__name__.split(".")[0], root_path=str(Path(__file__).parent))
 app.config["SQLALCHEMY_DATABASE_URI"] = config.SQLALCHEMY_DATABASE_URI

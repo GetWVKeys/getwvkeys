@@ -1,4 +1,4 @@
-## GetWvClone
+## GetWVKeys
 
 Widevine Utility Website and Remote Widevine Device API.
 
@@ -27,4 +27,4 @@ For Windows (Powershell): `$env:OAUTHLIB_INSECURE_TRANSPORT=1`
 # Deploy
 
 Example deploy command for staging:
-`poetry run gunicorn -w 1 -b 0.0.0.0:8081 getwvclone.main:app`
+`poetry run gunicorn -w 1 -b 0.0.0.0:8081 getwvkeys.main:app`

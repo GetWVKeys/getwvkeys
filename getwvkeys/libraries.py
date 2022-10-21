@@ -31,12 +31,12 @@ from flask_login import UserMixin
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.exceptions import BadRequest, Forbidden, NotFound
 
-from getwvclone import config
-from getwvclone.models.CDM import CDM as CDMModel
-from getwvclone.models.Key import Key as KeyModel
-from getwvclone.models.User import User as UserModel
-from getwvclone.pywidevine.cdm import deviceconfig
-from getwvclone.utils import (
+from getwvkeys import config
+from getwvkeys.models.CDM import CDM as CDMModel
+from getwvkeys.models.Key import Key as KeyModel
+from getwvkeys.models.User import User as UserModel
+from getwvkeys.pywidevine.cdm import deviceconfig
+from getwvkeys.utils import (
     Bitfield,
     CachedKey,
     FlagAction,
@@ -124,7 +124,7 @@ class Library:
         return cdm.to_json()
 
     def update_cdm(self, client_id_blob, device_private_key, uploaded_by) -> str:
-        from getwvclone.pywidevine.cdm.formats import wv_proto2_pb2
+        from getwvkeys.pywidevine.cdm.formats import wv_proto2_pb2
 
         def get_blob_id(blob):
             blob_ = base64.b64decode(blob)
@@ -353,7 +353,7 @@ class Pywidevine:
 
 class WvDecrypt:
     def __init__(self, pssh_b64, device):
-        from getwvclone.pywidevine.cdm import cdm
+        from getwvkeys.pywidevine.cdm import cdm
 
         self.cdm = cdm.Cdm()
         self.session = self.cdm.open_session(pssh_b64, device)

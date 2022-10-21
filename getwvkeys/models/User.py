@@ -16,7 +16,7 @@
  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from getwvclone.models.Shared import db
+from getwvkeys.models.Shared import db
 
 
 class User(db.Model):

@@ -26,8 +26,8 @@ from typing import Union
 from cerberus import Validator
 from coloredlogs import ColoredFormatter
 
-from getwvclone import config
-from getwvclone.pssh_utils import parse_pssh
+from getwvkeys import config
+from getwvkeys.pssh_utils import parse_pssh
 
 
 class OPCode(Enum):

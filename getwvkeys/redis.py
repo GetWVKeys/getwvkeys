@@ -20,9 +20,9 @@ import json
 
 import redis
 
-from getwvclone import config, libraries
-from getwvclone.models.Shared import db
-from getwvclone.utils import OPCode
+from getwvkeys import config, libraries
+from getwvkeys.models.Shared import db
+from getwvkeys.utils import OPCode
 
 
 class Redis:
