@@ -353,8 +353,10 @@ class Pywidevine:
             # get the challenge
             challenge = wvdecrypt.create_challenge()
 
-            # if len(sessions) > 30:
-            #     self.store_request = {}
+            if len(sessions) > config.MAX_SESSIONS:
+                # remove the oldest session
+                sessions.pop(next(iter(sessions)))
+
             # store the session
             self.session_id = wvdecrypt.session.hex()
             sessions[self.session_id] = wvdecrypt
@@ -380,6 +382,8 @@ class Pywidevine:
         for _, y in enumerate(wvdecrypt.get_content_key()):
             (kid, _) = y.split(":")
             self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, y))
+
+        # caching
         output = self._cache_keys()
         # close the session
         wvdecrypt.close_session()
@@ -392,8 +396,9 @@ class Pywidevine:
         if self.response is None:
             wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(library, self.buildinfo))
             challenge = wvdecrypt.create_challenge()
-            # if len(sessions) > 30:
-            #     self.store_request = {}
+            if len(sessions) > config.MAX_SESSIONS:
+                # remove the oldest session
+                sessions.pop(next(iter(sessions)))
             self.session_id = wvdecrypt.session.hex()
             sessions[self.session_id] = wvdecrypt
 

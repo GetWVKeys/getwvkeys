@@ -37,6 +37,7 @@ API_HOST = "0.0.0.0"
 API_PORT = int(os.environ.get("API_PORT", 8080))
 API_URL = os.environ.get("API_URL", "https://getwvkeys.cc")
 
+MAX_SESSIONS = 60
 PROXY = {}
 DEFAULT_CDMS = []  # list of build infos to use in key rotation
 APPENDERS = []  # passwords for dumping keys, deprecated in favor of flags
