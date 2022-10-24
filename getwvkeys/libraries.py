@@ -66,6 +66,10 @@ def get_random_cdm():
     return secrets.choice(config.DEFAULT_CDMS)
 
 
+def is_custom_buildinfo(buildinfo):
+    return next((True for entry in config.EXTERNAL_API_BUILD_INFOS if entry["buildinfo"] == buildinfo), False)
+
+
 class Library:
     def __init__(self, db: SQLAlchemy):
         self.db = db
@@ -233,12 +237,36 @@ class Pywidevine:
             raise BadRequest(f"Wrong headers: {str(e)}")
 
     @staticmethod
-    def post_data(license_url, headers, challenge, proxy):
-        r = requests.post(url=license_url, data=challenge, headers=headers, proxies=proxy, timeout=10, verify=False)
+    def post_data(license_url, headers, data, proxy):
+        r = requests.post(url=license_url, data=data, headers=headers, proxies=proxy, timeout=10, verify=False)
         if r.status_code != 200:
             raise Exception(f"Error {r.status_code}: {r.text}")
 
-        return base64.b64encode(r.content)
+        return base64.b64encode(r.content).decode()
+
+    def external_license(self, method, params, web=False):
+        entry = next((entry for entry in config.EXTERNAL_API_BUILD_INFOS if entry["buildinfo"] == self.buildinfo), None)
+        api = entry["url"]
+        payload = {"method": method, "params": params}
+        r = requests.post(api, headers=self.headers, json=payload, proxies=self.proxy)
+        if r.status_code != 200:
+            if "message" in r.text:
+                raise Exception(f"Error: {r.json()['message']}")
+            raise Exception(f"Unknown Error: [{r.status_code}] {r.text}")
+        if method == "GetChallenge":
+            challenge = r.json()["message"]["challenge"]
+            self.session_id = r.json()["message"]["session_id"]
+            if not web:
+                return jsonify({"challenge": challenge, "session_id": self.session_id})
+        elif method == "GetKeys":
+            for x in r.json()["message"]["keys"]:
+                kid = x["kid"]
+                key = x["key"]
+                self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, key))
+            output = self._cache_keys()
+            return jsonify(output)
+        else:
+            raise Exception("Unknown method")
 
     def main(self, curl=False):
         # Cached
@@ -286,6 +314,17 @@ class Pywidevine:
             return resp
 
         if self.response is None:
+            if is_custom_buildinfo(self.buildinfo):
+                if not self.server_certificate:
+                    try:
+                        self.server_certificate = self.post_data(self.license_url, self.headers, base64.b64decode("CAQ="), self.proxy)
+                    except Exception as e:
+                        raise BadRequest(f"Failed to retrieve server certificate: {e}. Please provide a server certificate manually.")
+                params = {"init": self.pssh, "cert": self.server_certificate, "raw": False, "licensetype": "STREAMING", "device": "api"}
+                print(self.pssh)
+                print(self.server_certificate)
+                return self.external_license("GetChallenge", params)
+
             # challenge generation
             wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(self.library, self.buildinfo))
 
@@ -303,6 +342,10 @@ class Pywidevine:
             sessions[self.session_id] = wvdecrypt
 
             return jsonify({"challenge": base64.b64encode(challenge).decode(), "session_id": self.session_id})
+
+        if is_custom_buildinfo(self.buildinfo):
+            params = {"cdmkeyresponse": self.response, "session_id": self.session_id}
+            return self.external_license("GetKeys", params=params)
 
         # license decryption
         if self.session_id not in sessions:

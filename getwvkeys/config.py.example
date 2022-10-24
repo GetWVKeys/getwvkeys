@@ -62,6 +62,7 @@ DEFAULT_BLACKLISTED_URLS = [
         "partial": False,
     },
 ]
+EXTERNAL_API_BUILD_INFOS = [{"buildinfo": "my_awesome_custom_buildinfo", "url": "http://myamazingcdmapi.com"}]
 
 # List of CDMs that should use the blacklist, these are considered to be GetWVKeys System CDMs.
 SYSTEM_CDMS = []

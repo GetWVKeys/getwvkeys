@@ -339,7 +339,7 @@ def pywidevine():
     if not pssh or not license_url or not validationlib.url(license_url) or (response and not session_id):
         raise BadRequest("Missing or Invalid Fields")
 
-    if not buildinfo:
+    if not buildinfo and not libraries.is_custom_buildinfo(buildinfo):
         buildinfo = libraries.get_random_cdm()
 
     # check if the license url is blacklisted, but only run this check on GetWVKeys owned CDMs
@@ -496,7 +496,7 @@ def user_get_cdms():
 # error handlers
 @app.errorhandler(DatabaseError)
 def database_error(e: DatabaseError):
-    logger.exception(e)
+    logger.exception(e)  # database errors should be logged since they are unexpected
     if request.method == "GET":
         return render_template("error.html", title=str(e), details="", current_user=current_user, website_version=sha), 500
     return jsonify({"error": True, "code": 500, "message": str(e)}), 500
@@ -504,6 +504,8 @@ def database_error(e: DatabaseError):
 
 @app.errorhandler(Exception)
 def database_error(e: Exception):
+    if config.IS_DEVELOPMENT:
+        logger.exception(e)
     if request.method == "GET":
         return render_template("error.html", title=str(e), details="", current_user=current_user, website_version=sha), 400
     return jsonify({"error": True, "code": 400, "message": str(e)}), 400
