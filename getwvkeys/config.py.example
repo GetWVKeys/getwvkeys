@@ -50,7 +50,6 @@ FILE_LOG_LEVEL = logging.DEBUG
 LOG_FORMAT = "[%(asctime)s] [%(name)s] [%(funcName)s:%(lineno)d] %(levelname)s: %(message)s"
 LOG_DATE_FORMAT = "%I:%M:%S"
 WVK_LOG_FILE_PATH = pathlib.Path(os.getcwd(), "logs", f"GWVK_{time.strftime('%Y-%m-%d')}.log")
-WZ_LOG_FILE_PATH = pathlib.Path(os.getcwd(), "logs", f"ACCESS_{time.strftime('%Y-%m-%d')}.log")  # TODO: remove this, it serves no purpose
 DEFAULT_BLACKLISTED_URLS = [
     # using regex to match a url
     {
