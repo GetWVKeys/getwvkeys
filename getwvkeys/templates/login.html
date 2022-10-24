@@ -3,30 +3,43 @@
   Copyright (C) 2022 Notaghost, Puyodead1 and GetWVKeys contributors 
   
   This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-  
+  it under the terms of the GNU Affero General Public License as published
+  by the Free Software Foundation, version 3 of the License.
+
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-  
-  You should have received a copy of the GNU General Public License
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  -->
 
-{% extends "base.html" %} {% block title %}Login{% endblock %} {% block content %}
+{% extends "base.html" %} {% block title %}Login{% endblock %} {% block content
+%}
 <header>
   <h1 class="section-title">Login to continue</h1>
 </header>
 <div class="login-container">
-  <input type="button" name="login" value="Login with Discord" onclick="window.location.href = '{{auth_url}}'" />
+  <input
+    type="button"
+    name="login"
+    value="Login with Discord"
+    onclick="window.location.href = '{{auth_url}}'"
+  />
 </div>
 <div class="login-info">
-  <p>You will be redirected to Discord to authorize GetWVKeys to access your account.</p>
-  <p>We only check that you are in our support server and have been verified.</p>
+  <p>
+    You will be redirected to Discord to authorize GetWVKeys to access your
+    account.
+  </p>
+  <p>
+    We only check that you are in our support server and have been verified.
+  </p>
   <p>We also store your Discord ID, Username, and Discriminator.</p>
-  <p>By clicking the button above and continuing to use this site, you agree to let us access and store the data mentioned above.</p>
+  <p>
+    By clicking the button above and continuing to use this site, you agree to
+    let us access and store the data mentioned above.
+  </p>
 </div>
 {% endblock %}

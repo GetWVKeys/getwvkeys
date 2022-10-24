@@ -3,20 +3,20 @@
   Copyright (C) 2022 Notaghost, Puyodead1 and GetWVKeys contributors 
   
   This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-  
+  it under the terms of the GNU Affero General Public License as published
+  by the Free Software Foundation, version 3 of the License.
+
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-  
-  You should have received a copy of the GNU General Public License
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  -->
 
-{% extends "base.html" %} {% block title %}Home{% endblock %} {% block content %}
+{% extends "base.html" %} {% block title %}Home{% endblock %} {% block content
+%}
 <section class="wdvn-request">
   <header>
     <h1 class="section-title">Send Widevine Request</h1>
@@ -45,18 +45,36 @@
       </div>
       <div class="form-item">
         <label for="headers">Headers:</label>
-        <textarea data-lpignore="true" rows="4" cols="64" id="headers" name="headers">
+        <textarea
+          data-lpignore="true"
+          rows="4"
+          cols="64"
+          id="headers"
+          name="headers"
+        >
 accept: "*/*"
 Connection: keep-alive</textarea
         >
       </div>
       <div class="form-item">
         <label for="buildInfo">Build Info:</label>
-        <input data-lpignore="true" type="text" id="buildInfo" name="buildInfo" value="" />
+        <input
+          data-lpignore="true"
+          type="text"
+          id="buildInfo"
+          name="buildInfo"
+          value=""
+        />
       </div>
       <div class="form-item">
         <label for="headers">Proxy:</label>
-        <input data-lpignore="true" type="text" id="proxy" name="proxy" value="" />
+        <input
+          data-lpignore="true"
+          type="text"
+          id="proxy"
+          name="proxy"
+          value=""
+        />
       </div>
       <div class="form-item">
         <label for="cache">Cache:</label>
@@ -87,7 +105,9 @@ Connection: keep-alive</textarea
         </tr>
         <tr>
           <td>ETH&nbsp;&nbsp;</td>
-          <td>&nbsp;&nbsp;0x91af349007877eb1528e5aed186f740febae68f3&nbsp;&nbsp;</td>
+          <td>
+            &nbsp;&nbsp;0x91af349007877eb1528e5aed186f740febae68f3&nbsp;&nbsp;
+          </td>
           <td>&nbsp;&nbsp;Ethereum</td>
         </tr>
         <tr>
