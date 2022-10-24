@@ -258,13 +258,12 @@ class Pywidevine:
             self.session_id = r.json()["message"]["session_id"]
             if not web:
                 return jsonify({"challenge": challenge, "session_id": self.session_id})
+            return challenge
         elif method == "GetKeys":
             for x in r.json()["message"]["keys"]:
                 kid = x["kid"]
                 key = x["key"]
                 self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, key))
-            output = self._cache_keys()
-            return jsonify(output)
         else:
             raise Exception("Unknown method")
 
@@ -284,6 +283,27 @@ class Pywidevine:
             self.headers = json.loads(self.headers)
         except (Exception,):
             self.headers = self.yamldomagic(self.headers)
+
+        if is_custom_buildinfo(self.buildinfo):
+            if not self.server_certificate:
+                try:
+                    self.server_certificate = self.post_data(self.license_url, self.headers, base64.b64decode("CAQ="), self.proxy)
+                except Exception as e:
+                    raise BadRequest(f"Failed to retrieve server certificate: {e}. Please provide a server certificate manually.")
+            params = {"init": self.pssh, "cert": self.server_certificate, "raw": False, "licensetype": "STREAMING", "device": "api"}
+            challenge = self.external_license("GetChallenge", params, web=True)
+
+            # post challenge to license server
+            license = self.post_data(self.license_url, self.headers, base64.b64decode(challenge), self.proxy)
+
+            params = {"cdmkeyresponse": license, "session_id": self.session_id}
+            self.external_license("GetKeys", params=params, web=True)
+
+            # caching
+            data = self._cache_keys()
+            if curl:
+                return jsonify(data)
+            return render_template("success.html", page_title="Success", results=data)
 
         wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(self.library, self.buildinfo))
         if self.server_certificate:
@@ -321,8 +341,6 @@ class Pywidevine:
                     except Exception as e:
                         raise BadRequest(f"Failed to retrieve server certificate: {e}. Please provide a server certificate manually.")
                 params = {"init": self.pssh, "cert": self.server_certificate, "raw": False, "licensetype": "STREAMING", "device": "api"}
-                print(self.pssh)
-                print(self.server_certificate)
                 return self.external_license("GetChallenge", params)
 
             # challenge generation
@@ -345,7 +363,9 @@ class Pywidevine:
 
         if is_custom_buildinfo(self.buildinfo):
             params = {"cdmkeyresponse": self.response, "session_id": self.session_id}
-            return self.external_license("GetKeys", params=params)
+            self.external_license("GetKeys", params=params)
+            output = self._cache_keys()
+            return jsonify(output)
 
         # license decryption
         if self.session_id not in sessions:
