@@ -6,6 +6,7 @@ authors = [
     "notaghost <65109659+Notaghost9997@users.noreply.github.com>",
     "Puyodead1 <14828766+Puyodead1@users.noreply.github.com>"
 ]
+license = "AGPL-3.0-only"
 
 [tool.poetry.dependencies]
 python = ">=3.9,<4.0"
