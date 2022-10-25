@@ -604,6 +604,9 @@ class User(UserMixin):
 
         return User(db, user)
 
+    def is_blacklist_exempt(self):
+        return self.flags.has(UserFlags.BLACKLIST_EXEMPT)
+
     def check_status(self, ignore_suspended=False):
         if self.flags.has(UserFlags.SUSPENDED) == 1 and not ignore_suspended:
             raise Forbidden("Your account has been suspended.")

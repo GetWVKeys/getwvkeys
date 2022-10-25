@@ -146,6 +146,12 @@ def on_json_loading_failed(self, e):
 Request.on_json_loading_failed = on_json_loading_failed
 
 
+def blacklist_check(buildinfo, license_url):
+    # check if the license url is blacklisted, but only run this check on GetWVKeys owned CDMs
+    if buildinfo in config.SYSTEM_CDMS and blacklist.is_url_blacklisted(license_url) and not current_user.is_blacklist_exempt():
+        raise ImATeapot()
+
+
 def log_date_time_string():
     """Return the current time formatted for logging."""
     monthname = [None, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -273,9 +279,7 @@ def wv():
     if not buildinfo:
         buildinfo = libraries.get_random_cdm()
 
-    # check if the license url is blacklisted, but only run this check on GetWVKeys owned CDMs
-    if buildinfo in config.SYSTEM_CDMS and blacklist.is_url_blacklisted(license_url):
-        raise ImATeapot()
+    blacklist_check(buildinfo, license_url)
 
     magic = libraries.Pywidevine(library, proxy=proxy, license_url=license_url, pssh=pssh, headers=headers, buildinfo=buildinfo, cache=cache, user_id=current_user.id)
     return magic.main()
@@ -302,9 +306,8 @@ def curl():
         if not buildinfo:
             buildinfo = libraries.get_random_cdm()
 
-        # check if the license url is blacklisted, but only run this check on GetWVKeys owned CDMs
-        if buildinfo in config.SYSTEM_CDMS and blacklist.is_url_blacklisted(license_url):
-            raise ImATeapot()
+        blacklist_check(buildinfo, license_url)
+
         magic = libraries.Pywidevine(
             library,
             proxy=proxy,
@@ -344,9 +347,7 @@ def pywidevine():
     if not buildinfo and not libraries.is_custom_buildinfo(buildinfo):
         buildinfo = libraries.get_random_cdm()
 
-    # check if the license url is blacklisted, but only run this check on GetWVKeys owned CDMs
-    if buildinfo in config.SYSTEM_CDMS and blacklist.is_url_blacklisted(license_url):
-        raise ImATeapot()
+    blacklist_check(buildinfo, license_url)
 
     magic = libraries.Pywidevine(
         library,
