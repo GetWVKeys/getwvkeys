@@ -246,8 +246,10 @@ class Pywidevine:
 
     def external_license(self, method, params, web=False):
         entry = next((entry for entry in config.EXTERNAL_API_BUILD_INFOS if entry["buildinfo"] == self.buildinfo), None)
+        if not entry:
+            raise BadRequest("Invalid buildinfo")
         api = entry["url"]
-        payload = {"method": method, "params": params}
+        payload = {"method": method, "params": params, "token": entry["token"]}
         r = requests.post(api, headers=self.headers, json=payload, proxies=self.proxy)
         if r.status_code != 200:
             if "message" in r.text:
