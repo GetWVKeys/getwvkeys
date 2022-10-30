@@ -28,7 +28,7 @@ import yaml
 from flask import jsonify, render_template
 from flask_login import UserMixin
 from flask_sqlalchemy import SQLAlchemy
-from werkzeug.exceptions import BadRequest, Forbidden, NotFound
+from werkzeug.exceptions import BadRequest, Forbidden, NotFound, NotImplemented
 
 from getwvkeys import config
 from getwvkeys.models.CDM import CDM as CDMModel
@@ -256,16 +256,28 @@ class Pywidevine:
                 raise Exception(f"Error: {r.json()['message']}")
             raise Exception(f"Unknown Error: [{r.status_code}] {r.text}")
         if method == "GetChallenge":
-            challenge = r.json()["message"]["challenge"]
-            self.session_id = r.json()["message"]["session_id"]
+            d = r.json()
+            if entry["version"] == 2:
+                challenge = d["message"]["challenge"]
+                self.session_id = d["message"]["session_id"]
+            else:
+                challenge = d["challenge"]
+                self.session_id = d["session_id"]
             if not web:
                 return jsonify({"challenge": challenge, "session_id": self.session_id})
             return challenge
         elif method == "GetKeys":
-            for x in r.json()["message"]["keys"]:
+            d = r.json()
+            if entry["version"] == 2:
+                keys = d["message"]["keys"]
+            else:
+                keys = d["keys"]
+            for x in keys:
                 kid = x["kid"]
                 key = x["key"]
                 self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, key))
+        elif method == "GetKeysX":
+            raise NotImplemented()
         else:
             raise Exception("Unknown method")
 
