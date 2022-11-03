@@ -275,7 +275,7 @@ class Pywidevine:
             for x in keys:
                 kid = x["kid"]
                 key = x["key"]
-                self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, key))
+                self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, "{}:{}".format(kid, key)))
         elif method == "GetKeysX":
             raise NotImplemented()
         else:
