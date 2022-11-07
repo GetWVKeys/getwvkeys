@@ -28,7 +28,7 @@ import yaml
 from flask import jsonify, render_template
 from flask_login import UserMixin
 from flask_sqlalchemy import SQLAlchemy
-from werkzeug.exceptions import BadRequest, Forbidden, NotFound
+from werkzeug.exceptions import BadRequest, Forbidden, NotFound, NotImplemented
 
 from getwvkeys import config
 from getwvkeys.models.CDM import CDM as CDMModel
@@ -64,6 +64,10 @@ sessions = dict()
 
 def get_random_cdm():
     return secrets.choice(config.DEFAULT_CDMS)
+
+
+def is_custom_buildinfo(buildinfo):
+    return next((True for entry in config.EXTERNAL_API_BUILD_INFOS if entry["buildinfo"] == buildinfo), False)
 
 
 class Library:
@@ -233,12 +237,49 @@ class Pywidevine:
             raise BadRequest(f"Wrong headers: {str(e)}")
 
     @staticmethod
-    def post_data(license_url, headers, challenge, proxy):
-        r = requests.post(url=license_url, data=challenge, headers=headers, proxies=proxy, timeout=10, verify=False)
+    def post_data(license_url, headers, data, proxy):
+        r = requests.post(url=license_url, data=data, headers=headers, proxies=proxy, timeout=10, verify=False)
         if r.status_code != 200:
             raise Exception(f"Error {r.status_code}: {r.text}")
 
-        return base64.b64encode(r.content)
+        return base64.b64encode(r.content).decode()
+
+    def external_license(self, method, params, web=False):
+        entry = next((entry for entry in config.EXTERNAL_API_BUILD_INFOS if entry["buildinfo"] == self.buildinfo), None)
+        if not entry:
+            raise BadRequest("Invalid buildinfo")
+        api = entry["url"]
+        payload = {"method": method, "params": params, "token": entry["token"]}
+        r = requests.post(api, headers=self.headers, json=payload, proxies=self.proxy)
+        if r.status_code != 200:
+            if "message" in r.text:
+                raise Exception(f"Error: {r.json()['message']}")
+            raise Exception(f"Unknown Error: [{r.status_code}] {r.text}")
+        if method == "GetChallenge":
+            d = r.json()
+            if entry["version"] == 2:
+                challenge = d["message"]["challenge"]
+                self.session_id = d["message"]["session_id"]
+            else:
+                challenge = d["challenge"]
+                self.session_id = d["session_id"]
+            if not web:
+                return jsonify({"challenge": challenge, "session_id": self.session_id})
+            return challenge
+        elif method == "GetKeys":
+            d = r.json()
+            if entry["version"] == 2:
+                keys = d["message"]["keys"]
+            else:
+                keys = d["keys"]
+            for x in keys:
+                kid = x["kid"]
+                key = x["key"]
+                self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, "{}:{}".format(kid, key)))
+        elif method == "GetKeysX":
+            raise NotImplemented()
+        else:
+            raise Exception("Unknown method")
 
     def main(self, curl=False):
         # Cached
@@ -256,6 +297,27 @@ class Pywidevine:
             self.headers = json.loads(self.headers)
         except (Exception,):
             self.headers = self.yamldomagic(self.headers)
+
+        if is_custom_buildinfo(self.buildinfo):
+            if not self.server_certificate:
+                try:
+                    self.server_certificate = self.post_data(self.license_url, self.headers, base64.b64decode("CAQ="), self.proxy)
+                except Exception as e:
+                    raise BadRequest(f"Failed to retrieve server certificate: {e}. Please provide a server certificate manually.")
+            params = {"init": self.pssh, "cert": self.server_certificate, "raw": False, "licensetype": "STREAMING", "device": "api"}
+            challenge = self.external_license("GetChallenge", params, web=True)
+
+            # post challenge to license server
+            license = self.post_data(self.license_url, self.headers, base64.b64decode(challenge), self.proxy)
+
+            params = {"cdmkeyresponse": license, "session_id": self.session_id}
+            self.external_license("GetKeys", params=params, web=True)
+
+            # caching
+            data = self._cache_keys()
+            if curl:
+                return jsonify(data)
+            return render_template("success.html", page_title="Success", results=data)
 
         wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(self.library, self.buildinfo))
         if self.server_certificate:
@@ -286,6 +348,15 @@ class Pywidevine:
             return resp
 
         if self.response is None:
+            if is_custom_buildinfo(self.buildinfo):
+                if not self.server_certificate:
+                    try:
+                        self.server_certificate = self.post_data(self.license_url, self.headers, base64.b64decode("CAQ="), self.proxy)
+                    except Exception as e:
+                        raise BadRequest(f"Failed to retrieve server certificate: {e}. Please provide a server certificate manually.")
+                params = {"init": self.pssh, "cert": self.server_certificate, "raw": False, "licensetype": "STREAMING", "device": "api"}
+                return self.external_license("GetChallenge", params)
+
             # challenge generation
             wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(self.library, self.buildinfo))
 
@@ -296,13 +367,21 @@ class Pywidevine:
             # get the challenge
             challenge = wvdecrypt.create_challenge()
 
-            # if len(sessions) > 30:
-            #     self.store_request = {}
+            if len(sessions) > config.MAX_SESSIONS:
+                # remove the oldest session
+                sessions.pop(next(iter(sessions)))
+
             # store the session
             self.session_id = wvdecrypt.session.hex()
             sessions[self.session_id] = wvdecrypt
 
             return jsonify({"challenge": base64.b64encode(challenge).decode(), "session_id": self.session_id})
+
+        if is_custom_buildinfo(self.buildinfo):
+            params = {"cdmkeyresponse": self.response, "session_id": self.session_id}
+            self.external_license("GetKeys", params=params)
+            output = self._cache_keys()
+            return jsonify(output)
 
         # license decryption
         if self.session_id not in sessions:
@@ -317,6 +396,8 @@ class Pywidevine:
         for _, y in enumerate(wvdecrypt.get_content_key()):
             (kid, _) = y.split(":")
             self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, y))
+
+        # caching
         output = self._cache_keys()
         # close the session
         wvdecrypt.close_session()
@@ -329,8 +410,9 @@ class Pywidevine:
         if self.response is None:
             wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(library, self.buildinfo))
             challenge = wvdecrypt.create_challenge()
-            # if len(sessions) > 30:
-            #     self.store_request = {}
+            if len(sessions) > config.MAX_SESSIONS:
+                # remove the oldest session
+                sessions.pop(next(iter(sessions)))
             self.session_id = wvdecrypt.session.hex()
             sessions[self.session_id] = wvdecrypt
 
@@ -535,6 +617,9 @@ class User(UserMixin):
             return None
 
         return User(db, user)
+
+    def is_blacklist_exempt(self):
+        return self.flags.has(UserFlags.BLACKLIST_EXEMPT)
 
     def check_status(self, ignore_suspended=False):
         if self.flags.has(UserFlags.SUSPENDED) == 1 and not ignore_suspended:

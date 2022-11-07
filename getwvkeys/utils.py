@@ -48,6 +48,7 @@ class UserFlags(Enum):
     VINETRIMMER = 1 << 2
     KEY_ADDING = 1 << 3
     SUSPENDED = 1 << 4
+    BLACKLIST_EXEMPT = 1 << 5
 
 
 class FlagAction(Enum):
@@ -58,7 +59,6 @@ class FlagAction(Enum):
 def construct_logger():
     # ensure parent folders exist
     config.WVK_LOG_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    config.WZ_LOG_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
 
     # setup handlers
     # create a colored formatter for the console
@@ -71,17 +71,6 @@ def construct_logger():
     stream = logging.StreamHandler()
     stream.setLevel(config.CONSOLE_LOG_LEVEL)
     stream.setFormatter(console_formatter)
-
-    # configure werkzeug logger
-    wzlogger = logging.getLogger("werkzeug")
-    wzlogger.setLevel(logging.DEBUG)
-    file_handler = logging.handlers.RotatingFileHandler(config.WZ_LOG_FILE_PATH, maxBytes=(1024 * 1024) * 5, backupCount=5)
-
-    # create a regular non-colored formatter for the log file
-    file_formatter = logging.Formatter(config.LOG_FORMAT, datefmt=config.LOG_DATE_FORMAT)
-    file_handler.setFormatter(file_formatter)
-    wzlogger.addHandler(file_handler)
-    wzlogger.addHandler(stream)
 
     # create a handler for file logging, 5 mb max size, with 5 backup files
     file_handler = logging.handlers.RotatingFileHandler(config.WVK_LOG_FILE_PATH, maxBytes=(1024 * 1024) * 5, backupCount=5)
