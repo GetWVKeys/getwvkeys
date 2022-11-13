@@ -44,7 +44,6 @@ body {
   background-color: #16161a;
   color: #fffffe;
   font-family: Verdana, Geneva, Tahoma, sans-serif;
-  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 img,
@@ -90,8 +89,8 @@ nav {
 
 main {
   margin-top: 36px;
-  padding-bottom: 96px;
 }
+
 .section-title {
   text-align: center;
 }
@@ -129,52 +128,64 @@ main {
 
 .form-item {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.125rem;
+  align-items: baseline;
 }
+
+.form-item-items {
+  display: flex;
+  flex-direction: column;
+  margin-left: 24px;
+  flex: 1;
+  width: 100%;
+}
+
+.form-item-items > label {
+  color: gray;
+  font-size: 0.875rem;
+}
+
 .form-item:not(:first-child) {
   margin-top: 16px;
 }
-.form-item > label {
+
+.form-item > span {
   min-width: 120px;
+  font-weight: 600;
 }
-.form-item > input[type="text"] {
+
+input[type="text"] {
   border-radius: 4px;
   border: 0;
   padding: 12px 16px;
   color: #fffffe;
   background-color: #242629;
   width: 100%;
-  margin-left: 24px;
 }
 
-.form-item > input[type="password"] {
+input[type="password"] {
   border-radius: 4px;
   border: 0;
   padding: 12px 16px;
   color: #fffffe;
   background-color: #242629;
   width: 100%;
-  margin-left: 24px;
 }
 
-.form-item > textarea {
+textarea {
   border-radius: 4px;
   border: 0;
   padding: 12px 16px;
   color: #fffffe;
   background-color: #242629;
   width: 100%;
-  margin-left: 24px;
 }
 
-.form-item > input[type="checkbox"] {
-  margin-left: 16px;
+input[type="checkbox"] {
   margin-right: auto;
   width: 16px;
   height: 16px;
 }
+.form-item-items > label[for="cache"],
 .form-item > label[for="cache"] {
   min-width: 0;
 }
@@ -441,7 +452,7 @@ input[name="login"]:focus {
 }
 .profile-container {
   display: flex;
-  flex-grow: 1;
+  flex: 1;
   flex-direction: column;
   margin-left: auto;
   margin-right: auto;
@@ -455,15 +466,34 @@ input[name="login"]:focus {
   display: flex;
   flex-direction: row;
 }
-.apikey-container > label {
+.apikey-container,
+.cdms-container {
+  display: flex;
+  flex: 1;
+  align-items: center;
+}
+.apikey-container.form-item > .form-item-items {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  margin: 0;
+}
+.apikey-container.form-item > span {
   text-align: center;
   font-size: 1.3rem;
   margin: 0 0 16px 0;
 }
-.apikey-container > input {
+.apikey-container.form-item > .form-item-items > input {
   text-align: center;
 }
-.cdms-container > label {
+.cdms-container.form-item > .form-item-items {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  margin: 0;
+  align-items: center;
+}
+.cdms-container > span {
   text-align: center;
   font-size: 1.3rem;
   margin-bottom: 12px;
@@ -476,6 +506,7 @@ input[name="login"]:focus {
   display: flex;
   flex-direction: row;
   align-items: center;
+  justify-content: flex-end;
 }
 .section-divider {
   margin: 32px 0 12px 0;
@@ -559,7 +590,6 @@ button[type="enable"]:focus {
 
 pre {
   white-space: pre-wrap;
-  background-color: #222228;
   margin-left: 30px;
 }
 
@@ -582,4 +612,14 @@ pre {
 .delete-button:active {
   border-color: #b02a37;
   box-shadow: rgb(225, 83, 97) 0 0 0 0.15rem;
+}
+
+#keycount {
+  display: flex;
+  padding: 0 0 0 5px;
+}
+
+.keycount-wrapper {
+  display: flex;
+  justify-content: center;
 }

@@ -24,68 +24,92 @@
   <div class="form-container">
     <form>
       <div class="form-item">
-        <label for="pssh">PSSH:</label>
-        <input
-          data-lpignore="true"
-          type="text"
-          id="pssh"
-          name="pssh"
-          value="AAAAp3Bzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAAIcSEFF0U4YtQlb9i61PWEIgBNcSEPCTfpp3yFXwptQ4ZMXZ82USEE1LDKJawVjwucGYPFF+4rUSEJAqBRprNlaurBkm/A9dkjISECZHD0KW1F0Eqbq7RC4WmAAaDXdpZGV2aW5lX3Rlc3QiFnNoYWthX2NlYzViZmY1ZGM0MGRkYzlI49yVmwY="
-        />
+        <span>PSSH:</span>
+        <div class="form-item-items">
+          <input
+            data-lpignore="true"
+            type="text"
+            id="pssh"
+            name="pssh"
+            value="AAAAp3Bzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAAIcSEFF0U4YtQlb9i61PWEIgBNcSEPCTfpp3yFXwptQ4ZMXZ82USEE1LDKJawVjwucGYPFF+4rUSEJAqBRprNlaurBkm/A9dkjISECZHD0KW1F0Eqbq7RC4WmAAaDXdpZGV2aW5lX3Rlc3QiFnNoYWthX2NlYzViZmY1ZGM0MGRkYzlI49yVmwY="
+          />
+        </div>
       </div>
       <div class="form-item">
-        <label for="license">License:</label>
-        <input
-          data-lpignore="true"
-          type="text"
-          id="license"
-          name="licenseUrl"
-          value="https://cwip-shaka-proxy.appspot.com/no_auth"
-        />
+        <span>License URL:</span>
+        <div class="form-item-items">
+          <input
+            data-lpignore="true"
+            type="text"
+            id="license"
+            name="licenseUrl"
+            value="https://cwip-shaka-proxy.appspot.com/no_auth"
+          />
+        </div>
       </div>
       <div class="form-item">
-        <label for="headers">Headers:</label>
-        <textarea
-          data-lpignore="true"
-          rows="4"
-          cols="64"
-          id="headers"
-          name="headers"
-        >
-accept: "*/*"
-Connection: keep-alive</textarea
-        >
+        <span>Headers:</span>
+        <div class="form-item-items">
+          <textarea
+            data-lpignore="true"
+            rows="4"
+            cols="64"
+            id="headers"
+            name="headers"
+          >
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:106.0) Gecko/20100101 Firefox/106.0</textarea
+          >
+          <label for="headers"
+            >Headers that are sent to the license server.</label
+          >
+        </div>
       </div>
       <div class="form-item">
-        <label for="buildInfo">Build Info:</label>
-        <input
-          data-lpignore="true"
-          type="text"
-          id="buildInfo"
-          name="buildInfo"
-          value=""
-        />
+        <span>Build Info:</span>
+        <div class="form-item-items">
+          <input
+            data-lpignore="true"
+            type="text"
+            id="buildInfo"
+            name="buildInfo"
+            value=""
+          />
+          <label for="buildInfo"
+            >Build Info to use. Leave blank unless you know what you're
+            doing.</label
+          >
+        </div>
       </div>
       <div class="form-item">
-        <label for="headers">Proxy:</label>
-        <input
-          data-lpignore="true"
-          type="text"
-          id="proxy"
-          name="proxy"
-          value=""
-        />
+        <span>Proxy:</span>
+        <div class="form-item-items">
+          <input
+            data-lpignore="true"
+            type="text"
+            id="proxy"
+            name="proxy"
+            value=""
+          />
+          <label for="proxy"
+            >Proxy string, ex: http://user:password@myproxy.net</label
+          >
+        </div>
       </div>
       <div class="form-item">
-        <label for="cache">Cache:</label>
-        <input type="checkbox" id="cache" name="cache" checked />
+        <span>Force:</span>
+        <div class="form-item-items">
+          <input type="checkbox" id="force" name="force" />
+          <label for="force">Force</label>
+        </div>
       </div>
       <input type="submit" value="Send" />
     </form>
   </div>
   <div class="info-container">
-    <span id="key-count-text">Total key count: </span>
-    <span id="key-count">Loading... </span>
+    <div class="keycount-wrapper">
+      <span>Total key count: </span>
+      <span id="keycount">Loading... </span>
+    </div>
     <div class="result-container" id="demo">
       <pre>Send a request to see the result.</pre>
     </div>

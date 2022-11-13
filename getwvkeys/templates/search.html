@@ -25,21 +25,25 @@
   <div class="form-container">
     <form>
       <div class="form-item">
-        <label for="pssh">PSSH/KID:</label>
-        <input
-          data-lpignore="true"
-          type="text"
-          id="pssh"
-          name="pssh"
-          value="517453862d4256fd8bad4f58422004d7"
-        />
+        <span>PSSH/KID:</span>
+        <div class="form-item-items">
+          <input
+            data-lpignore="true"
+            type="text"
+            id="pssh"
+            name="pssh"
+            value="517453862d4256fd8bad4f58422004d7"
+          />
+        </div>
       </div>
       <input type="submit" value="Search" />
     </form>
   </div>
   <div class="info-container">
-    <span id="key-count-text">Total key count: </span>
-    <span id="key-count">Loading... </span>
+    <div class="keycount-wrapper">
+      <span>Total key count: </span>
+      <span id="keycount">Loading... </span>
+    </div>
     <div class="result-container" id="demo">
       <pre>Send a request to see the result.</pre>
     </div>

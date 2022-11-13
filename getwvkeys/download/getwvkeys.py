@@ -22,7 +22,7 @@ import sys
 
 import requests
 
-version = "4.2"
+version = "5.1"
 API_URL = "__getwvkeys_api_url__"
 
 # Change your headers here
@@ -54,7 +54,7 @@ class GetWVKeysApi:
     def generate_request(self):
         if self.args.verbose:
             print("[+] Generating License Request ")
-        data = {"pssh": self.args.pssh, "buildInfo": self.args.buildinfo, "cache": self.args.cache, "license_url": self.args.url}
+        data = {"pssh": self.args.pssh, "buildInfo": self.args.buildinfo, "force": self.args.force, "license_url": self.args.url}
         header = {"X-API-Key": args.auth, "Content-Type": "application/json"}
         r = requests.post(self.api_url, json=data, headers=header)
         if not r.ok:
@@ -67,17 +67,6 @@ class GetWVKeysApi:
             exit(1)
 
         data = r.json()
-
-        if r.headers.get("X-Cached"):
-            if args.verbose:
-                print(json.dumps(data, indent=4))
-            print("\n" * 5)
-            print("[+] Keys:")
-            for k in data["keys"]:
-                print("--key {}".format(k["key"]))
-            input("[+] Press Enter To Continue with request")
-            self.args.cache = False
-            return self.generate_request()
 
         self.session_id = data["session_id"]
         challenge = data["challenge"]
@@ -97,7 +86,7 @@ class GetWVKeysApi:
             "license_url": self.args.url,
             "headers": self.args.headers,
             "buildInfo": self.args.buildinfo,
-            "cache": self.args.cache,
+            "force": self.args.force,
             "session_id": self.session_id,
         }
         header = {"X-API-Key": args.auth, "Content-Type": "application/json"}
@@ -139,7 +128,7 @@ if __name__ == "__main__":
     parser.add_argument("-pssh", help="PSSH")
     parser.add_argument("-auth", help="GetWVKeys API Key")
     parser.add_argument("--verbose", "-v", help="increase output verbosity", action="store_true")
-    parser.add_argument("--cache", "-c", help="Cache On. default is OFF", default=False, action="store_true")
+    parser.add_argument("--force", "-f", help="Force fetch, bypasses cache (You should only use this if the cached keys are not working). Default is OFF", default=False, action="store_true")
     parser.add_argument("--buildinfo", "-b", default="", help="Buildinfo", required=False)
 
     args = parser.parse_args()
