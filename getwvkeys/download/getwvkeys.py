@@ -68,6 +68,14 @@ class GetWVKeysApi:
 
         data = r.json()
 
+        if "X-Cache" in r.headers:
+            keys = data["keys"]
+            print("\n" * 5)
+            print("[+] Keys (from cache):")
+            for k in keys:
+                print("--key {}".format(k["key"]))
+            exit(0)
+
         self.session_id = data["session_id"]
         challenge = data["challenge"]
 
