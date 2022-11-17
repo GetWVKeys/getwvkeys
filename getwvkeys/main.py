@@ -27,7 +27,7 @@ from sqlite3 import DatabaseError
 
 import requests
 import validators as validationlib
-from dunamai import Style, Version
+from dunamai import Version
 from flask import (
     Flask,
     Request,
@@ -59,8 +59,8 @@ from getwvkeys import config, libraries
 
 # these need to be kept
 from getwvkeys.models.Shared import db
-from getwvkeys.redis import Redis
-from getwvkeys.utils import Blacklist, UserFlags, Validators, construct_logger
+from getwvkeys.util.rabbit import RpcClient
+from getwvkeys.utils import Blacklist, UserFlags, Validators, logger
 
 app = Flask(__name__.split(".")[0], root_path=str(Path(__file__).parent))
 app.config["SQLALCHEMY_DATABASE_URI"] = config.SQLALCHEMY_DATABASE_URI
@@ -69,16 +69,16 @@ app.secret_key = config.SECRET_KEY
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 db.init_app(app)
 
-# Logger setup
-logger = construct_logger()
-
 login_manager = LoginManager()
 login_manager.init_app(app)
 
 client = WebApplicationClient(config.OAUTH2_CLIENT_ID)
 
 # get current git commit sha
-sha = Version.from_git().serialize(style=Style.SemVer, dirty=True, format="{base}-post.{distance}+{commit}.{dirty}.{branch}")
+sha = Version.from_git().serialize(
+    dirty=True,
+    format="{base}-post.{distance}+{commit}.{dirty}.{branch}",
+)
 
 # create library instance
 library = libraries.Library(db)
@@ -86,12 +86,11 @@ library = libraries.Library(db)
 # create validators instance
 validators = Validators()
 
-# initialize redis instance
-if not config.IS_STAGING and config.REDIS_URI is not None:
-    # TODO: currently staging can reply which is unintended, but ignoring stuff like disabling users might not be ideal
-    redis = Redis(app, library)
+# initialize rabbitmq
+if not config.RABBIT_URI:
+    logger.warning("RabbitMQ is disabled, IPC will not work")
 else:
-    logger.warning("Redis is disabled, IPC will not work")
+    rpc_client = RpcClient("rpc_api_queue_development", app, library)
 
 # initialize blacklist class
 blacklist = Blacklist()
@@ -569,6 +568,8 @@ def downloadfile_old(file):
 
 
 def main():
+    if config.IS_DEVELOPMENT:
+        logger.warning("RUNNING IN DEVELOPMENT MODE")
     app.run(config.API_HOST, config.API_PORT, debug=config.IS_DEVELOPMENT, use_reloader=False)
 
 
