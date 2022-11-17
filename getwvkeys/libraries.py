@@ -627,7 +627,7 @@ class User(UserMixin):
         if not r.ok:
             raise Exception(f"Failed to get guild member: [{r.status_code}] {r.text}")
         data = r.json()
-        return any(role == config.VERIFIED_ROLE_ID for role in data.get("roles"))
+        return any(role == config.VERIFIED_ROLE for role in data.get("roles"))
 
     @staticmethod
     def is_api_key_bot(api_key):

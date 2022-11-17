@@ -46,8 +46,10 @@ class RpcClient(object):
         self.library = library
         self.connection = pika.BlockingConnection(parameters=pika.URLParameters(RABBIT_URI))
         self.channel = self.connection.channel()
-        self.channel.queue_declare(queue=self.rpc_queue, exclusive=True)
+        result = self.channel.queue_declare(queue=self.rpc_queue, exclusive=True)
+        self.callback_queue = result.method.queue
         thread = threading.Thread(target=self._process_data_events)
+        self.temp_queue = []
         thread.setDaemon(True)
         thread.start()
 
@@ -59,9 +61,11 @@ class RpcClient(object):
                 sleep(0.1)
 
     def _on_response(self, ch: channel.Channel, method, props: spec.BasicProperties, body):
-        """On response we simply store the result in a local dictionary."""
-        self.queue[props.correlation_id] = body
-        # TODO: check if the incoming message is a global message
+        if props.correlation_id in self.queue:
+            self.queue[props.correlation_id] = body
+            return
+
+        # process a global message, aka not a response to a message
         try:
             data = json.loads(body.decode())
             op = data.get("op")
@@ -167,6 +171,7 @@ class RpcClient(object):
             else:
                 self.publish_error(ch, props, "Unknown OPCode {}".format(op))
         except json.JSONDecodeError:
+            logger.warning("[RabbitMQ] Invalid JSON: %s", body.decode("utf8"))
             self.publish_error(ch, props, "Invalid JSON")
 
     def send_request(self, payload):
@@ -232,3 +237,8 @@ class RpcClient(object):
         corr_id = self.send_request(json.dumps(payload))
         res = await self.get_response(corr_id)
         return res
+
+    def publish_packet_sync(self, op: OPCode, data: dict = {}):
+        payload = {"op": op.value, "d": data}
+        corr_id = self.send_request(json.dumps(payload))
+        print(corr_id)

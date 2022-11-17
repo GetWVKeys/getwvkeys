@@ -48,7 +48,7 @@ from werkzeug.exceptions import (
     Forbidden,
     Gone,
     HTTPException,
-    ImATeapot,
+    Locked,
     NotFound,
     Unauthorized,
     UnsupportedMediaType,
@@ -60,7 +60,7 @@ from getwvkeys import config, libraries
 # these need to be kept
 from getwvkeys.models.Shared import db
 from getwvkeys.util.rabbit import RpcClient
-from getwvkeys.utils import Blacklist, UserFlags, Validators, logger
+from getwvkeys.utils import Blacklist, OPCode, UserFlags, Validators, logger
 
 app = Flask(__name__.split(".")[0], root_path=str(Path(__file__).parent))
 app.config["SQLALCHEMY_DATABASE_URI"] = config.SQLALCHEMY_DATABASE_URI
@@ -145,12 +145,6 @@ def on_json_loading_failed(self, e):
 Request.on_json_loading_failed = on_json_loading_failed
 
 
-def blacklist_check(buildinfo, license_url):
-    # check if the license url is blacklisted, but only run this check on GetWVKeys owned CDMs
-    if buildinfo in config.SYSTEM_CDMS and blacklist.is_url_blacklisted(license_url) and not current_user.is_blacklist_exempt():
-        raise ImATeapot()
-
-
 def log_date_time_string():
     """Return the current time formatted for logging."""
     monthname = [None, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -158,6 +152,27 @@ def log_date_time_string():
     year, month, day, hh, mm, ss, x, y, z = time.localtime(now)
     s = "%02d/%3s/%04d %02d:%02d:%02d" % (day, monthname[month], year, hh, mm, ss)
     return s
+
+
+def is_request_blocked(buildinfo: str, license_url: str):
+    return buildinfo in config.SYSTEM_CDMS and blacklist.is_url_blacklisted(license_url) and not current_user.is_blacklist_exempt()
+
+
+def block_handler(req: Request, license_url: str, buildinfo: str, pssh: str):
+    libraries.User.disable_user(db, current_user.id)
+    entry = blacklist.get_blacklist_entry(license_url)
+    rpc_client.publish_packet_sync(
+        OPCode.QUARANTINE,
+        {
+            "user_id": current_user.id,
+            "ip": req.remote_addr,
+            "url": license_url,
+            "buildinfo": buildinfo,
+            "pssh": pssh,
+            "reason": entry.name if entry else "Unknown",
+        },
+    )
+    raise Locked()
 
 
 @login_manager.user_loader
@@ -282,7 +297,9 @@ def wv():
     if not buildinfo:
         buildinfo = libraries.get_random_cdm()
 
-    blacklist_check(buildinfo, license_url)
+    if is_request_blocked(buildinfo, license_url):
+        logger.warn(f"Blocked request from {request.remote_addr} for {license_url}")
+        block_handler(request, license_url, buildinfo, pssh)
 
     magic = libraries.Pywidevine(library, proxy=proxy, license_url=license_url, pssh=pssh, headers=headers, buildinfo=buildinfo, force=force, user_id=current_user.id)
     return magic.main()
@@ -309,7 +326,8 @@ def curl():
         if not buildinfo:
             buildinfo = libraries.get_random_cdm()
 
-        blacklist_check(buildinfo, license_url)
+        if is_request_blocked(buildinfo, license_url):
+            block_handler(request, license_url, buildinfo, pssh)
 
         magic = libraries.Pywidevine(
             library,
@@ -350,7 +368,8 @@ def pywidevine():
     if not buildinfo and not libraries.is_custom_buildinfo(buildinfo):
         buildinfo = libraries.get_random_cdm()
 
-    blacklist_check(buildinfo, license_url)
+    if is_request_blocked(buildinfo, license_url):
+        block_handler(request, license_url, buildinfo, pssh)
 
     magic = libraries.Pywidevine(
         library,
