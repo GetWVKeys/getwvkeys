@@ -28,6 +28,7 @@ import yaml
 from flask import jsonify, render_template
 from flask_login import UserMixin
 from flask_sqlalchemy import SQLAlchemy
+from requests.exceptions import ProxyError
 from werkzeug.exceptions import BadRequest, Forbidden, NotFound, NotImplemented
 
 from getwvkeys import config
@@ -164,7 +165,7 @@ class Pywidevine:
         pssh=None,
         proxy={},
         headers={},
-        cache=False,
+        force=False,
         response=None,
         challenge=False,
         server_certificate=None,
@@ -177,7 +178,7 @@ class Pywidevine:
         self.kid = None
         self.headers = headers
         self.buildinfo = buildinfo
-        self.cache = cache
+        self.force = force
         self.time = int(time.time())
         self.content_keys: list[CachedKey] = list()
         self.challenge = challenge
@@ -185,11 +186,8 @@ class Pywidevine:
         self.user_id = user_id
         self.server_certificate = server_certificate
         self.proxy = proxy
-        if isinstance(self.proxy, str):
-            try:
-                self.proxy = json.loads(self.proxy)
-            except json.JSONDecodeError:
-                self.proxy = {}
+        if self.proxy and isinstance(self.proxy, str):
+            self.proxy = {"http": self.proxy, "https": self.proxy}
         self.store_request = {}
         self.session_id = session_id
 
@@ -238,11 +236,16 @@ class Pywidevine:
 
     @staticmethod
     def post_data(license_url, headers, data, proxy):
-        r = requests.post(url=license_url, data=data, headers=headers, proxies=proxy, timeout=10, verify=False)
-        if r.status_code != 200:
-            raise Exception(f"Error {r.status_code}: {r.text}")
+        try:
+            r = requests.post(url=license_url, data=data, headers=headers, proxies=proxy, timeout=10, verify=False)
+            if r.status_code != 200:
+                raise BadRequest(f"Failed to get license: {r.status_code} {r.reason}")
 
-        return base64.b64encode(r.content).decode()
+            return base64.b64encode(r.content).decode()
+        except ProxyError as e:
+            raise BadRequest(f"Proxy error: {e.args[0].reason}")
+        except ConnectionError as e:
+            raise BadRequest(f"Connection error: {e.args[0].reason}")
 
     def external_license(self, method, params, web=False):
         entry = next((entry for entry in config.EXTERNAL_API_BUILD_INFOS if entry["buildinfo"] == self.buildinfo), None)
@@ -282,17 +285,21 @@ class Pywidevine:
             raise Exception("Unknown method")
 
     def main(self, curl=False):
-        # Cached
-        if self.cache:
+        # Search for cached keys first
+        if not self.force:
             result = self.library.search(self.kid)
             cached = self.library.search_res_to_dict(self.kid, result)
             if cached:
                 if not curl:
                     return render_template("cache.html", results=cached)
                 else:
-                    return jsonify(cached)
+                    r = jsonify(cached)
+                    # used to indicate that the response is from cache
+                    r.headers.add("X-Cache", "HIT")
+                    return r, 302
 
         # Headers
+        # TODO: better parsing
         try:
             self.headers = json.loads(self.headers)
         except (Exception,):
@@ -340,12 +347,14 @@ class Pywidevine:
         return render_template("success.html", page_title="Success", results=data)
 
     def api(self):
-        if self.cache:
-            cached = self.library.search(self.pssh)
-            results = self.library.search_res_to_dict(self.kid, cached)
-            resp = jsonify(results)
-            resp.headers["X-Cached"] = True
-            return resp
+        # Search for cached keys first
+        if not self.force:
+            result = self.library.search(self.pssh)
+            cached = self.library.search_res_to_dict(self.kid, result)
+            if cached:
+                r = jsonify(cached)
+                r.headers.add_header("X-Cache", "HIT")
+                return r, 302
 
         if self.response is None:
             if is_custom_buildinfo(self.buildinfo):
@@ -404,9 +413,6 @@ class Pywidevine:
         return jsonify(output)
 
     def vinetrimmer(self, library: Library):
-        # TODO: implement cache
-        # if self.cache:
-        #    return self.library.search(self.pssh)
         if self.response is None:
             wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(library, self.buildinfo))
             challenge = wvdecrypt.create_challenge()

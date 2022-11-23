@@ -265,13 +265,13 @@ def upload_file():
 @authentication_required()
 def wv():
     event_data = request.get_json(force=True)
-    (proxy, license_url, pssh, headers, buildinfo, cache) = (
+    (proxy, license_url, pssh, headers, buildinfo, force) = (
         event_data.get("proxy", ""),
         event_data.get("license_url"),
         event_data.get("pssh"),
         event_data.get("headers", ""),
         event_data.get("buildInfo"),
-        event_data.get("cache", True),
+        event_data.get("force", False),
     )
     if not pssh or not license_url or not validationlib.url(license_url):
         raise BadRequest("Missing or Invalid Fields")
@@ -281,7 +281,7 @@ def wv():
 
     blacklist_check(buildinfo, license_url)
 
-    magic = libraries.Pywidevine(library, proxy=proxy, license_url=license_url, pssh=pssh, headers=headers, buildinfo=buildinfo, cache=cache, user_id=current_user.id)
+    magic = libraries.Pywidevine(library, proxy=proxy, license_url=license_url, pssh=pssh, headers=headers, buildinfo=buildinfo, force=force, user_id=current_user.id)
     return magic.main()
 
 
@@ -290,13 +290,13 @@ def wv():
 def curl():
     if request.method == "POST":
         event_data = request.get_json()
-        (proxy, license_url, pssh, headers, buildinfo, cache, server_certificate, disable_privacy) = (
+        (proxy, license_url, pssh, headers, buildinfo, force, server_certificate, disable_privacy) = (
             event_data.get("proxy", ""),
             event_data.get("license_url"),
             event_data.get("pssh"),
             event_data.get("headers", ""),
             event_data.get("buildInfo"),
-            event_data.get("cache", True),
+            event_data.get("force", False),
             event_data.get("certificate"),
             event_data.get("disable_privacy", False),
         )
@@ -315,7 +315,7 @@ def curl():
             pssh=pssh,
             headers=headers,
             buildinfo=buildinfo,
-            cache=cache,
+            force=force,
             user_id=current_user.id,
             server_certificate=server_certificate,
             disable_privacy=disable_privacy,
@@ -329,13 +329,13 @@ def curl():
 @authentication_required()
 def pywidevine():
     event_data = request.get_json()
-    (proxy, license_url, pssh, headers, buildinfo, cache, response, server_certificate, disable_privacy, session_id) = (
+    (proxy, license_url, pssh, headers, buildinfo, force, response, server_certificate, disable_privacy, session_id) = (
         event_data.get("proxy", ""),
         event_data.get("license_url"),
         event_data.get("pssh"),
         event_data.get("headers", ""),
         event_data.get("buildInfo"),
-        event_data.get("cache", True),
+        event_data.get("force", False),
         event_data.get("response"),
         event_data.get("certificate"),
         event_data.get("disable_privacy", False),
@@ -356,7 +356,7 @@ def pywidevine():
         pssh=pssh,
         headers=headers,
         buildinfo=buildinfo,
-        cache=cache,
+        force=force,
         response=response,
         user_id=current_user.id,
         server_certificate=server_certificate,

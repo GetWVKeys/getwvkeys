@@ -15,11 +15,6 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-const mainForm = document.querySelector(".form-container>form");
-const formButton = mainForm.querySelector('input[type="submit"]');
-
-mainForm.addEventListener("submit", handleFormSubmit);
-
 function handleFormSubmit(event) {
   event.preventDefault();
   formButton.disabled = true;
@@ -39,9 +34,8 @@ async function keycount() {
     return await response.text();
   }
   const key_count_value = await key_count();
-  document.getElementById("key-count").innerText = key_count_value;
+  document.getElementById("keycount").innerText = key_count_value;
 }
-keycount();
 
 async function generating_request() {
   async function genrating_license_request() {
@@ -164,7 +158,7 @@ async function server_request() {
       pssh: document.getElementById("pssh").value,
       buildInfo: document.getElementById("buildInfo").value,
       proxy: document.getElementById("proxy").value,
-      cache: document.getElementById("cache").checked,
+      force: document.getElementById("force").checked,
     };
     const apiKey = getCookie("api_key");
     const response = await fetch("/wv", {
@@ -227,3 +221,10 @@ function deleteCdm(id) {
       }
     });
 }
+
+keycount();
+
+const mainForm = document.querySelector(".form-container>form");
+const formButton = mainForm.querySelector('input[type="submit"]');
+
+mainForm.addEventListener("submit", handleFormSubmit);

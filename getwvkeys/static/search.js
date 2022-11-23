@@ -15,11 +15,6 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-const mainForm = document.querySelector(".form-container>form");
-const formButton = mainForm.querySelector('input[type="submit"]');
-
-mainForm.addEventListener("submit", handleFormSubmit);
-
 function getCookie(name) {
   const value = `; ${document.cookie}`;
   const parts = value.split(`; ${name}=`);
@@ -45,9 +40,8 @@ async function keycount() {
     return await response.text();
   }
   const key_count_value = await key_count();
-  document.getElementById("key-count").innerText = key_count_value;
+  document.getElementById("keycount").innerText = key_count_value;
 }
-keycount();
 
 async function server_request() {
   async function server_request_data() {
@@ -117,3 +111,10 @@ function parseUnixTimestamp(timestamp) {
   const date = new Date(timestamp * 1000);
   return date.toLocaleString();
 }
+
+const mainForm = document.querySelector(".form-container>form");
+const formButton = mainForm.querySelector('input[type="submit"]');
+
+mainForm.addEventListener("submit", handleFormSubmit);
+
+keycount();
