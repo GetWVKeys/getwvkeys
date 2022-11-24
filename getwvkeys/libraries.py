@@ -350,8 +350,8 @@ class Pywidevine:
         # Search for cached keys first
         if not self.force:
             result = self.library.search(self.pssh)
-            cached = self.library.search_res_to_dict(self.kid, result)
-            if cached:
+            if result and len(result) > 0:
+                cached = self.library.search_res_to_dict(self.kid, result)
                 r = jsonify(cached)
                 r.headers.add_header("X-Cache", "HIT")
                 return r, 302
