@@ -498,17 +498,8 @@ def user_get_cdms():
 
 # error handlers
 @app.errorhandler(DatabaseError)
-def database_error(e: DatabaseError):
-    logger.exception(e)  # database errors should be logged since they are unexpected
-    if request.method == "GET":
-        return render_template("error.html", title=str(e), details="", current_user=current_user, website_version=sha), 500
-    return jsonify({"error": True, "code": 500, "message": str(e)}), 500
-
-
-@app.errorhandler(Exception)
 def database_error(e: Exception):
-    if config.IS_DEVELOPMENT:
-        logger.exception(e)
+    logger.exception(e)  # database errors should always be logged as they are unexpected
     if request.method == "GET":
         return render_template("error.html", title=str(e), details="", current_user=current_user, website_version=sha), 400
     return jsonify({"error": True, "code": 400, "message": str(e)}), 400
@@ -516,6 +507,8 @@ def database_error(e: Exception):
 
 @app.errorhandler(HTTPException)
 def http_exception(e: HTTPException):
+    if config.IS_DEVELOPMENT:
+        logger.exception(e)
     if request.method == "GET":
         if e.code == 401:
             return app.login_manager.unauthorized()
@@ -525,6 +518,8 @@ def http_exception(e: HTTPException):
 
 @app.errorhandler(Gone)
 def gone_exception(e: Gone):
+    if config.IS_DEVELOPMENT:
+        logger.exception(e)
     if request.method == "GET":
         return render_template("error.html", title=e.name, details="The page you are looking for is no longer available.", current_user=current_user, website_version=sha), e.code
     return jsonify({"error": True, "code": 500, "message": "The page you are looking for is no longer available."}), e.code
@@ -532,6 +527,8 @@ def gone_exception(e: Gone):
 
 @app.errorhandler(OAuth2Error)
 def oauth2_error(e: OAuth2Error):
+    if config.IS_DEVELOPMENT:
+        logger.exception(e)
     logger.error(e)
     return render_template("error.html", title=e.description, details="The code was probably already used or is invalid.", current_user=current_user, website_version=sha), e.status_code
 
