@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "getwvkeys"
-version = "0.1.0"
+version = "0.1.1"
 description = "Widevine License Proxy"
 authors = [
     "notaghost <65109659+Notaghost9997@users.noreply.github.com>",
