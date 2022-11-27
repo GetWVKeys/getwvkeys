@@ -287,16 +287,14 @@ class Pywidevine:
     def main(self, curl=False):
         # Search for cached keys first
         if not self.force:
-            result = self.library.search(self.kid)
-            cached = self.library.search_res_to_dict(self.kid, result)
-            if cached:
+            result = self.library.search(self.pssh)
+            if result and len(result) > 0:
+                cached = self.library.search_res_to_dict(self.kid, result)
                 if not curl:
                     return render_template("cache.html", results=cached)
-                else:
-                    r = jsonify(cached)
-                    # used to indicate that the response is from cache
-                    r.headers.add("X-Cache", "HIT")
-                    return r, 302
+                r = jsonify(cached)
+                r.headers.add_header("X-Cache", "HIT")
+                return r, 302
 
         # Headers
         # TODO: better parsing
