@@ -142,15 +142,15 @@ class Library:
         self.db.session.commit()
         return code
 
-    def add_keys(keys: list, user_id: str):
+    def add_keys(self, keys: list, user_id: str):
         cached_keys = list()
 
         for entry in keys:
-            (added_at, licese_url, key) = (entry.get("time", int(time.time())), entry.get("license_url", None), entry.get("key"))
+            (added_at, licese_url, key) = (entry.get("time", int(time.time())), entry.get("license_url", "MANUAL ENTRY"), entry.get("key"))
             (kid, _) = key.split(":")
             cached_keys.append(CachedKey(kid, added_at, user_id, licese_url, key))
 
-        Library.cache_keys(cached_keys)
+        self.cache_keys(cached_keys)
         return jsonify({"error": False, "message": "Added {} keys".format(len(keys))}), 201
 
 
