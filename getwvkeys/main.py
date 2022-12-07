@@ -243,7 +243,7 @@ def keys():
     keys = event_data.get("keys")
     if not keys or not isinstance(keys, list) or len(keys) == 0:
         raise BadRequest("Invalid Body")
-    return library.add_keys(keys, user_id=current_user.id)
+    return library.add_keys(keys=keys, user_id=current_user.id)
 
 
 @app.route("/upload", methods=["GET", "POST"])
