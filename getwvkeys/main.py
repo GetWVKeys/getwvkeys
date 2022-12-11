@@ -391,8 +391,8 @@ def vinetrimmer():
         # Validate params required for method
         if not validators.keys_validator(params):
             return jsonify({"status_code": 400, "message": "Malformed Params"})
-        (cdmkeyresponse, session_id) = (params["cdmkeyresponse"], params["session_id"])
-        magic = libraries.Pywidevine(library, user.id, response=cdmkeyresponse, session_id=session_id)
+        (cdmkeyresponse, session_id, device) = (params["cdmkeyresponse"], params["session_id"], params["device"])
+        magic = libraries.Pywidevine(library, user.id, response=cdmkeyresponse, session_id=session_id, buildinfo=device)
         res = magic.vinetrimmer(library)
         return jsonify({"status_code": 200, "message": res})
     elif method == "GetChallenge":
