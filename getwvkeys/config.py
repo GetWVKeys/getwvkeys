@@ -31,20 +31,18 @@ OAUTH2_CLIENT_ID = os.environ["OAUTH2_CLIENT_ID"]  # Discord OAuth Client ID
 OAUTH2_CLIENT_SECRET = os.environ["OAUTH2_CLIENT_SECRET"]  # Discord OAuth Client Secret
 OAUTH2_REDIRECT_URL = os.environ["OAUTH2_REDIRECT_URL"]  # Discord OAuth Callback URL
 SQLALCHEMY_DATABASE_URI = os.environ["SQLALCHEMY_DATABASE_URI"]  # Database connection URI
-REDIS_URI = os.environ.get("REDIS_URI", None)  # Redis connection URI
+RABBIT_URI = os.environ.get("RABBIT_URI", None)  # RabbitMQ connection URI
 
-API_HOST = "0.0.0.0"
+API_HOST = os.environ.get("API_HOST", "0.0.0.0")
 API_PORT = int(os.environ.get("API_PORT", 8080))
 API_URL = os.environ.get("API_URL", "https://getwvkeys.cc")
 
-MAX_SESSIONS = 60
+MAX_SESSIONS = int(os.environ.get("MAX_SESSIONS", 60))
 PROXY = {}
-DEFAULT_CDMS = []  # list of build infos to use in key rotation
-APPENDERS = []  # passwords for dumping keys, deprecated in favor of flags
-GUILD_ID = ""  # Discord Guild ID
-VERIFIED_ROLE_ID = ""  # Discord Verified role ID
-ELITE_ROLE_ID = ""  # Discord Elite role ID
-LOGIN_DISABLED = False
+DEFAULT_CDMS = os.environ.get("DEFAULT_CDMS", "").split(",")  # list of build infos to use in key rotation
+GUILD_ID = os.environ.get("GUILD_ID")  # Discord Guild ID
+VERIFIED_ROLE_ID = os.environ.get("VERIFIED_ROLE")  # Discord Verified role ID
+LOGIN_DISABLED = bool(os.environ.get("LOGIN_DISABLED", False))
 CONSOLE_LOG_LEVEL = logging.DEBUG
 FILE_LOG_LEVEL = logging.DEBUG
 LOG_FORMAT = "[%(asctime)s] [%(name)s] [%(funcName)s:%(lineno)d] %(levelname)s: %(message)s"
@@ -65,4 +63,4 @@ DEFAULT_BLACKLISTED_URLS = [
 EXTERNAL_API_BUILD_INFOS = [{"buildinfo": "my_awesome_custom_buildinfo", "url": "http://myamazingcdmapi.com", "token": "myS3cR$t"}]
 
 # List of CDMs that should use the blacklist, these are considered to be GetWVKeys System CDMs.
-SYSTEM_CDMS = []
+SYSTEM_CDMS = os.environ.get("SYSTEM_CDMS", "").split(",")
