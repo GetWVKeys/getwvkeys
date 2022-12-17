@@ -7,7 +7,7 @@ Widevine Utility Website and Remote Widevine Device API.
 - Install Python Poetry: https://python-poetry.org/docs/master/#installation
 - Install depdencies: `poetry install`
 - Copy `.env.example` to `.env`.(#environment-variables)
-- Copy `getwvkeys/config.py.example` to `getwvkeys/config.py`
+- Copy `getwvkeys/config.example.py` to `getwvkeys/config.py`
 - Edit `config.py` and `.env`
 - Run database migrations. see [Database Migrations](#database-migrations)
 - See [Deploy](#deploy)
