@@ -175,6 +175,10 @@ def log_request_info(response):
         l += f"\nRequest Data: {request.data.decode()}"
 
     logger.info(l)
+
+    # add some headers
+    response.headers["Allow-Access-Control-Origin"] = "*"
+    response.headers["Allow-Access-Control-Headers"] = "Content-Type, Authorization, X-API-Key"
     return response
 
 
