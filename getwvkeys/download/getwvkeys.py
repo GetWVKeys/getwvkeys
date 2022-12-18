@@ -22,7 +22,11 @@ import sys
 
 import requests
 
-version = "5.1"
+# Version of the API the script is for. This should be changed when the API is updated.
+API_VERSION = "5"
+# Version of the individual script
+SCRIPT_VERSION = "5.1"
+# Dynamic injection of the API url
 API_URL = "__getwvkeys_api_url__"
 
 # Change your headers here
@@ -31,24 +35,24 @@ def headers():
 
 
 # CHANGE THIS FUNCTION TO PARSE LICENSE URL RESPONSE
-def post_request(arg, challenge):
-    r = requests.post(arg.url, headers=arg.headers, data=challenge, timeout=10)
-    if arg.verbose:
-        # printing the raw license data can break terminals
-        print("[+] License response:\n", base64.b64encode(r.content).decode("utf-8"))
+def post_request(args, challenge):
+    r = requests.post(args.url, headers=args.headers, data=challenge, timeout=10)
     if not r.ok:
         print("[-] Failed to get license: [{}] {}".format(r.status_code, r.text))
         exit(1)
+    if args.verbose:
+        # printing the raw license data can break terminals
+        print("[+] License response:\n", base64.b64encode(r.content).decode("utf-8"))
     return r.content
 
 
 # Do Not Change Anything in this class
 class GetWVKeysApi:
-    def __init__(self, arg) -> None:
+    def __init__(self, args) -> None:
         # dynamic injection of the API url
         self.baseurl = "https://getwvkeys.cc" if API_URL == "__getwvkeys_api_url__" else API_URL
         self.api_url = self.baseurl + "/pywidevine"
-        self.args = arg
+        self.args = args
         self.args.headers = headers()
 
     def generate_request(self):
@@ -129,22 +133,41 @@ class GetWVKeysApi:
 
 if __name__ == "__main__":
     getwvkeys_api_key = "__getwvkeys_api_key__"
-    print(f"\n{' ' * 6}pywidevine-api {version}\n{' ' * 7} from getwvkeys \n\n")
+    banner = """
+   ____      _ __        ____     ___  __              
+  / ___| ___| |\\ \\      / /\\ \\   / / |/ /___ _   _ ___ 
+ | |  _ / _ \\ __\\ \\ /\\ / /  \\ \\ / /| ' // _ \\ | | / __|
+ | |_| |  __/ |_ \\ V  V /    \\ V / | . \\  __/ |_| \\__ \\
+  \\____|\\___|\\__| \\_/\\_/      \\_/  |_|\\_\\___|\\__, |___/
+                                             |___/     
+                    Script Version: {}
+                    API Version: {}
+    """.format(
+        SCRIPT_VERSION, API_VERSION
+    )
+    print(banner)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-url", help="License URL")
     parser.add_argument("-pssh", help="PSSH")
-    parser.add_argument("-auth", help="GetWVKeys API Key")
+    parser.add_argument("-auth", "-api_key", help="GetWVKeys API Key")  # auth is deprecated, use api_key instead. auth will be removed in the next major version
     parser.add_argument("--verbose", "-v", help="increase output verbosity", action="store_true")
     parser.add_argument("--force", "-f", help="Force fetch, bypasses cache (You should only use this if the cached keys are not working). Default is OFF", default=False, action="store_true")
     parser.add_argument("--buildinfo", "-b", default="", help="Buildinfo", required=False)
+    parser.add_argument("--version", "-V", help="Print version and exit", action="store_true")
 
     args = parser.parse_args()
     args.auth = getwvkeys_api_key if getwvkeys_api_key != "__getwvkeys_api_key__" else args.auth
 
+    if args.version:
+        print(f"GetWVKeys Generic v{SCRIPT_VERSION} for API Version {API_VERSION}")
+        exit(0)
+
     while (args.url is None or args.pssh is None) or (args.url == "" or args.pssh == ""):
-        args.url = input("Enter License URL: ")
-        args.pssh = input("Enter PSSH: ")
+        if not args.url:
+            args.url = input("Enter License URL: ")
+        if not args.pssh:
+            args.pssh = input("Enter PSSH: ")
         if not args.auth:
             args.auth = input("Enter GetWVKeys API Key: ")
 
