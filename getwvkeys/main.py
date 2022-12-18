@@ -177,8 +177,8 @@ def log_request_info(response):
     logger.info(l)
 
     # add some headers
-    response.headers["Allow-Access-Control-Origin"] = "*"
-    response.headers["Allow-Access-Control-Headers"] = "Content-Type, Authorization, X-API-Key"
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-API-Key"
     return response
 
 
