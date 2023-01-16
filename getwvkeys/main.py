@@ -468,6 +468,8 @@ def login_callback():
     userinfo = info.get("user")
     user = libraries.User.get(db, userinfo.get("id"))
     if not user:
+        if config.REGISTRATION_DISABLED:
+            return render_template("error.html", title="Error", details="Registration has been disabled by the instance administrator.")
         libraries.User.create(db, userinfo)
         user = libraries.User.get(db, userinfo.get("id"))
     else:

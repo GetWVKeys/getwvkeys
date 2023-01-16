@@ -6,6 +6,7 @@ secret = "" # Auto generated on first run if empty
 max_sessions = 60
 guild_id = ""
 login_disabled = false
+registration_disabled = false
 verified_role = ""
 default_cdms = ["cdm1", "cdm2"] # Lust of CDMs that are used in CDM rotation
 system_cdms = ["cdm1", "cdm2"] # List of CDMs that should use the blacklist, these are considered to be GetWVKeys System CDMs.
