@@ -56,6 +56,7 @@ logger.addHandler(file_handler)
 
 
 class OPCode(Enum):
+    ERROR = -1
     DISABLE_USER = 0
     DISABLE_USER_BULK = 1
     ENABLE_USER = 2
