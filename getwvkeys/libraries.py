@@ -72,7 +72,7 @@ sessions = dict()
 
 def get_random_cdm():
     if len(config.DEFAULT_CDMS) == 0:
-        raise Exception("No CDMS configured")
+        raise BadRequest("No CDMs are configured")
     return secrets.choice(config.DEFAULT_CDMS)
 
 
