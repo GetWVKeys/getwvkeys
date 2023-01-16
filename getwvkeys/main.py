@@ -434,6 +434,8 @@ def vinetrimmer():
 def login():
     if current_user.is_authenticated:
         return redirect("/")
+    if config.LOGIN_DISABLED:
+        return render_template("error.html", title="Error", details="Login has been disabled by the instance administrator.")
     request_uri = client.prepare_request_uri(
         "https://discord.com/api/oauth2/authorize",
         redirect_uri=config.OAUTH2_REDIRECT_URL,
@@ -446,7 +448,7 @@ def login():
 def login_callback():
     code = request.args.get("code")
     if not code:
-        return render_template("error.html", page_title="Error", error="No code provided")
+        return render_template("error.html", title="Authentication Error", details="No code provided")
     token_url, headers, body = client.prepare_token_request(
         "https://discord.com/api/oauth2/token",
         authorization_response=request.url,
@@ -552,7 +554,7 @@ def oauth2_error(e: OAuth2Error):
     if config.IS_DEVELOPMENT:
         logger.exception(e)
     logger.error(e)
-    return render_template("error.html", title=e.description, details="The code was probably already used or is invalid.", current_user=current_user, website_version=sha), e.status_code
+    return render_template("error.html", title=e.description, details="The code has either already been used, or is invalid.", current_user=current_user, website_version=sha), e.status_code
 
 
 @login_manager.unauthorized_handler
@@ -589,6 +591,8 @@ def downloadfile_old(file):
 def main():
     if config.IS_DEVELOPMENT:
         logger.warning("RUNNING IN DEVELOPMENT MODE")
+    if config.IS_STAGING:
+        logger.warning("RUNNING IN STAGING MODE")
     app.run(config.API_HOST, config.API_PORT, debug=config.IS_DEVELOPMENT, use_reloader=False)
 
 

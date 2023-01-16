@@ -18,8 +18,12 @@
 {% extends "base.html" %} {% block title %}Error{% endblock %} {% block content
 %}
 <div class="error-wrapper">
-  <h1 class="error-title">An error has occurred</h1>
-  <h2 class="error-subtitle">{{title}}</h2>
+  {% if title is not none %}
+  <h1 class="error-title">{{title}}</h1>
+  {% else %}
+  <h1 class="error-title">An error has occurred!</h1>
+  {% endif %} {% if details is not none %}
   <p class="error-details">{{details}}</p>
+  {% endif %}
 </div>
 {% endblock %}
