@@ -27,7 +27,7 @@ import pika
 from pika import channel, spec
 
 from getwvkeys import libraries
-from getwvkeys.config import RABBIT_URI
+from getwvkeys.config import RABBITMQ_URI
 from getwvkeys.models.Shared import db
 from getwvkeys.utils import OPCode, logger
 
@@ -44,7 +44,7 @@ class RpcClient(object):
         self.rpc_queue = rpc_queue
         self.app = app
         self.library = library
-        self.connection = pika.BlockingConnection(parameters=pika.URLParameters(RABBIT_URI))
+        self.connection = pika.BlockingConnection(parameters=pika.URLParameters(RABBITMQ_URI))
         self.channel = self.connection.channel()
         result = self.channel.queue_declare(queue=self.rpc_queue, exclusive=True)
         self.callback_queue = result.method.queue

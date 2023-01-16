@@ -77,7 +77,7 @@ def get_random_cdm():
 
 
 def is_custom_buildinfo(buildinfo):
-    return next((True for entry in config.EXTERNAL_API_BUILD_INFOS if entry["buildinfo"] == buildinfo), False)
+    return next((True for entry in config.EXTERNAL_APIS if entry["buildinfo"] == buildinfo), False)
 
 
 class Library:
@@ -257,7 +257,7 @@ class Pywidevine:
             raise BadRequest(f"Connection error: {e.args[0].reason}")
 
     def external_license(self, method, params, web=False):
-        entry = next((entry for entry in config.EXTERNAL_API_BUILD_INFOS if entry["buildinfo"] == self.buildinfo), None)
+        entry = next((entry for entry in config.EXTERNAL_APIS if entry["buildinfo"] == self.buildinfo), None)
         if not entry:
             raise BadRequest("Invalid buildinfo")
         api = entry["url"]

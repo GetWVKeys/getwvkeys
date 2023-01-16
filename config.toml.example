@@ -1,0 +1,73 @@
+###
+# General Configuration
+###
+[general]
+secret = "" # Auto generated on first run if empty
+max_sessions = 60
+guild_id = ""
+login_disabled = false
+verified_role = ""
+default_cdms = ["cdm1", "cdm2"] # Lust of CDMs that are used in CDM rotation
+system_cdms = ["cdm1", "cdm2"] # List of CDMs that should use the blacklist, these are considered to be GetWVKeys System CDMs.
+
+###
+# URL Blacklist
+###
+[[general.blacklist]]
+# Using regex to match a url
+url = "*example.com*"
+partial = true
+
+[[general.blacklist]]
+# Matching an exact url
+url = "https://example.com/page/to/block"
+partial = false
+
+###
+# List of external CDM APIs
+###
+[[general.external_apis]]
+build_info = "custom_build_info"
+url = "https://example.com/cdmapi"
+token = "s3cr$t"
+
+###
+# API Configuration
+###
+[api]
+host = "0.0.0.0"
+port = 8080
+url = "https://getwvkeys.cc"
+
+###
+# Database Configuration
+###
+[database]
+uri = "mysql+mysqldb://user:password@host/database"
+
+###
+# RabbitMQ Configuration
+###
+[rabbitmq]
+uri = "amqp://guest:guest@localhost:5672/%2F"
+
+###
+# OAuth2 Configuration
+###
+[oauth2]
+# Discord OAuth Client ID
+client_id = ""
+# Discord OAuth Client Secret
+client_secret = ""
+redirect_url = "https://getwvkeys.cc/login/callback"
+
+###
+# Logging Configuration
+###
+[logging]
+console_level = "INFO"
+file_level = "DEBUG"
+format = "[%(asctime)s] [%(name)s] [%(funcName)s:%(lineno)d] %(levelname)s: %(message)s"
+date_format = "%I:%M:%S"
+filename_format = "logs/%time%.log" # Relative to the root directory of the project
+filename_date_format = "%Y-%m-%d"

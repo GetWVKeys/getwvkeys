@@ -6,9 +6,8 @@ Widevine Utility Website and Remote Widevine Device API.
 
 - Install Python Poetry: https://python-poetry.org/docs/master/#installation
 - Install depdencies: `poetry install`
-- Copy `.env.example` to `.env`.(#environment-variables)
-- Copy `getwvkeys/config.example.py` to `getwvkeys/config.py`
-- Edit `config.py` and `.env`
+- Copy `config.toml.example` to `config.toml`.
+- Edit `config.toml` with your desired configuration. You will also need to generate and set the secret.
 - Run database migrations. see [Database Migrations](#database-migrations)
 - See [Deploy](#deploy)
 
@@ -35,9 +34,9 @@ For local development, you can use the built-in flask server with `poetry run se
 
 # Environment Variables
 
-- `OAUTHLIB_INSECURE_TRANSPORT`: disable ssl for oauth
-- `DEVELOPMENT`: Development mode, increased logging and reads environment variables from `.env.dev`
-- `STAGING`: Staging mode, reads environment variables from `.env.staging`
+- `OAUTHLIB_INSECURE_TRANSPORT`: Disable SSL for OAuth2 (This should only be used in development)
+- `DEVELOPMENT`: Development mode, increased logging and loads config from `config.dev.toml`
+- `STAGING`: Staging mode, loads config from `config.staging.toml`
 
 # Deploy
 

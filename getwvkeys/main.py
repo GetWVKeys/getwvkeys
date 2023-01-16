@@ -87,7 +87,7 @@ library = libraries.Library(db)
 validators = Validators()
 
 # initialize rabbitmq
-if not config.RABBIT_URI:
+if not config.RABBITMQ_URI:
     logger.warning("RabbitMQ is disabled, IPC will not work")
 else:
     rpc_client = RpcClient("rpc_api_queue_development", app, library)

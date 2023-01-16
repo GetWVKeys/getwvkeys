@@ -29,7 +29,7 @@ from getwvkeys import config
 from getwvkeys.pssh_utils import parse_pssh
 
 # ensure parent folders exist
-config.WVK_LOG_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
+config.LOG_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 # setup handlers
 # create a colored formatter for the console
@@ -44,7 +44,7 @@ stream.setLevel(config.CONSOLE_LOG_LEVEL)
 stream.setFormatter(console_formatter)
 
 # create a handler for file logging, 5 mb max size, with 5 backup files
-file_handler = logging.handlers.RotatingFileHandler(config.WVK_LOG_FILE_PATH, maxBytes=(1024 * 1024) * 5, backupCount=5)
+file_handler = logging.handlers.RotatingFileHandler(config.LOG_FILE_PATH, maxBytes=(1024 * 1024) * 5, backupCount=5)
 file_handler.setFormatter(file_formatter)
 file_handler.setLevel(config.FILE_LOG_LEVEL)
 
@@ -210,7 +210,7 @@ class Blacklist:
     def __init__(self) -> None:
         self.blacklist: list[BlacklistEntry] = list()
 
-        for x in config.DEFAULT_BLACKLISTED_URLS:
+        for x in config.BLACKLIST:
             self.blacklist.append(BlacklistEntry(x))
 
     def is_url_blacklisted(self, url: str):
