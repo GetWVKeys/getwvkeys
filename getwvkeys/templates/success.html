@@ -17,27 +17,23 @@
 
 <!DOCTYPE html>
 <html>
-  <body>
-    <h2>SUCCESS</h2>
-    <p style="font-family: 'Courier'">KID: {{results['kid']}}</p>
-    <p style="font-family: 'Courier'">
-      License URL: {{results['license_url']}}
-    </p>
-    <p style="font-family: 'Courier'">
-      Acquired At: <span name="timestamp">{{results['added_at']}}</span>
-    </p>
-    <ol>
-      {%for key in results['keys']%}
-      <li style="font-family: 'Courier'">{{key}}</li>
-      {%endfor%}
-    </ol>
+    <body>
+        <h2>SUCCESS</h2>
+        <p style="font-family: 'Courier'">KID: {{results['kid']}}</p>
+        <p style="font-family: 'Courier'">License URL: {{results['license_url']}}</p>
+        <p style="font-family: 'Courier'">Acquired At: <span name="timestamp">{{results['added_at']}}</span></p>
+        <ol>
+            {%for key in results['keys']%}
+            <li style="font-family: 'Courier'">{{key}}</li>
+            {%endfor%}
+        </ol>
 
-    <script>
-      for (const timestampElem of document.getElementsByName("timestamp")) {
-        const timestamp = timestampElem.innerHTML;
-        const parsed = parseUnixTimestamp(timestamp);
-        timestampElem.innerHTML = parsed;
-      }
-    </script>
-  </body>
+        <script>
+            for (const timestampElem of document.getElementsByName("timestamp")) {
+                const timestamp = timestampElem.innerHTML;
+                const parsed = parseUnixTimestamp(timestamp);
+                timestampElem.innerHTML = parsed;
+            }
+        </script>
+    </body>
 </html>

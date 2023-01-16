@@ -15,50 +15,49 @@
   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  -->
 
-{% extends "base.html" %} {% block title %}Profile{% endblock %} {% block
-content %}
+{% extends "base.html" %} {% block title %}Profile{% endblock %} {% block content %}
 <section class="profile">
-  <header>
-    <h1 class="section-title">Profile</h1>
-  </header>
-  <div class="form-container">
-    <div class="profile-container">
-      <div class="form-item flex-column apikey-container">
-        <span><u>API Key:</u></span>
-        <div class="form-item-items">
-          <input
-            data-lpignore="true"
-            type="text"
-            id="apikey"
-            name="apikey"
-            value="{{ current_user.api_key }}"
-            disabled
-          />
+    <header>
+        <h1 class="section-title">Profile</h1>
+    </header>
+    <div class="form-container">
+        <div class="profile-container">
+            <div class="form-item flex-column apikey-container">
+                <span><u>API Key:</u></span>
+                <div class="form-item-items">
+                    <input
+                        data-lpignore="true"
+                        type="text"
+                        id="apikey"
+                        name="apikey"
+                        value="{{ current_user.api_key }}"
+                        disabled
+                    />
+                </div>
+            </div>
+            <hr class="section-divider" />
+            <div class="form-item flex-column cdms-container">
+                <span><u>Your CDMS</u></span>
+                <div class="form-item-items">
+                    {% if cdms|length == 0 %}
+                    <span>So empty</span>
+                    {% else %}
+                    <ul id="cdms" name="cdms">
+                        {% for cdm in cdms %}
+                        <li class="cdm-list-item">
+                            <div class="form-item cdm-item flex-row">
+                                <p>{{cdm.code}}</p>
+                                <button class="delete-button" onclick="deleteCdm('{{cdm.id}}')">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                </div>
+            </div>
         </div>
-      </div>
-      <hr class="section-divider" />
-      <div class="form-item flex-column cdms-container">
-        <span><u>Your CDMS</u></span>
-        <div class="form-item-items">
-          {% if cdms|length == 0 %}
-          <span>So empty</span>
-          {% else %}
-          <ul id="cdms" name="cdms">
-            {% for cdm in cdms %}
-            <li class="cdm-list-item">
-              <div class="form-item cdm-item flex-row">
-                <p>{{cdm.code}}</p>
-                <button class="delete-button" onclick="deleteCdm('{{cdm.id}}')">
-                  <i class="fas fa-times"></i>
-                </button>
-              </div>
-            </li>
-            {% endfor %}
-          </ul>
-          {% endif %}
-        </div>
-      </div>
     </div>
-  </div>
 </section>
 {% endblock %}

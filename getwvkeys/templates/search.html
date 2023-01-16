@@ -19,62 +19,60 @@
 <script defer src="{{url_for('static', filename='search.js')}}"></script>
 {% endblock %} {% block content %}
 <section class="wdvn-request">
-  <header>
-    <h1 class="section-title">Send Widevine Request</h1>
-  </header>
-  <div class="form-container">
-    <form>
-      <div class="form-item">
-        <span>PSSH/KID:</span>
-        <div class="form-item-items">
-          <input
-            data-lpignore="true"
-            type="text"
-            id="pssh"
-            name="pssh"
-            value="517453862d4256fd8bad4f58422004d7"
-          />
+    <header>
+        <h1 class="section-title">Send Widevine Request</h1>
+    </header>
+    <div class="form-container">
+        <form>
+            <div class="form-item">
+                <span>PSSH/KID:</span>
+                <div class="form-item-items">
+                    <input
+                        data-lpignore="true"
+                        type="text"
+                        id="pssh"
+                        name="pssh"
+                        value="517453862d4256fd8bad4f58422004d7"
+                    />
+                </div>
+            </div>
+            <input type="submit" value="Search" />
+        </form>
+    </div>
+    <div class="info-container">
+        <div class="keycount-wrapper">
+            <span>Total key count: </span>
+            <span id="keycount">Loading... </span>
         </div>
-      </div>
-      <input type="submit" value="Search" />
-    </form>
-  </div>
-  <div class="info-container">
-    <div class="keycount-wrapper">
-      <span>Total key count: </span>
-      <span id="keycount">Loading... </span>
+        <div class="result-container" id="demo">
+            <pre>Send a request to see the result.</pre>
+        </div>
     </div>
-    <div class="result-container" id="demo">
-      <pre>Send a request to see the result.</pre>
+    <div class="donation-container">
+        <table>
+            <tbody>
+                <tr>
+                    <th>Coin</th>
+                    <th>Address</th>
+                    <th>Network</th>
+                </tr>
+                <tr>
+                    <td>BTC&nbsp;&nbsp;</td>
+                    <td>&nbsp;&nbsp;15nor8BBBaDpwsbf1r7NjMhCP1mnCUtNeM&nbsp;&nbsp;</td>
+                    <td>&nbsp;&nbsp;Bitcoin</td>
+                </tr>
+                <tr>
+                    <td>ETH&nbsp;&nbsp;</td>
+                    <td>&nbsp;&nbsp;0x91af349007877eb1528e5aed186f740febae68f3&nbsp;&nbsp;</td>
+                    <td>&nbsp;&nbsp;Ethereum</td>
+                </tr>
+                <tr>
+                    <td>Doge&nbsp;&nbsp;</td>
+                    <td>&nbsp;&nbsp;D7rQQtHVQKyd67JQwWcK8q1JkyDabc1ZvB&nbsp;&nbsp;</td>
+                    <td>&nbsp;&nbsp;Dogecoin</td>
+                </tr>
+            </tbody>
+        </table>
     </div>
-  </div>
-  <div class="donation-container">
-    <table>
-      <tbody>
-        <tr>
-          <th>Coin</th>
-          <th>Address</th>
-          <th>Network</th>
-        </tr>
-        <tr>
-          <td>BTC&nbsp;&nbsp;</td>
-          <td>&nbsp;&nbsp;15nor8BBBaDpwsbf1r7NjMhCP1mnCUtNeM&nbsp;&nbsp;</td>
-          <td>&nbsp;&nbsp;Bitcoin</td>
-        </tr>
-        <tr>
-          <td>ETH&nbsp;&nbsp;</td>
-          <td>
-            &nbsp;&nbsp;0x91af349007877eb1528e5aed186f740febae68f3&nbsp;&nbsp;
-          </td>
-          <td>&nbsp;&nbsp;Ethereum</td>
-        </tr>
-        <tr>
-          <td>Doge&nbsp;&nbsp;</td>
-          <td>&nbsp;&nbsp;D7rQQtHVQKyd67JQwWcK8q1JkyDabc1ZvB&nbsp;&nbsp;</td>
-          <td>&nbsp;&nbsp;Dogecoin</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
 </section>
 {% endblock %}
