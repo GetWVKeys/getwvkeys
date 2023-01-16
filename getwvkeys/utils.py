@@ -107,8 +107,8 @@ class CachedKey(CacheBase):
 
     @staticmethod
     def from_dict(d: dict):
-        (kid, added_at, license_url, key) = (d["kid"], d["added_at"], d.get("license_url", None), d["key"])
-        return CachedKey(kid, added_at, license_url, key)
+        (kid, added_at, added_by, license_url, key) = (d["kid"], d["added_at"], d["added_by"], d.get("license_url", None), d["key"])
+        return CachedKey(kid, added_at, added_by, license_url, key)
 
     def to_json(self):
         return {"kid": self.kid, "added_at": self.added_at, "license_url": self.license_url, "key": self.key}
