@@ -118,6 +118,8 @@ def extract_kid_from_pssh(pssh: str):
     logger = logging.getLogger("getwvkeys")
     try:
         parsed_pssh = parse_pssh(pssh)
+        if not parsed_pssh:
+            raise Exception("No KID or Content ID was found in the PSSH.")
         if len(parsed_pssh.key_ids) == 1:
             return parsed_pssh.key_ids[0]
         elif len(parsed_pssh.key_ids) > 1:
