@@ -153,9 +153,6 @@ class RpcClient(object):
                         )
                     except Exception as e:
                         self.publish_error(ch, props, "Error updating permissions for {}: {}".format(user_id, e))
-            elif op == OPCode.QUARANTINE.value:
-                # TODO: Implement
-                self.publish_error(ch, props, "Not implemented")
             elif op == OPCode.RESET_API_KEY.value:
                 user_id = d.get("user_id")
                 with self.app.app_context():
@@ -240,5 +237,6 @@ class RpcClient(object):
 
     def publish_packet_sync(self, op: OPCode, data: dict = {}):
         payload = {"op": op.value, "d": data}
+        print(f"Publishing packet: ", payload)
         corr_id = self.send_request(json.dumps(payload))
         print(corr_id)
