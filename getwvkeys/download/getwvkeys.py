@@ -25,13 +25,12 @@ import requests
 # Version of the API the script is for. This should be changed when the API is updated.
 API_VERSION = "5"
 # Version of the individual script
-SCRIPT_VERSION = "5.1"
+SCRIPT_VERSION = "5.2"
 # Dynamic injection of the API url
 API_URL = "__getwvkeys_api_url__"
 
 # Change your headers here
-def headers():
-    return {"Connection": "keep-alive", "accept": "*/*"}
+headers = {"Connection": "keep-alive", "accept": "*/*"}
 
 
 # CHANGE THIS FUNCTION TO PARSE LICENSE URL RESPONSE
@@ -47,19 +46,25 @@ def post_request(args, challenge):
 
 
 # Do Not Change Anything in this class
-class GetWVKeysApi:
-    def __init__(self, args) -> None:
+class GetWVKeys:
+    def __init__(self, url: str, pssh: str, auth: str, verbose: bool = False, force: bool = False, buildinfo: str = "", **kwargs) -> None:
         # dynamic injection of the API url
+        self.url = url
+        self.pssh = pssh
+        self.auth = auth
+        self.verbose = verbose
+        self.force = force
+        self.buildinfo = buildinfo
+        
         self.baseurl = "https://getwvkeys.cc" if API_URL == "__getwvkeys_api_url__" else API_URL
         self.api_url = self.baseurl + "/pywidevine"
-        self.args = args
-        self.args.headers = headers()
+        self.headers = headers
 
     def generate_request(self):
-        if self.args.verbose:
+        if self.verbose:
             print("[+] Generating License Request ")
-        data = {"pssh": self.args.pssh, "buildInfo": self.args.buildinfo, "force": self.args.force, "license_url": self.args.url}
-        header = {"X-API-Key": args.auth, "Content-Type": "application/json"}
+        data = {"pssh": self.pssh, "buildInfo": self.buildinfo, "force": self.force, "license_url": self.url}
+        header = {"X-API-Key": self.auth, "Content-Type": "application/json"}
         r = requests.post(self.api_url, json=data, headers=header)
         if not r.ok:
             if "error" in r.text:
@@ -83,25 +88,25 @@ class GetWVKeysApi:
         self.session_id = data["session_id"]
         challenge = data["challenge"]
 
-        if self.args.verbose:
+        if self.verbose:
             print("[+] License Request Generated\n", challenge)
             print("[+] Session ID:", self.session_id)
 
         return base64.b64decode(challenge)
 
     def decrypter(self, license_response):
-        if self.args.verbose:
+        if self.verbose:
             print("[+] Decrypting with License Request and Response ")
         data = {
-            "pssh": self.args.pssh,
+            "pssh": self.pssh,
             "response": license_response,
-            "license_url": self.args.url,
-            "headers": self.args.headers,
-            "buildInfo": self.args.buildinfo,
-            "force": self.args.force,
+            "license_url": self.url,
+            "headers": self.headers,
+            "buildInfo": self.buildinfo,
+            "force": self.force,
             "session_id": self.session_id,
         }
-        header = {"X-API-Key": args.auth, "Content-Type": "application/json"}
+        header = {"X-API-Key": self.auth, "Content-Type": "application/json"}
         r = requests.post(self.api_url, json=data, headers=header)
         if not r.ok:
             if "error" in r.text:
@@ -148,9 +153,9 @@ if __name__ == "__main__":
     print(banner)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-url", help="License URL")
-    parser.add_argument("-pssh", help="PSSH")
-    parser.add_argument("-auth", "-api_key", help="GetWVKeys API Key")  # auth is deprecated, use api_key instead. auth will be removed in the next major version
+    parser.add_argument("url", help="License URL")
+    parser.add_argument("pssh", help="PSSH")
+    parser.add_argument("--auth", "-api_key", help="GetWVKeys API Key")  # auth is deprecated, use api_key instead. auth will be removed in the next major version
     parser.add_argument("--verbose", "-v", help="increase output verbosity", action="store_true")
     parser.add_argument("--force", "-f", help="Force fetch, bypasses cache (You should only use this if the cached keys are not working). Default is OFF", default=False, action="store_true")
     parser.add_argument("--buildinfo", "-b", default="", help="Buildinfo", required=False)
@@ -158,12 +163,13 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     args.auth = getwvkeys_api_key if getwvkeys_api_key != "__getwvkeys_api_key__" else args.auth
+    args.headers = headers
 
     if args.version:
         print(f"GetWVKeys Generic v{SCRIPT_VERSION} for API Version {API_VERSION}")
         exit(0)
 
-    while (args.url is None or args.pssh is None) or (args.url == "" or args.pssh == ""):
+    while (args.url is None or args.pssh is None or args.auth is None) or (args.url == "" or args.pssh == "" or args.auth == ""):
         if not args.url:
             args.url = input("Enter License URL: ")
         if not args.pssh:
@@ -178,7 +184,7 @@ if __name__ == "__main__":
         args.verbose = False
 
     try:
-        start = GetWVKeysApi(args)
+        start = GetWVKeys(**vars(args))
         start.main()
     except Exception as e:
         raise
