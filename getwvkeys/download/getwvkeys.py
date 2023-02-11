@@ -136,10 +136,15 @@ class GetWVKeys:
         if self.verbose:
             print(json.dumps(decrypt_response, indent=4))
             print("Decryption Session ID:", session_id)
-        print("\n" * 5)
-        print("[+] Keys:")
-        for k in keys:
-            print("--key {}".format(k))
+            
+        if __name__ == "__main__":
+            print("\n" * 5)
+            print("[+] Keys:")
+            for k in keys:
+                print("--key {}".format(k))
+            return
+        else:
+            return decrypt_response
 
 
 if __name__ == "__main__":
