@@ -34,12 +34,12 @@ headers = {"Connection": "keep-alive", "accept": "*/*"}
 
 
 # CHANGE THIS FUNCTION TO PARSE LICENSE URL RESPONSE
-def post_request(args, challenge):
-    r = requests.post(args.url, headers=args.headers, data=challenge, timeout=10)
+def post_request(url, headers, challenge, verbose):
+    r = requests.post(url, headers=headers, data=challenge, timeout=10)
     if not r.ok:
         print("[-] Failed to get license: [{}] {}".format(r.status_code, r.text))
         exit(1)
-    if args.verbose:
+    if verbose:
         # printing the raw license data can break terminals
         print("[+] License response:\n", base64.b64encode(r.content).decode("utf-8"))
     return r.content
@@ -47,7 +47,7 @@ def post_request(args, challenge):
 
 # Do Not Change Anything in this class
 class GetWVKeys:
-    def __init__(self, url: str, pssh: str, auth: str, verbose: bool = False, force: bool = False, buildinfo: str = "", **kwargs) -> None:
+    def __init__(self, url: str, pssh: str, auth: str, verbose: bool = False, force: bool = False, buildinfo: str = "", _headers: dict[str, str] = headers, **kwargs) -> None:
         # dynamic injection of the API url
         self.url = url
         self.pssh = pssh
@@ -58,7 +58,7 @@ class GetWVKeys:
         
         self.baseurl = "https://getwvkeys.cc" if API_URL == "__getwvkeys_api_url__" else API_URL
         self.api_url = self.baseurl + "/pywidevine"
-        self.headers = headers
+        self.headers = _headers
 
     def generate_request(self):
         if self.verbose:
@@ -79,11 +79,7 @@ class GetWVKeys:
 
         if "X-Cache" in r.headers:
             keys = data["keys"]
-            print("\n" * 5)
-            print("[+] Keys (from cache):")
-            for k in keys:
-                print("--key {}".format(k["key"]))
-            exit(0)
+            return {"cache": True, "keys": keys}
 
         self.session_id = data["session_id"]
         challenge = data["challenge"]
@@ -92,7 +88,7 @@ class GetWVKeys:
             print("[+] License Request Generated\n", challenge)
             print("[+] Session ID:", self.session_id)
 
-        return base64.b64decode(challenge)
+        return {"cache": False, "challenge": base64.b64decode(challenge)}
 
     def decrypter(self, license_response):
         if self.verbose:
@@ -120,14 +116,24 @@ class GetWVKeys:
 
     def main(self):
         license_request = self.generate_request()
-        if args.verbose:
+        if license_request["cache"] == True:
+            if __name__ == "__main__":
+                print("\n" * 5)
+                print("[+] Keys:")
+                keys = license_request["keys"]
+                for k in keys:
+                    print("--key {}".format(k["key"]))
+                return
+            else:
+                return license_request["keys"]
+        if self.verbose:
             print("[+] Sending License URL Request")
-        license_response = post_request(args, license_request)
+        license_response = post_request(self.url, self.headers, license_request["challenge"], self.verbose)
         decrypt_response = self.decrypter(base64.b64encode(license_response).decode())
         keys = decrypt_response["keys"]
         session_id = decrypt_response["session_id"]
 
-        if args.verbose:
+        if self.verbose:
             print(json.dumps(decrypt_response, indent=4))
             print("Decryption Session ID:", session_id)
         print("\n" * 5)
