@@ -2,7 +2,7 @@
  This file is part of the GetWVKeys project (https://github.com/GetWVKeys/getwvkeys)
  The code in this file has been adapted from: https://github.com/google/shaka-packager/blob/master/packager/tools/pssh/pssh-box.py
 
- Copyright (C) 2022 Notaghost, Puyodead1 and GetWVKeys contributors 
+ Copyright (C) 2022-2023 Notaghost, Puyodead1 and GetWVKeys contributors 
  
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as published
