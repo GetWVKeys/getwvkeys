@@ -29,7 +29,13 @@ from flask import jsonify, render_template
 from flask_login import UserMixin
 from flask_sqlalchemy import SQLAlchemy
 from requests.exceptions import ProxyError
-from werkzeug.exceptions import BadRequest, Forbidden, NotFound, NotImplemented
+from werkzeug.exceptions import (
+    BadRequest,
+    Forbidden,
+    InternalServerError,
+    NotFound,
+    NotImplemented,
+)
 
 from getwvkeys import config
 from getwvkeys.models.CDM import CDM as CDMModel
@@ -64,6 +70,8 @@ sessions = dict()
 
 
 def get_random_cdm():
+    if len(config.DEFAULT_CDMS) == 0:
+        raise Exception("No CDMS configured")
     return secrets.choice(config.DEFAULT_CDMS)
 
 
@@ -324,7 +332,10 @@ class Pywidevine:
                 return jsonify(data)
             return render_template("success.html", page_title="Success", results=data)
 
-        wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(self.library, self.buildinfo))
+        try:
+            wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(self.library, self.buildinfo))
+        except Exception as e:
+            raise InternalServerError(f"Failed to create session: {e}")
         if self.server_certificate:
             wvdecrypt.set_server_certificate(self.server_certificate)
         challenge = wvdecrypt.create_challenge()
