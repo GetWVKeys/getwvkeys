@@ -38,10 +38,10 @@ from werkzeug.exceptions import (
 )
 
 from getwvkeys import config
+from getwvkeys.models.APIKey import APIKey as APIKeyModel
 from getwvkeys.models.CDM import CDM as CDMModel
 from getwvkeys.models.Key import Key as KeyModel
 from getwvkeys.models.User import User as UserModel
-from getwvkeys.models.APIKey import APIKey as APIKeyModel
 from getwvkeys.pywidevine.cdm import deviceconfig
 from getwvkeys.utils import (
     Bitfield,
