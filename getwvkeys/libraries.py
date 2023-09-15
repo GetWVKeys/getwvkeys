@@ -41,6 +41,7 @@ from getwvkeys import config
 from getwvkeys.models.CDM import CDM as CDMModel
 from getwvkeys.models.Key import Key as KeyModel
 from getwvkeys.models.User import User as UserModel
+from getwvkeys.models.APIKey import APIKey as APIKeyModel
 from getwvkeys.pywidevine.cdm import deviceconfig
 from getwvkeys.utils import (
     Bitfield,
@@ -550,6 +551,10 @@ class User(UserMixin):
     def reset_api_key(self):
         api_key = secrets.token_hex(32)
         self.user_model.api_key = api_key
+
+        history_entry = APIKeyModel(user_id=self.user_model.id, api_key=api_key)
+        self.user_model.api_keys.append(history_entry)
+
         self.db.session.commit()
 
     def delete_cdm(self, id):
@@ -581,6 +586,8 @@ class User(UserMixin):
             public_flags=userinfo.get("public_flags"),
             api_key=api_key,
         )
+        history_entry = APIKeyModel(user_id=user.id, api_key=api_key)
+        user.api_keys.append(history_entry)
         db.session.add(user)
         db.session.commit()
 
