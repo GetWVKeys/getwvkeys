@@ -21,6 +21,7 @@ from getwvkeys.models.Shared import db
 class APIKey(db.Model):
     __tablename__ = "apikeys"
     id = db.Column(db.Integer, primary_key=True, nullable=False, unique=True, autoincrement=True)
-    user_id = db.Column(db.String(255), db.ForeignKey("users.id"))
     created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
     api_key = db.Column(db.String(255), nullable=False)
+    user_id = db.Column(db.String(255), db.ForeignKey("users.id"), nullable=False)
+    user = db.relationship("User", back_populates="api_keys")

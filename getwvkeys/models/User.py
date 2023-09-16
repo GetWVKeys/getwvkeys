@@ -27,4 +27,4 @@ class User(db.Model):
     public_flags = db.Column(db.Integer, nullable=False)
     api_key = db.Column(db.String(255), nullable=False)
     flags = db.Column(db.Integer, default=0, nullable=False)
-    api_keys = db.relationship("APIKey", backref="user")
+    api_keys = db.relationship("APIKey", back_populates="user", lazy="dynamic")
