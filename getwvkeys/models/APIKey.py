@@ -23,5 +23,4 @@ class APIKey(db.Model):
     id = db.Column(db.Integer, primary_key=True, nullable=False, unique=True, autoincrement=True)
     created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
     api_key = db.Column(db.String(255), nullable=False)
-    user_id = db.Column(db.String(255), db.ForeignKey("users.id"), nullable=False)
-    user = db.relationship("User", back_populates="api_keys")
+    user_id = db.Column(db.String(255), nullable=False)
