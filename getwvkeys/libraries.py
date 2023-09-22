@@ -552,8 +552,11 @@ class User(UserMixin):
         api_key = secrets.token_hex(32)
         self.user_model.api_key = api_key
 
-        history_entry = APIKeyModel(user_id=self.user_model.id, api_key=api_key)
-        db.session.add(history_entry)
+        # check if we already have the key recorded in the history, if not (ex: accounts created before implementation), add it
+        a = APIKeyModel.query.filter_by(user_id=self.user_model.id, api_key=api_key)
+        if not a:
+            history_entry = APIKeyModel(user_id=self.user_model.id, api_key=api_key)
+            db.session.add(history_entry)
 
         self.db.session.commit()
 
