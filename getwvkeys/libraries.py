@@ -553,7 +553,7 @@ class User(UserMixin):
         self.user_model.api_key = api_key
 
         history_entry = APIKeyModel(user_id=self.user_model.id, api_key=api_key)
-        self.user_model.api_keys.append(history_entry)
+        db.session.add(history_entry)
 
         self.db.session.commit()
 
@@ -587,7 +587,7 @@ class User(UserMixin):
             api_key=api_key,
         )
         history_entry = APIKeyModel(user_id=user.id, api_key=api_key)
-        user.api_keys.append(history_entry)
+        db.session.add(history_entry)
         db.session.add(user)
         db.session.commit()
 
