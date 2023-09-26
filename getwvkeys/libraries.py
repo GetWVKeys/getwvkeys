@@ -556,7 +556,7 @@ class User(UserMixin):
         a = APIKeyModel.query.filter_by(user_id=self.user_model.id, api_key=api_key)
         if not a:
             history_entry = APIKeyModel(user_id=self.user_model.id, api_key=api_key)
-            db.session.add(history_entry)
+            self.db.session.add(history_entry)
 
         self.db.session.commit()
 
