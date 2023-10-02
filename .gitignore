@@ -139,4 +139,6 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-config.py
+*.toml
+!config.example.toml
+alembic.ini

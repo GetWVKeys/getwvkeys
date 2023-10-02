@@ -15,12 +15,16 @@
  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from getwvkeys.models.Shared import db
+from sqlalchemy import Column, DateTime, Integer, String, func
+
+from getwvkeys.models.Base import Base
 
 
-class APIKey(db.Model):
+class APIKey(Base):
     __tablename__ = "apikeys"
-    id = db.Column(db.Integer, primary_key=True, nullable=False, unique=True, autoincrement=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
-    api_key = db.Column(db.String(255), nullable=False)
-    user_id = db.Column(db.String(255), nullable=False)
+    id = Column(
+        Integer, primary_key=True, nullable=False, unique=True, autoincrement=True
+    )
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    api_key = Column(String(255), nullable=False)
+    user_id = Column(String(255), nullable=False)

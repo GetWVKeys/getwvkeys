@@ -17,19 +17,20 @@
 
 import time
 
-from sqlalchemy import ForeignKey
+from sqlalchemy import Column, ForeignKey, Integer, String, Text
 
-from getwvkeys.models.Shared import db
+from getwvkeys.models.Base import Base
 
 
-class Key(db.Model):
+class Key(Base):
     __tablename__ = "keys_"
-    kid = db.Column(
-        db.String(32),
-        primary_key=True,
+    # id primary key
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    kid = Column(
+        String(32),
         nullable=False,
     )
-    added_at = db.Column(db.Integer, nullable=False, default=int(time.time()))
-    added_by = db.Column(db.String(255), ForeignKey("users.id"), nullable=True)
-    license_url = db.Column(db.Text, nullable=False)
-    key_ = db.Column(db.String(255), nullable=False)
+    added_at = Column(Integer, nullable=False, default=int(time.time()))
+    added_by = Column(String(255), ForeignKey("users.id"), nullable=True)
+    license_url = Column(Text, nullable=False)
+    key_ = Column(String(255), nullable=False)
