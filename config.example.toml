@@ -1,7 +1,6 @@
 [general]
 secret_key = ""
 database_uri = "sqlite:///db.sqlite3"
-redis_uri = "redis://localhost:6379/0"
 max_sessions = 60
 cdms = ["cdm_identifier"]
 system_cdms = ["cdm_identifier"]

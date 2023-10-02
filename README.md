@@ -55,7 +55,6 @@ _never use more than 1 worker, getwvkeys does not currently support that and you
 
 # Other Info
 
--   Redis is used as a pub-sub system for communication with the Discord Bot. If you don't plan to use the bot, you don't need to setup redis and can comment it out in the `.env` file: `#REDIS_URI=redis://localhost:6379/0`
 -   GetWVKeys uses dynamic injection for scripts, this means that when a user downloads a script and is logged in, the server injects certain values by replacing strings such as their API key. Available placeholders are:
     -   `__getwvkeys_api_key__`: Authenticated users api key
     -   `__getwvkeys_api_url__`: The instances API URL, this is used for staging and production mainly but can also be used for self hosted instances

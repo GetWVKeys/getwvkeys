@@ -42,6 +42,7 @@ from flask import (
 )
 from flask_login import LoginManager, current_user, login_user, logout_user
 from flask_sqlalchemy import SQLAlchemy
+from google.protobuf.message import DecodeError
 from oauthlib.oauth2 import WebApplicationClient
 from oauthlib.oauth2.rfc6749.errors import OAuth2Error
 from werkzeug.exceptions import (
@@ -60,8 +61,13 @@ from getwvkeys import config, libraries
 from getwvkeys.models.Base import Base
 
 # these need to be kept
-from getwvkeys.redis import Redis
-from getwvkeys.utils import Blacklist, UserFlags, Validators, construct_logger
+from getwvkeys.utils import (
+    Blacklist,
+    UserFlags,
+    Validators,
+    construct_logger,
+    extract_kid_from_pssh,
+)
 
 app = Flask(__name__.split(".")[0], root_path=str(Path(__file__).parent))
 app.config["SQLALCHEMY_DATABASE_URI"] = config.SQLALCHEMY_DATABASE_URI
@@ -82,7 +88,7 @@ client = WebApplicationClient(config.OAUTH2_CLIENT_ID)
 sha = Version.from_git().serialize(
     style=Style.SemVer,
     dirty=True,
-    format="{base}-post.{distance}+{commit}.{dirty}.{branch}",
+    format="{base}-post.{distance}+{commit}.{dirty}.{branch_escaped}",
 )
 
 # create library instance
@@ -90,13 +96,6 @@ library = libraries.Library(db)
 
 # create validators instance
 validators = Validators()
-
-# initialize redis instance
-if not config.IS_STAGING and config.REDIS_URI is not None:
-    # TODO: currently staging can reply which is unintended, but ignoring stuff like disabling users might not be ideal
-    redis = Redis(app, library)
-else:
-    logger.warning("Redis is disabled, IPC will not work")
 
 # initialize blacklist class
 blacklist = Blacklist()
@@ -291,8 +290,14 @@ def search():
         query = request.stream.read().decode()
         if not query or query == "":
             raise BadRequest("Missing or Invalid Search Query")
-        data = library.search(query)
-        data = library.search_res_to_dict(query, data)
+        try:
+            kid = extract_kid_from_pssh(query)
+        except DecodeError:  # not a pssh
+            kid = query
+        except Exception as e:  # pssh does not contain a kid
+            raise BadRequest(str(e))
+        data = library.search(kid)
+        data = library.search_res_to_dict(kid, data)
         return jsonify(data)
     else:
         return render_template(

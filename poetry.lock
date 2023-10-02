@@ -21,18 +21,6 @@ typing-extensions = ">=4"
 tz = ["python-dateutil"]
 
 [[package]]
-name = "async-timeout"
-version = "4.0.2"
-description = "Timeout context manager for asyncio programs"
-category = "main"
-optional = false
-python-versions = ">=3.6"
-files = [
-    {file = "async-timeout-4.0.2.tar.gz", hash = "sha256:2163e1640ddb52b7a8c80d0a67a08587e5d245cc9c553a74a847056bc2976b15"},
-    {file = "async_timeout-4.0.2-py3-none-any.whl", hash = "sha256:8ca1e4fcf50d07413d66d1a5e416e42cfdf5851c981d679a09851a6853383b3c"},
-]
-
-[[package]]
 name = "black"
 version = "22.10.0"
 description = "The uncompromising code formatter."
@@ -782,25 +770,6 @@ files = [
 ]
 
 [[package]]
-name = "redis"
-version = "4.4.4"
-description = "Python client for Redis database and key-value store"
-category = "main"
-optional = false
-python-versions = ">=3.7"
-files = [
-    {file = "redis-4.4.4-py3-none-any.whl", hash = "sha256:da92a39fec86438d3f1e2a1db33c312985806954fe860120b582a8430e231d8f"},
-    {file = "redis-4.4.4.tar.gz", hash = "sha256:68226f7ede928db8302f29ab088a157f41061fa946b7ae865452b6d7838bbffb"},
-]
-
-[package.dependencies]
-async-timeout = ">=4.0.2"
-
-[package.extras]
-hiredis = ["hiredis (>=1.0.0)"]
-ocsp = ["cryptography (>=36.0.1)", "pyopenssl (==20.0.1)", "requests (>=2.26.0)"]
-
-[[package]]
 name = "requests"
 version = "2.31.0"
 description = "Python HTTP for Humans."
@@ -1021,4 +990,4 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<4.0"
-content-hash = "a1b467f5fcef7e2171edcbb4d00b1fd0eec8dee7088e9960c64c618a9dd88dc8"
+content-hash = "2510021ccb176344f40125cd6a36d4a5ca60b5e9f37969e0669a560d4d6dc133"

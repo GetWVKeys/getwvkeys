@@ -24,9 +24,10 @@ from typing import Union
 
 from cerberus import Validator
 from coloredlogs import ColoredFormatter
+from google.protobuf.message import DecodeError
 
 from getwvkeys import config
-from getwvkeys.pssh_utils import parse_pssh
+from getwvkeys.pssh import PSSH
 
 
 class OPCode(Enum):
@@ -145,31 +146,17 @@ class CachedKey(CacheBase):
         }
 
 
-def extract_kid_from_pssh(pssh: str):
+def extract_kid_from_pssh(data: str | bytes):
     logger = logging.getLogger("getwvkeys")
-    try:
-        parsed_pssh = parse_pssh(pssh)
-        if len(parsed_pssh.key_ids) == 1:
-            return parsed_pssh.key_ids[0]
-        elif len(parsed_pssh.key_ids) > 1:
-            logger.warning("Multiple key ids found in pssh! {}".format(pssh))
-            return parsed_pssh.key_ids[0]
-        elif len(parsed_pssh.key_ids) == 0:
-            if len(parsed_pssh.data.key_ids) == 0 and parsed_pssh.data.content_id:
-                return base64.b64encode(
-                    bytes.fromhex(parsed_pssh.data.content_id)
-                ).decode()
-            elif len(parsed_pssh.data.key_ids) == 1:
-                return parsed_pssh.data.key_ids[0]
-            elif len(parsed_pssh.data.key_ids) > 1:
-                logger.warning("Multiple key ids found in pssh! {}".format(pssh))
-                return parsed_pssh.data.key_ids[0]
-            else:
-                raise Exception("No KID or Content ID was found in the PSSH.")
-        else:
-            raise Exception("No KID or Content ID was found in the PSSH.")
-    except Exception as e:
-        raise e
+    pssh = PSSH(data)
+    key_ids = pssh.key_ids
+    if len(key_ids) == 1:
+        return key_ids[0].hex
+    elif len(key_ids) > 1:
+        logger.warning(f"Multiple key ids found in pssh! Using first")
+        return key_ids[0].hex
+    elif len(key_ids) == 0:
+        raise Exception("No KID or Content ID was found in the PSSH.")
 
 
 class Validators:
