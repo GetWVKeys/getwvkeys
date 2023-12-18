@@ -17,6 +17,7 @@
 
 import asyncio
 import base64
+import concurrent.futures
 import json
 import os
 import pathlib
@@ -24,7 +25,6 @@ import time
 from functools import update_wrapper, wraps
 from io import BytesIO
 from pathlib import Path
-import concurrent.futures
 from sqlite3 import DatabaseError
 
 import requests
