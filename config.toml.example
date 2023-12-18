@@ -16,13 +16,15 @@ system_cdms = ["cdm1", "cdm2"] # List of CDMs that should use the blacklist, the
 ###
 [[general.blacklist]]
 # Using regex to match a url
-url = "*example.com*"
+url = ".*example.com.*"
 partial = true
+name = "test"
 
 [[general.blacklist]]
 # Matching an exact url
 url = "https://example.com/page/to/block"
 partial = false
+name = "test"
 
 ###
 # List of external CDM APIs
@@ -45,12 +47,6 @@ url = "https://getwvkeys.cc"
 ###
 [database]
 uri = "mysql+mysqldb://user:password@host/database"
-
-###
-# RabbitMQ Configuration
-###
-[rabbitmq]
-uri = "amqp://guest:guest@localhost:5672/%2F"
 
 ###
 # OAuth2 Configuration

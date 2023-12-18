@@ -30,7 +30,6 @@ config = toml.load(config_filename)
 general = config["general"]
 api = config["api"]
 database = config["database"]
-rabbitmq = config["rabbitmq"]
 oauth2 = config["oauth2"]
 logging_config = config["logging"]
 
@@ -60,9 +59,6 @@ API_URL: str = api["url"]
 
 # Database Configuration Section
 SQLALCHEMY_DATABASE_URI: str = database["uri"]
-
-# RabbitMQ Configuration Section
-RABBITMQ_URI: str = rabbitmq["uri"]
 
 # OAuth2 Configuration Section
 OAUTH2_CLIENT_ID: str = oauth2["client_id"]

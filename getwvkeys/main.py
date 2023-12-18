@@ -15,6 +15,7 @@
  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import asyncio
 import base64
 import json
 import os
@@ -23,6 +24,7 @@ import time
 from functools import update_wrapper, wraps
 from io import BytesIO
 from pathlib import Path
+import concurrent.futures
 from sqlite3 import DatabaseError
 
 import requests
@@ -59,8 +61,8 @@ from getwvkeys import config, libraries
 
 # these need to be kept
 from getwvkeys.models.Shared import db
-from getwvkeys.util.rabbit import RpcClient
 from getwvkeys.utils import Blacklist, OPCode, UserFlags, Validators, logger
+from getwvkeys.ws import WebSocketManager
 
 app = Flask(__name__.split(".")[0], root_path=str(Path(__file__).parent))
 app.config["SQLALCHEMY_DATABASE_URI"] = config.SQLALCHEMY_DATABASE_URI
@@ -86,11 +88,8 @@ library = libraries.Library(db)
 # create validators instance
 validators = Validators()
 
-# initialize rabbitmq
-if not config.RABBITMQ_URI:
-    logger.warning("RabbitMQ is disabled, IPC will not work")
-else:
-    rpc_client = RpcClient("rpc_api_queue_development", app, library)
+# initialize IPC WS
+websocket_manager = WebSocketManager(app=app, library=library, db=db, host="localhost", port=2943)
 
 # initialize blacklist class
 blacklist = Blacklist()
@@ -161,7 +160,7 @@ def is_request_blocked(buildinfo: str, license_url: str):
 def block_handler(req: Request, license_url: str, buildinfo: str, pssh: str):
     libraries.User.disable_user(db, current_user.id)
     entry = blacklist.get_blacklist_entry(license_url)
-    rpc_client.publish_packet_sync(
+    websocket_manager.publish_packet_sync(
         OPCode.QUARANTINE,
         {
             "user_id": current_user.id,
@@ -296,6 +295,8 @@ def wv():
 
     if not buildinfo:
         buildinfo = libraries.get_random_cdm()
+
+    print(buildinfo)
 
     if is_request_blocked(buildinfo, license_url):
         logger.warn(f"Blocked request from {request.remote_addr} for {license_url}")
@@ -595,7 +596,37 @@ def main():
         logger.warning("RUNNING IN DEVELOPMENT MODE")
     if config.IS_STAGING:
         logger.warning("RUNNING IN STAGING MODE")
-    app.run(config.API_HOST, config.API_PORT, debug=config.IS_DEVELOPMENT, use_reloader=False)
+    async def run_server():
+        await websocket_manager.start_server()
+
+     # Define named arguments for app.run
+    app_run_kwargs = {
+        'host': config.API_HOST,
+        'port': config.API_PORT,
+        'debug': config.IS_DEVELOPMENT,
+        'use_reloader': False,
+    }
+
+    # Start both the Flask app and the WebSocket server concurrently
+    loop = asyncio.get_event_loop()
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        flask_task = loop.run_in_executor(executor, lambda: app.run(**app_run_kwargs))
+        websocket_task = asyncio.ensure_future(run_server())
+
+        try:
+            loop.run_until_complete(asyncio.gather(flask_task, websocket_task))
+        except (KeyboardInterrupt, SystemExit):
+            # Handle keyboard interrupt or sys.exit gracefully
+            print("Shutting down...")
+            # Stop the Flask server gracefully
+            func = request.environ.get('werkzeug.server.shutdown')
+            if func:
+                func()
+            # Stop the WebSocket server
+            websocket_manager.stop_server()
+        finally:
+            # Stop the asyncio event loop
+            loop.stop()
 
 
 def setup():
