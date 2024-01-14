@@ -61,7 +61,7 @@ LOG_DATE_FORMAT = CONFIG["general"].get("log_date_format", "%I:%M:%S")
 WVK_LOG_FILE_PATH = pathlib.Path(
     os.getcwd(), "logs", f"GWVK_{time.strftime('%Y-%m-%d')}.log"
 )
-URL_BLACKLIST = CONFIG.get("URL_BLACKLIST", [])
+URL_BLACKLIST = CONFIG.get("url_blacklist", [])
 EXTERNAL_API_BUILD_INFOS = CONFIG.get("external_build_info", [])
 # List of CDMs that should use the blacklist, these are considered to be GetWVKeys System CDMs.
-SYSTEM_CDMS = CONFIG["general"].get("SYSTEM_CDMS", [])
+SYSTEM_CDMS = CONFIG["general"].get("system_cdms", [])
