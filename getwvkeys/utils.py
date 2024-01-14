@@ -146,7 +146,7 @@ class CachedKey(CacheBase):
         }
 
 
-def extract_kid_from_pssh(data: str | bytes):
+def extract_kid_from_pssh(data: Union[str, bytes]):
     logger = logging.getLogger("getwvkeys")
     pssh = PSSH(data)
     key_ids = pssh.key_ids
