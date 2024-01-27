@@ -73,7 +73,9 @@ def construct_logger():
     stream.setFormatter(console_formatter)
 
     # create a handler for file logging, 5 mb max size, with 5 backup files
-    file_handler = logging.handlers.RotatingFileHandler(config.WVK_LOG_FILE_PATH, maxBytes=(1024 * 1024) * 5, backupCount=5)
+    file_handler = logging.handlers.RotatingFileHandler(
+        config.WVK_LOG_FILE_PATH, maxBytes=(1024 * 1024) * 5, backupCount=5
+    )
     file_handler.setFormatter(file_formatter)
     file_handler.setLevel(config.FILE_LOG_LEVEL)
 
@@ -121,18 +123,18 @@ def extract_kid_from_pssh(pssh: str):
     try:
         parsed_pssh = parse_pssh(pssh)
         if len(parsed_pssh.key_ids) == 1:
-            return parsed_pssh.key_ids[0]
+            return parsed_pssh.key_ids[0].hex()
         elif len(parsed_pssh.key_ids) > 1:
             logger.warning("Multiple key ids found in pssh! {}".format(pssh))
-            return parsed_pssh.key_ids[0]
+            return parsed_pssh.key_ids[0].hex()
         elif len(parsed_pssh.key_ids) == 0:
             if len(parsed_pssh.data.key_ids) == 0 and parsed_pssh.data.content_id:
-                return base64.b64encode(bytes.fromhex(parsed_pssh.data.content_id)).decode()
+                return base64.b64encode(bytes.fromhex(parsed_pssh.data.content_id)).hex()
             elif len(parsed_pssh.data.key_ids) == 1:
-                return parsed_pssh.data.key_ids[0]
+                return parsed_pssh.data.key_ids[0].hex()
             elif len(parsed_pssh.data.key_ids) > 1:
                 logger.warning("Multiple key ids found in pssh! {}".format(pssh))
-                return parsed_pssh.data.key_ids[0]
+                return parsed_pssh.data.key_ids[0].hex()
             else:
                 raise Exception("No KID or Content ID was found in the PSSH.")
         else:
@@ -154,7 +156,10 @@ class Validators:
             "hmackeyid": {"required": True, "type": ["string", "binary"]},
             "session_id": {"required": True, "type": "string"},
         }
-        self.keys_schema = {"cdmkeyresponse": {"required": True, "type": ["string", "binary"]}, "session_id": {"required": True, "type": "string"}}
+        self.keys_schema = {
+            "cdmkeyresponse": {"required": True, "type": ["string", "binary"]},
+            "session_id": {"required": True, "type": "string"},
+        }
         self.challenge_schema = {
             "init": {"required": True, "type": "string"},
             "cert": {"required": True, "type": "string"},
