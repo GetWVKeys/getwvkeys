@@ -131,10 +131,10 @@ def extract_kid_from_pssh(pssh: str):
             if len(parsed_pssh.data.key_ids) == 0 and parsed_pssh.data.content_id:
                 return base64.b64encode(bytes.fromhex(parsed_pssh.data.content_id)).hex()
             elif len(parsed_pssh.data.key_ids) == 1:
-                return parsed_pssh.data.key_ids[0].hex()
+                return parsed_pssh.data.key_ids[0]
             elif len(parsed_pssh.data.key_ids) > 1:
                 logger.warning("Multiple key ids found in pssh! {}".format(pssh))
-                return parsed_pssh.data.key_ids[0].hex()
+                return parsed_pssh.data.key_ids[0]
             else:
                 raise Exception("No KID or Content ID was found in the PSSH.")
         else:
