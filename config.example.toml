@@ -1,0 +1,45 @@
+[general]
+# Auto generated on first run if empty
+secret_key = ""
+database_uri = "sqlite:///db.sqlite3"
+redis_uri = "redis://localhost:6379/0"
+max_sessions = 60
+# List of CDMs that are used in CDM rotation
+default_cdms = ["cdm_identifier"]
+# List of CDMs that should use the blacklist, these are considered to be GetWVKeys System CDMs.
+system_cdms = ["cdm_identifier"]
+guild_id = ""
+verified_role_id = ""
+login_disabled = false
+registration_disabled = false
+log_format = "[%(asctime)s] [%(name)s] [%(funcName)s:%(lineno)d] %(levelname)s: %(message)s"
+log_date_format = "%I:%M:%S"
+
+[api]
+host = "0.0.0.0"
+port = 8080
+base_url = "http://localhost:8080"
+
+###
+# OAuth2 Configuration
+###
+[oauth]
+# Discord OAuth Client ID
+client_id = ""
+# Discord OAuth Client Secret
+client_secret = ""
+# Discord OAuth Redirect URI
+redirect_url = ""
+
+[[url_blacklist]]
+url = ".*my\\.awesome\\.site\\.com.*"
+partial = true
+
+[[url_blacklist]]
+url = "https://example.com/some_page_to_block"
+partial = false
+
+[[external_build_info]]
+buildinfo = "build_info_string"
+url = "https://example.com/api"
+token = "s3cr$t"

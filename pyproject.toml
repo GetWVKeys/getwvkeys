@@ -1,10 +1,10 @@
 [tool.poetry]
 name = "getwvkeys"
-version = "0.1.1"
+version = "0.1.2"
 description = "Widevine License Proxy"
 authors = [
     "notaghost <65109659+Notaghost9997@users.noreply.github.com>",
-    "Puyodead1 <14828766+Puyodead1@users.noreply.github.com>"
+    "Puyodead1 <14828766+Puyodead1@users.noreply.github.com>",
 ]
 license = "AGPL-3.0-only"
 
@@ -25,8 +25,9 @@ Flask-SQLAlchemy = "^2.5.1"
 gunicorn = "^20.1.0"
 redis = "^4.4.4"
 validators = "^0.20.0"
-mariadb = "^1.1.6"
-mysqlclient = "^2.2.0"
+mariadb = "^1.1.9"
+toml = "^0.10.2"
+sqlalchemy = "^1.4.52"
 
 [tool.poetry.dev-dependencies]
 black = "^22.3.0"
