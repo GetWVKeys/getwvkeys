@@ -2,7 +2,6 @@
 # Auto generated on first run if empty
 secret_key = ""
 database_uri = "sqlite:///db.sqlite3"
-redis_uri = "redis://localhost:6379/0"
 max_sessions = 60
 # List of CDMs that are used in CDM rotation
 default_cdms = ["cdm_identifier"]
