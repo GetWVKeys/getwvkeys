@@ -91,9 +91,11 @@ main {
     margin-top: 36px;
 }
 
-code {
+pre.codeblock {
     background-color: #242629;
     padding: 5px;
+    overflow-y: scroll;
+    margin-left: 30px;
 }
 
 .section-title {
@@ -258,7 +260,7 @@ input[type="submit"]:focus {
 }
 .requests-container {
     word-break: break-all;
-    margin: 64px 16px 0 8px;
+    margin: 64px 16px 64px 8px;
 }
 .api-request {
     margin: 0 auto 0 auto;
@@ -346,6 +348,8 @@ summary > * {
 }
 .upload-complete-buildinfo {
     font-size: 1.125rem;
+    background-color: #242629;
+    padding: 5px;
 }
 
 footer {
@@ -613,12 +617,6 @@ button[type="enable"]:focus {
 .error-title {
     margin: 0 0 32px 0;
 }
-
-pre {
-    white-space: pre-wrap;
-    margin-left: 30px;
-}
-
 .delete-button {
     border-radius: 4px;
     color: #fffffe;
