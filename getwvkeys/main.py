@@ -275,7 +275,10 @@ def upload_file():
         key = request.files["key"]
         blob_base = base64.b64encode(blob.stream.read()).decode()
         key_base = base64.b64encode(key.stream.read()).decode()
-        output = library.update_cdm(blob_base, key_base, user)
+        try:
+            output = library.update_cdm(blob_base, key_base, user)
+        except Exception as e:
+            return render_template("upload.html", current_user=current_user, website_version=sha, error=str(e))
         return render_template("upload_complete.html", page_title="Success", buildinfo=output, website_version=sha)
     elif request.method == "GET":
         return render_template("upload.html", current_user=current_user, website_version=sha)
