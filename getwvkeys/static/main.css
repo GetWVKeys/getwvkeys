@@ -91,6 +91,11 @@ main {
     margin-top: 36px;
 }
 
+code {
+    background-color: #242629;
+    padding: 5px;
+}
+
 .section-title {
     text-align: center;
 }
@@ -304,8 +309,15 @@ summary > * {
 }
 .upload-container {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+}
+.upload-error-message {
+    color: #d43139;
+    font-size: 1.125rem;
+    font-style: italic;
+    margin-top: 24px;
 }
 .upload-container > form {
     margin-top: 64px;
@@ -321,6 +333,19 @@ summary > * {
 }
 .upload-form-item > input {
     margin-left: 16px;
+}
+
+.upload-complete-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+.upload-complete-img {
+    max-width: 50%;
+}
+.upload-complete-buildinfo {
+    font-size: 1.125rem;
 }
 
 footer {
