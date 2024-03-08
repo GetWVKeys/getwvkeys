@@ -15,9 +15,11 @@
   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  -->
 
-{% extends "base.html" %} {% block title %}Search{% endblock %} {% block js %}
-<script defer src="{{url_for('static', filename='search.js')}}"></script>
-{% endblock %} {% block content %}
+{% extends "base.html" %}
+<!-- -->
+{% block title %}Search{% endblock %}
+<!-- -->
+{% block content %}
 <section class="wdvn-request">
     <header>
         <h1 class="section-title">Send Widevine Request</h1>
@@ -49,4 +51,8 @@
         </div>
     </div>
 </section>
+{% endblock %}
+<!-- -->
+{% block js %}
+<script defer src="{{url_for('static', filename='search.js')}}"></script>
 {% endblock %}
