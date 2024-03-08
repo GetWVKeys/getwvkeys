@@ -46,8 +46,6 @@
         <main>{% block content %}{% endblock %}</main>
         <footer>{% include 'partials/footer.html' %}</footer>
 
-        {% block js %}
-        <script defer src="{{url_for('static', filename='main.js')}}"></script>
-        {% endblock %}
+        {% block js %} {% endblock %}
     </body>
 </html>
