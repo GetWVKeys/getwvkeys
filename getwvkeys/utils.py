@@ -217,7 +217,7 @@ class Blacklist:
     def __init__(self) -> None:
         self.blacklist: list[BlacklistEntry] = list()
 
-        for x in config.DEFAULT_BLACKLISTED_URLS:
+        for x in config.URL_BLACKLIST:
             self.blacklist.append(BlacklistEntry(x))
 
     def is_url_blacklisted(self, url: str):
