@@ -15,7 +15,11 @@
   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  -->
 
-{% extends "base.html" %} {% block title %}Home{% endblock %} {% block content %}
+{% extends "base.html" %}
+<!-- -->
+{% block title %}Home{% endblock %}
+<!-- -->
+{% block content %}
 <section class="wdvn-request">
     <header>
         <h1 class="section-title">Send Widevine Request</h1>
@@ -90,4 +94,9 @@ User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:106.0) Gecko/20100101 F
     </div>
 
 </section>
+<!-- -->
+{% block js %}
+<script defer src="{{url_for('static', filename='main.js')}}"></script>
+{% endblock %}
+<!-- -->
 {% endblock %}
