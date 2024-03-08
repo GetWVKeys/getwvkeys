@@ -59,7 +59,6 @@ from getwvkeys import config, libraries
 
 # these need to be kept
 from getwvkeys.models.Shared import db
-from getwvkeys.redis import Redis
 from getwvkeys.utils import Blacklist, UserFlags, Validators, construct_logger
 
 app = Flask(__name__.split(".")[0], root_path=str(Path(__file__).parent))
@@ -87,13 +86,6 @@ library = libraries.Library(db)
 
 # create validators instance
 validators = Validators()
-
-# initialize redis instance
-if not config.IS_STAGING and config.REDIS_URI is not None:
-    # TODO: currently staging can reply which is unintended, but ignoring stuff like disabling users might not be ideal
-    redis = Redis(app, library)
-else:
-    logger.warning("Redis is disabled, IPC will not work")
 
 # initialize blacklist class
 blacklist = Blacklist()

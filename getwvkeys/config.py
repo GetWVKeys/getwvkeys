@@ -43,7 +43,6 @@ OAUTH2_CLIENT_ID = CONFIG["oauth"]["client_id"]  # Discord OAuth Client ID
 OAUTH2_CLIENT_SECRET = CONFIG["oauth"]["client_secret"]  # Discord OAuth Client Secret
 OAUTH2_REDIRECT_URL = CONFIG["oauth"]["redirect_url"]  # Discord OAuth Callback URL
 SQLALCHEMY_DATABASE_URI = CONFIG["general"]["database_uri"]  # Database connection URI
-REDIS_URI = CONFIG["general"].get("redis_uri", None)  # Redis connection URI
 
 API_HOST = CONFIG.get("api", {}).get("host", "0.0.0.0")
 API_PORT = int(CONFIG.get("api", {}).get("port", 8080))
