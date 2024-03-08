@@ -1,6 +1,6 @@
 """
  This file is part of the GetWVKeys project (https://github.com/GetWVKeys/getwvkeys)
- Copyright (C) 2022-2023 Notaghost, Puyodead1 and GetWVKeys contributors 
+ Copyright (C) 2022-2024 Notaghost, Puyodead1 and GetWVKeys contributors 
  
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as published
@@ -78,7 +78,9 @@ login_manager.init_app(app)
 client = WebApplicationClient(config.OAUTH2_CLIENT_ID)
 
 # get current git commit sha
-sha = Version.from_git().serialize(style=Style.SemVer, dirty=True, format="{base}-post.{distance}+{commit}.{dirty}.{branch}")
+sha = Version.from_git().serialize(
+    style=Style.SemVer, dirty=True, format="{base}-post.{distance}+{commit}.{dirty}.{branch}"
+)
 
 # create library instance
 library = libraries.Library(db)
@@ -96,6 +98,7 @@ else:
 # initialize blacklist class
 blacklist = Blacklist()
 
+
 # Utilities
 def authentication_required(exempt_methods=[], flags_required: int = None, ignore_suspended: bool = False):
     def decorator(func):
@@ -109,7 +112,12 @@ def authentication_required(exempt_methods=[], flags_required: int = None, ignor
             # handle api keys
             if not current_user.is_authenticated:
                 # check if they passed in an api key
-                api_key = request.headers.get("X-API-Key") or request.form.get("X-API-Key") or request.headers.get("Authorization") or request.form.get("Authorization")
+                api_key = (
+                    request.headers.get("X-API-Key")
+                    or request.form.get("X-API-Key")
+                    or request.headers.get("Authorization")
+                    or request.form.get("Authorization")
+                )
                 if not api_key:
                     raise Unauthorized("API Key Required")
 
@@ -148,7 +156,11 @@ Request.on_json_loading_failed = on_json_loading_failed
 
 def blacklist_check(buildinfo, license_url):
     # check if the license url is blacklisted, but only run this check on GetWVKeys owned CDMs
-    if buildinfo in config.SYSTEM_CDMS and blacklist.is_url_blacklisted(license_url) and not current_user.is_blacklist_exempt():
+    if (
+        buildinfo in config.SYSTEM_CDMS
+        and blacklist.is_url_blacklisted(license_url)
+        and not current_user.is_blacklist_exempt()
+    ):
         raise ImATeapot()
 
 
@@ -223,7 +235,9 @@ def count():
 
 @app.route("/favicon.ico")
 def favicon():
-    return send_from_directory(os.path.join(app.root_path, "static"), "favicon.ico", mimetype="image/vnd.microsoft.icon")
+    return send_from_directory(
+        os.path.join(app.root_path, "static"), "favicon.ico", mimetype="image/vnd.microsoft.icon"
+    )
 
 
 @app.route("/search", methods=["POST", "GET"])
@@ -237,7 +251,9 @@ def search():
         data = library.search_res_to_dict(query, data)
         return jsonify(data)
     else:
-        return render_template("search.html", page_title="Search Database", current_user=current_user, website_version=sha)
+        return render_template(
+            "search.html", page_title="Search Database", current_user=current_user, website_version=sha
+        )
 
 
 @app.route("/keys", methods=["POST"])
@@ -285,7 +301,16 @@ def wv():
 
     blacklist_check(buildinfo, license_url)
 
-    magic = libraries.Pywidevine(library, proxy=proxy, license_url=license_url, pssh=pssh, headers=headers, buildinfo=buildinfo, force=force, user_id=current_user.id)
+    magic = libraries.Pywidevine(
+        library,
+        proxy=proxy,
+        license_url=license_url,
+        pssh=pssh,
+        headers=headers,
+        buildinfo=buildinfo,
+        force=force,
+        user_id=current_user.id,
+    )
     return magic.main()
 
 
@@ -403,7 +428,13 @@ def vinetrimmer():
         # Validate params required for method
         if not validators.challenge_validator(params):
             return jsonify({"status_code": 400, "message": "Malformed Params"})
-        (init, cert, raw, licensetype, device) = (params["init"], params["cert"], params["raw"], params["licensetype"], params["device"])
+        (init, cert, raw, licensetype, device) = (
+            params["init"],
+            params["cert"],
+            params["raw"],
+            params["licensetype"],
+            params["device"],
+        )
         magic = libraries.Pywidevine(library, user.id, pssh=init, buildinfo=device, server_certificate=cert)
         res = magic.vinetrimmer(library)
         return jsonify({"status_code": 200, "message": res})
@@ -457,7 +488,9 @@ def login_callback():
     is_in_guild = libraries.User.user_is_in_guild(client.access_token)
     if not is_in_guild:
         session.clear()
-        raise Forbidden("You must be in our Discord support server and be verified to use this service. You can join our server here: https://discord.gg/ezK22qJFR8")
+        raise Forbidden(
+            "You must be in our Discord support server and be verified to use this service. You can join our server here: https://discord.gg/ezK22qJFR8"
+        )
     # check if the user is verified
     user_is_verified = libraries.User.user_is_verified(client.access_token)
     if not user_is_verified:
@@ -505,7 +538,10 @@ def user_get_cdms():
 def database_error(e: Exception):
     logger.exception(e)  # database errors should always be logged as they are unexpected
     if request.method == "GET":
-        return render_template("error.html", title=str(e), details="", current_user=current_user, website_version=sha), 400
+        return (
+            render_template("error.html", title=str(e), details="", current_user=current_user, website_version=sha),
+            400,
+        )
     return jsonify({"error": True, "code": 400, "message": str(e)}), 400
 
 
@@ -516,7 +552,12 @@ def http_exception(e: HTTPException):
     if request.method == "GET":
         if e.code == 401:
             return app.login_manager.unauthorized()
-        return render_template("error.html", title=e.name, details=e.description, current_user=current_user, website_version=sha), e.code
+        return (
+            render_template(
+                "error.html", title=e.name, details=e.description, current_user=current_user, website_version=sha
+            ),
+            e.code,
+        )
     return jsonify({"error": True, "code": e.code, "message": e.description}), e.code
 
 
@@ -525,8 +566,20 @@ def gone_exception(e: Gone):
     if config.IS_DEVELOPMENT:
         logger.exception(e)
     if request.method == "GET":
-        return render_template("error.html", title=e.name, details="The page you are looking for is no longer available.", current_user=current_user, website_version=sha), e.code
-    return jsonify({"error": True, "code": 500, "message": "The page you are looking for is no longer available."}), e.code
+        return (
+            render_template(
+                "error.html",
+                title=e.name,
+                details="The page you are looking for is no longer available.",
+                current_user=current_user,
+                website_version=sha,
+            ),
+            e.code,
+        )
+    return (
+        jsonify({"error": True, "code": 500, "message": "The page you are looking for is no longer available."}),
+        e.code,
+    )
 
 
 @app.errorhandler(OAuth2Error)
@@ -534,7 +587,16 @@ def oauth2_error(e: OAuth2Error):
     if config.IS_DEVELOPMENT:
         logger.exception(e)
     logger.error(e)
-    return render_template("error.html", title=e.description, details="The code was probably already used or is invalid.", current_user=current_user, website_version=sha), e.status_code
+    return (
+        render_template(
+            "error.html",
+            title=e.description,
+            details="The code was probably already used or is invalid.",
+            current_user=current_user,
+            website_version=sha,
+        ),
+        e.status_code,
+    )
 
 
 @login_manager.unauthorized_handler
@@ -555,12 +617,18 @@ def pssh():
 # routes that have been moved
 @app.route("/findpssh", methods=["GET", "POST"])
 def findpssh():
-    return jsonify({"error": True, "code": 301, "message": "The page you are looking for has been moved to /search."}), 409
+    return (
+        jsonify({"error": True, "code": 301, "message": "The page you are looking for has been moved to /search."}),
+        409,
+    )
 
 
 @app.route("/dev", methods=["GET", "POST"])
 def dev():
-    return jsonify({"error": True, "code": 301, "message": "The page you are looking for has been moved to /keys."}), 409
+    return (
+        jsonify({"error": True, "code": 301, "message": "The page you are looking for has been moved to /keys."}),
+        409,
+    )
 
 
 @app.route("/download/<file>")

@@ -1,6 +1,6 @@
 <!-- 
   This file is part of the GetWVKeys project (https://github.com/GetWVKeys/getwvkeys)
-  Copyright (C) 2022-2023 Notaghost, Puyodead1 and GetWVKeys contributors 
+  Copyright (C) 2022-2024 Notaghost, Puyodead1 and GetWVKeys contributors 
   
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU Affero General Public License as published
@@ -16,37 +16,37 @@
  -->
 
 <nav>
-  <ul class="nav-list">
-    {% if current_user.is_authenticated %}
-    <li class="nav-item"><a href="/">Home</a></li>
-    <li class="nav-item"><a href="/upload">Upload</a></li>
-    <li class="nav-item"><a href="/api">API</a></li>
-    <li class="nav-item"><a href="/scripts">Scripts</a></li>
-    <li class="nav-item"><a href="/search">Search</a></li>
-    <li class="nav-item"><a href="/faq">FAQ</a></li>
-    <div class="dropdown">
-      <div class="dropdown-item">
-        <img
-          class="avatar"
-          src="https://cdn.discordapp.com/avatars/{{current_user.id}}/{{current_user.avatar}}.png?size=2048"
-          alt="Avatar"
-          width="40px"
-          height="40px"
-        />
-        <div class="dropdown-label">
-          <div class="dropdown-label-text">{{current_user.username}}</div>
-          <i class="fa-solid fa-caret-down"></i>
+    <ul class="nav-list">
+        {% if current_user.is_authenticated %}
+        <li class="nav-item"><a href="/">Home</a></li>
+        <li class="nav-item"><a href="/upload">Upload</a></li>
+        <li class="nav-item"><a href="/api">API</a></li>
+        <li class="nav-item"><a href="/scripts">Scripts</a></li>
+        <li class="nav-item"><a href="/search">Search</a></li>
+        <li class="nav-item"><a href="/faq">FAQ</a></li>
+        <div class="dropdown">
+            <div class="dropdown-item">
+                <img
+                    class="avatar"
+                    src="https://cdn.discordapp.com/avatars/{{current_user.id}}/{{current_user.avatar}}.png?size=2048"
+                    alt="Avatar"
+                    width="40px"
+                    height="40px"
+                />
+                <div class="dropdown-label">
+                    <div class="dropdown-label-text">{{current_user.username}}</div>
+                    <i class="fa-solid fa-caret-down"></i>
+                </div>
+            </div>
+            <div class="dropdown-menu">
+                <a href="/me">Profile</a>
+                <hr />
+                <a href="/logout">Logout</a>
+            </div>
         </div>
-      </div>
-      <div class="dropdown-menu">
-        <a href="/me">Profile</a>
-        <hr />
-        <a href="/logout">Logout</a>
-      </div>
-    </div>
-    {% else %}
-    <li class="nav-item"><a href="/">Home</a></li>
-    <li class="nav-item"><a href="/login">Login</a></li>
-    {% endif %}
-  </ul>
+        {% else %}
+        <li class="nav-item"><a href="/">Home</a></li>
+        <li class="nav-item"><a href="/login">Login</a></li>
+        {% endif %}
+    </ul>
 </nav>

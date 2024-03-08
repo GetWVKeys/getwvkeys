@@ -1,6 +1,6 @@
 <!-- 
   This file is part of the GetWVKeys project (https://github.com/GetWVKeys/getwvkeys)
-  Copyright (C) 2022-2023 Notaghost, Puyodead1 and GetWVKeys contributors 
+  Copyright (C) 2022-2024 Notaghost, Puyodead1 and GetWVKeys contributors 
   
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU Affero General Public License as published
@@ -17,25 +17,25 @@
 
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{% block title %}{% endblock %} - GetWVKeys</title>
-    <link rel="stylesheet" href="{{url_for('static', filename='main.css')}}" />
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css"
-      integrity="sha512-KfkfwYDsLkIlwQp6LFnl8zNdLGxu9YAA1QvwINks4PhcElQSvqcyVLLD9aMhXd13uQjoXtEKNosOWaZqXgel0g=="
-      crossorigin="anonymous"
-      referrerpolicy="no-referrer"
-    />
-  </head>
-  <body>
-    {% include 'partials/nav.html' %}
+    <head>
+        <meta charset="UTF-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>{% block title %}{% endblock %} - GetWVKeys</title>
+        <link rel="stylesheet" href="{{url_for('static', filename='main.css')}}" />
+        <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css"
+            integrity="sha512-KfkfwYDsLkIlwQp6LFnl8zNdLGxu9YAA1QvwINks4PhcElQSvqcyVLLD9aMhXd13uQjoXtEKNosOWaZqXgel0g=="
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"
+        />
+    </head>
+    <body>
+        {% include 'partials/nav.html' %}
 
-    <!--  flash messages  -->
-    <!-- {% with messages = get_flashed_messages(with_categories=true) %} {% if messages %}
+        <!--  flash messages  -->
+        <!-- {% with messages = get_flashed_messages(with_categories=true) %} {% if messages %}
     <div class="flashes">
       {% for category, message in messages %}
       <div class="flash flash-{{ category }}">{{ message }}</div>
@@ -43,11 +43,11 @@
     </div>
     {% endif %} {% endwith %} -->
 
-    <main>{% block content %}{% endblock %}</main>
-    <footer>{% include 'partials/footer.html' %}</footer>
+        <main>{% block content %}{% endblock %}</main>
+        <footer>{% include 'partials/footer.html' %}</footer>
 
-    {% block js %}
-    <script defer src="{{url_for('static', filename='main.js')}}"></script>
-    {% endblock %}
-  </body>
+        {% block js %}
+        <script defer src="{{url_for('static', filename='main.js')}}"></script>
+        {% endblock %}
+    </body>
 </html>

@@ -1,6 +1,6 @@
 """
  This file is part of the GetWVKeys project (https://github.com/GetWVKeys/getwvkeys)
- Copyright (C) 2022-2023 Notaghost, Puyodead1 and GetWVKeys contributors 
+ Copyright (C) 2022-2024 Notaghost, Puyodead1 and GetWVKeys contributors 
  
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as published
@@ -91,7 +91,13 @@ class Library:
             self.cache_key(cached_key)
 
     def cache_key(self, cached_key: CachedKey):
-        k = KeyModel(kid=cached_key.kid, added_at=cached_key.added_at, added_by=cached_key.added_by, license_url=cached_key.license_url, key_=cached_key.key)
+        k = KeyModel(
+            kid=cached_key.kid,
+            added_at=cached_key.added_at,
+            added_by=cached_key.added_by,
+            license_url=cached_key.license_url,
+            key_=cached_key.key,
+        )
         self.db.session.merge(k)
         self.db.session.commit()
 
@@ -146,7 +152,12 @@ class Library:
             return str(ci.ClientInfo[5]).split("Value: ")[1].replace("\n", "").replace('"', "")
 
         code = get_blob_id(client_id_blob)
-        cdm = CDMModel(client_id_blob_filename=client_id_blob, device_private_key=device_private_key, code=code, uploaded_by=uploaded_by)
+        cdm = CDMModel(
+            client_id_blob_filename=client_id_blob,
+            device_private_key=device_private_key,
+            code=code,
+            uploaded_by=uploaded_by,
+        )
         self.db.session.add(cdm)
         self.db.session.commit()
         return code
@@ -155,7 +166,11 @@ class Library:
         cached_keys = list()
 
         for entry in keys:
-            (added_at, licese_url, key) = (entry.get("time", int(time.time())), entry.get("license_url", "MANUAL ENTRY"), entry.get("key"))
+            (added_at, licese_url, key) = (
+                entry.get("time", int(time.time())),
+                entry.get("license_url", "MANUAL ENTRY"),
+                entry.get("key"),
+            )
             (kid, _) = key.split(":")
             cached_keys.append(CachedKey(kid, added_at, user_id, licese_url, key))
 
@@ -224,7 +239,13 @@ class Pywidevine:
                 )
             return results
 
-        results = {"kid": self.kid, "license_url": self.license_url, "added_at": self.time, "keys": list(), "session_id": self.session_id}
+        results = {
+            "kid": self.kid,
+            "license_url": self.license_url,
+            "added_at": self.time,
+            "keys": list(),
+            "session_id": self.session_id,
+        }
         for key in self.content_keys:
             # s = urlsplit(self.license_url)
             # license_url = "{}//{}".format(s.scheme, s.netloc)
@@ -236,7 +257,10 @@ class Pywidevine:
     def yamldomagic(headers):
         try:
             return (
-                {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (Ktesttemp, like Gecko) " "Chrome/90.0.4430.85 Safari/537.36"}
+                {
+                    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (Ktesttemp, like Gecko) "
+                    "Chrome/90.0.4430.85 Safari/537.36"
+                }
                 if headers == ""
                 else yaml.safe_load(headers)
             )
@@ -287,7 +311,9 @@ class Pywidevine:
             for x in keys:
                 kid = x["kid"]
                 key = x["key"]
-                self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, "{}:{}".format(kid, key)))
+                self.content_keys.append(
+                    CachedKey(kid, self.time, self.user_id, self.license_url, "{}:{}".format(kid, key))
+                )
         elif method == "GetKeysX":
             raise NotImplemented()
         else:
@@ -315,10 +341,20 @@ class Pywidevine:
         if is_custom_buildinfo(self.buildinfo):
             if not self.server_certificate:
                 try:
-                    self.server_certificate = self.post_data(self.license_url, self.headers, base64.b64decode("CAQ="), self.proxy)
+                    self.server_certificate = self.post_data(
+                        self.license_url, self.headers, base64.b64decode("CAQ="), self.proxy
+                    )
                 except Exception as e:
-                    raise BadRequest(f"Failed to retrieve server certificate: {e}. Please provide a server certificate manually.")
-            params = {"init": self.pssh, "cert": self.server_certificate, "raw": False, "licensetype": "STREAMING", "device": "api"}
+                    raise BadRequest(
+                        f"Failed to retrieve server certificate: {e}. Please provide a server certificate manually."
+                    )
+            params = {
+                "init": self.pssh,
+                "cert": self.server_certificate,
+                "raw": False,
+                "licensetype": "STREAMING",
+                "device": "api",
+            }
             challenge = self.external_license("GetChallenge", params, web=True)
 
             # post challenge to license server
@@ -370,10 +406,20 @@ class Pywidevine:
             if is_custom_buildinfo(self.buildinfo):
                 if not self.server_certificate:
                     try:
-                        self.server_certificate = self.post_data(self.license_url, self.headers, base64.b64decode("CAQ="), self.proxy)
+                        self.server_certificate = self.post_data(
+                            self.license_url, self.headers, base64.b64decode("CAQ="), self.proxy
+                        )
                     except Exception as e:
-                        raise BadRequest(f"Failed to retrieve server certificate: {e}. Please provide a server certificate manually.")
-                params = {"init": self.pssh, "cert": self.server_certificate, "raw": False, "licensetype": "STREAMING", "device": "api"}
+                        raise BadRequest(
+                            f"Failed to retrieve server certificate: {e}. Please provide a server certificate manually."
+                        )
+                params = {
+                    "init": self.pssh,
+                    "cert": self.server_certificate,
+                    "raw": False,
+                    "licensetype": "STREAMING",
+                    "device": "api",
+                }
                 return self.external_license("GetChallenge", params)
 
             # challenge generation
@@ -505,7 +551,10 @@ class User(UserMixin):
 
     def get_user_cdms(self):
         cdms = CDMModel.query.filter_by(uploaded_by=self.id).all()
-        return [{"id": x.id, "code": x.code, "session_id_type": x.session_id_type, "security_level": x.security_level} for x in cdms]
+        return [
+            {"id": x.id, "code": x.code, "session_id_type": x.session_id_type, "security_level": x.security_level}
+            for x in cdms
+        ]
 
     def patch(self, data):
         disallowed_keys = ["id", "username", "discriminator", "avatar", "public_flags", "api_key"]
@@ -632,7 +681,9 @@ class User(UserMixin):
     @staticmethod
     def is_api_key_bot(api_key):
         """checks if the api key is from the bot"""
-        bot_key = base64.b64encode("{}:{}".format(config.OAUTH2_CLIENT_ID, config.OAUTH2_CLIENT_SECRET).encode()).decode("utf8")
+        bot_key = base64.b64encode(
+            "{}:{}".format(config.OAUTH2_CLIENT_ID, config.OAUTH2_CLIENT_SECRET).encode()
+        ).decode("utf8")
         return api_key == bot_key
 
     @staticmethod

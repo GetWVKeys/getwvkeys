@@ -1,6 +1,6 @@
 <!-- 
   This file is part of the GetWVKeys project (https://github.com/GetWVKeys/getwvkeys)
-  Copyright (C) 2022-2023 Notaghost, Puyodead1 and GetWVKeys contributors 
+  Copyright (C) 2022-2024 Notaghost, Puyodead1 and GetWVKeys contributors 
   
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU Affero General Public License as published
@@ -17,96 +17,88 @@
 
 {% extends "base.html" %} {% block title %}FAQ{% endblock %} {% block content %}
 <section class="faq">
-  <header>
-    <h1 class="section-title">Frequently Asked Questions</h1>
-  </header>
-  <div class="questions-container">
-    <details class="question">
-      <summary>What is this website?</summary>
-      <div><p>Workaround to get widevine content keys</p></div>
-    </details>
-    <details class="question">
-      <summary>What is PSSH?</summary>
-      <div><p>Protection Scheme Specific Header (PSSH)</p></div>
-    </details>
-    <details class="question">
-      <summary>Is it L1?</summary>
-      <div>
-        <p>No it is Generic L3 CDM system ID:[removed] to be precise</p>
-      </div>
-    </details>
-    <details class="question">
-      <summary>What does 'Error headers' means?</summary>
-      <div>
-        <p>
-          Your headers are not in yaml format or JSON Format. for Yaml formate
-          Validate your headers here: http://yaml-online-parser.appspot.com
-        </p>
-      </div>
-    </details>
-    <details class="question">
-      <summary>What does 'Wrong PSSH' means?</summary>
-      <div>
-        <p>
-          Your PSSH is wrong. validate your PSSH first on
-          https://integration.widevine.com/diagnostics under "View Widevine
-          PSSH"
-        </p>
-      </div>
-    </details>
-    <details class="question">
-      <summary>What to do when there is no PSSH in the mpd?</summary>
-      <div>
-        <p>
-          Get kid from ism/mpd/media then make pssh from kid on
-          https://integration.widevine.com/diagnostics under "Generate widevine
-          PSSH". Also read:
-          https://forum.videohelp.com/threads/401717-How-are-you-going-to-respond-to-widevine-l3-decryptor-s-death-at-May-31st/page15#post2639870
-        </p>
-      </div>
-    </details>
-    <details class="question">
-      <summary>Need Help?</summary>
-      <div>
-        <p>Share them on our discord https://discord.gg/ezK22qJFR8</p>
-      </div>
-    </details>
-    <details class="question">
-      <summary>
-        Can it support x site? How can i request to add a new site?
-      </summary>
-      <div>
-        <p>I do not take requests thank you.</p>
-      </div>
-    </details>
-    <details class="question">
-      <summary>
-        How can i get PSSH from ism manifest with ProtectionHeader?
-      </summary>
-      <div>
-        <p>
-          https://forum.videohelp.com/threads/404024-Get-PSSH-from-ism-manifest-with-ProtectionHeader
-        </p>
-      </div>
-    </details>
-    <details class="question">
-      <summary>Why do I need to login all of the sudden?</summary>
-      <div>
-        <p>Too much abuse</p>
-      </div>
-    </details>
-    <details class="question">
-      <summary>How do I use my API Key?</summary>
-      <div>
-        <p>X-API-Key header</p>
-      </div>
-    </details>
-    <details class="question">
-      <summary>Why?</summary>
-      <div>
-        <p>Leaked</p>
-      </div>
-    </details>
-  </div>
+    <header>
+        <h1 class="section-title">Frequently Asked Questions</h1>
+    </header>
+    <div class="questions-container">
+        <details class="question">
+            <summary>What is this website?</summary>
+            <div><p>Workaround to get widevine content keys</p></div>
+        </details>
+        <details class="question">
+            <summary>What is PSSH?</summary>
+            <div><p>Protection Scheme Specific Header (PSSH)</p></div>
+        </details>
+        <details class="question">
+            <summary>Is it L1?</summary>
+            <div>
+                <p>No it is Generic L3 CDM system ID:[removed] to be precise</p>
+            </div>
+        </details>
+        <details class="question">
+            <summary>What does 'Error headers' means?</summary>
+            <div>
+                <p>
+                    Your headers are not in yaml format or JSON Format. for Yaml formate Validate your headers here:
+                    http://yaml-online-parser.appspot.com
+                </p>
+            </div>
+        </details>
+        <details class="question">
+            <summary>What does 'Wrong PSSH' means?</summary>
+            <div>
+                <p>
+                    Your PSSH is wrong. validate your PSSH first on https://integration.widevine.com/diagnostics under
+                    "View Widevine PSSH"
+                </p>
+            </div>
+        </details>
+        <details class="question">
+            <summary>What to do when there is no PSSH in the mpd?</summary>
+            <div>
+                <p>
+                    Get kid from ism/mpd/media then make pssh from kid on https://integration.widevine.com/diagnostics
+                    under "Generate widevine PSSH". Also read:
+                    https://forum.videohelp.com/threads/401717-How-are-you-going-to-respond-to-widevine-l3-decryptor-s-death-at-May-31st/page15#post2639870
+                </p>
+            </div>
+        </details>
+        <details class="question">
+            <summary>Need Help?</summary>
+            <div>
+                <p>Share them on our discord https://discord.gg/ezK22qJFR8</p>
+            </div>
+        </details>
+        <details class="question">
+            <summary>Can it support x site? How can i request to add a new site?</summary>
+            <div>
+                <p>I do not take requests thank you.</p>
+            </div>
+        </details>
+        <details class="question">
+            <summary>How can i get PSSH from ism manifest with ProtectionHeader?</summary>
+            <div>
+                <p>https://forum.videohelp.com/threads/404024-Get-PSSH-from-ism-manifest-with-ProtectionHeader</p>
+            </div>
+        </details>
+        <details class="question">
+            <summary>Why do I need to login all of the sudden?</summary>
+            <div>
+                <p>Too much abuse</p>
+            </div>
+        </details>
+        <details class="question">
+            <summary>How do I use my API Key?</summary>
+            <div>
+                <p>X-API-Key header</p>
+            </div>
+        </details>
+        <details class="question">
+            <summary>Why?</summary>
+            <div>
+                <p>Leaked</p>
+            </div>
+        </details>
+    </div>
 </section>
 {% endblock %}

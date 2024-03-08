@@ -1,6 +1,6 @@
 <!-- 
   This file is part of the GetWVKeys project (https://github.com/GetWVKeys/getwvkeys)
-  Copyright (C) 2022-2023 Notaghost, Puyodead1 and GetWVKeys contributors 
+  Copyright (C) 2022-2024 Notaghost, Puyodead1 and GetWVKeys contributors 
   
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU Affero General Public License as published
@@ -15,25 +15,21 @@
   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  -->
 
-{% extends "base.html" %} {% block title %}Scripts{% endblock %} {% block
-content %}
+{% extends "base.html" %} {% block title %}Scripts{% endblock %} {% block content %}
 <section class="scripts">
-  <header>
-    <h1 class="section-title">Scripts</h1>
-  </header>
-  <div class="scripts-list">
-    <ul>
-      {%for script_name in script_names%}
-      <li><a href="/scripts/{{script_name}}"> {{script_name}} </a></li>
-      {%endfor%}
-    </ul>
-  </div>
+    <header>
+        <h1 class="section-title">Scripts</h1>
+    </header>
+    <div class="scripts-list">
+        <ul>
+            {%for script_name in script_names%}
+            <li><a href="/scripts/{{script_name}}"> {{script_name}} </a></li>
+            {%endfor%}
+        </ul>
+    </div>
 
-  <footer>
-    <i
-      >Looking for something else? Try looking in the #scripts channel in our
-      Discord server.</i
-    >
-  </footer>
+    <footer>
+        <i>Looking for something else? Try looking in the #scripts channel in our Discord server.</i>
+    </footer>
 </section>
 {% endblock %}

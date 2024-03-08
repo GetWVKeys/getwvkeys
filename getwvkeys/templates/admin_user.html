@@ -1,6 +1,6 @@
 <!-- 
   This file is part of the GetWVKeys project (https://github.com/GetWVKeys/getwvkeys)
-  Copyright (C) 2022-2023 Notaghost, Puyodead1 and GetWVKeys contributors 
+  Copyright (C) 2022-2024 Notaghost, Puyodead1 and GetWVKeys contributors 
   
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU Affero General Public License as published
@@ -15,46 +15,39 @@
   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  -->
 
-{% extends "base.html" %} {% block title %}Admin - View User{% endblock %} {%
-block content %}
+{% extends "base.html" %} {% block title %}Admin - View User{% endblock %} {% block content %}
 <section class="profile">
-  <header>
-    <h1 class="section-title">Admin - View User</h1>
-  </header>
-  <div class="form-container">
-    <div class="profile-container container-center">
-      <img
-        class="avatar"
-        src="https://cdn.discordapp.com/avatars/{{user.id}}/{{user.avatar}}.png?size=2048"
-        alt="Avatar"
-        width="128px"
-        height="128px"
-      />
-      <div class="profile-info">
-        <h2 class="profile-info-header">
-          {{user.username}}#{{user.discriminator}}
-        </h2>
-        <div class="profile-info-item">
-          <span class="profile-info-label">ID:</span>
-          <span class="profile-info-value">{{user.id}}</span>
+    <header>
+        <h1 class="section-title">Admin - View User</h1>
+    </header>
+    <div class="form-container">
+        <div class="profile-container container-center">
+            <img
+                class="avatar"
+                src="https://cdn.discordapp.com/avatars/{{user.id}}/{{user.avatar}}.png?size=2048"
+                alt="Avatar"
+                width="128px"
+                height="128px"
+            />
+            <div class="profile-info">
+                <h2 class="profile-info-header">{{user.username}}#{{user.discriminator}}</h2>
+                <div class="profile-info-item">
+                    <span class="profile-info-label">ID:</span>
+                    <span class="profile-info-value">{{user.id}}</span>
+                </div>
+                <div class="profile-info-item">
+                    <span class="profile-info-label">Status:</span>
+                    <span class="profile-info-value">{{"SUSPENDED" if user.status == 1 else "ACTIVE"}}</span>
+                </div>
+                <div class="profile-info-item">
+                    <span class="profile-info-label">Admin:</span>
+                    <span class="profile-info-value">{{"Yes" if user.is_admin == 1 else "No"}}</span>
+                </div>
+                <button type="{{'enable' if user.status == 1 else 'disable'}}">
+                    {{"Enable" if user.status == 1 else "Disable"}}
+                </button>
+            </div>
         </div>
-        <div class="profile-info-item">
-          <span class="profile-info-label">Status:</span>
-          <span class="profile-info-value"
-            >{{"SUSPENDED" if user.status == 1 else "ACTIVE"}}</span
-          >
-        </div>
-        <div class="profile-info-item">
-          <span class="profile-info-label">Admin:</span>
-          <span class="profile-info-value"
-            >{{"Yes" if user.is_admin == 1 else "No"}}</span
-          >
-        </div>
-        <button type="{{'enable' if user.status == 1 else 'disable'}}">
-          {{"Enable" if user.status == 1 else "Disable"}}
-        </button>
-      </div>
     </div>
-  </div>
 </section>
 {% endblock %}

@@ -1,6 +1,6 @@
 <!-- 
   This file is part of the GetWVKeys project (https://github.com/GetWVKeys/getwvkeys)
-  Copyright (C) 2022-2023 Notaghost, Puyodead1 and GetWVKeys contributors 
+  Copyright (C) 2022-2024 Notaghost, Puyodead1 and GetWVKeys contributors 
   
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU Affero General Public License as published
@@ -15,16 +15,15 @@
   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  -->
 
-{% extends "base.html" %} {% block title %}API Request{% endblock %} {% block
-content %}
+{% extends "base.html" %} {% block title %}API Request{% endblock %} {% block content %}
 <section class="api-request">
-  <header>
-    <h1 class="section-title">Send API Request</h1>
-  </header>
-  <div class="requests-container">
-    <div class="request-item">
-      <h2>Curl</h2>
-      <pre>
+    <header>
+        <h1 class="section-title">Send API Request</h1>
+    </header>
+    <div class="requests-container">
+        <div class="request-item">
+            <h2>Curl</h2>
+            <pre>
         <code>
           curl -L -X POST "https://getwvkeys.cc/api" \
           -H "X-API-Key: {{current_user.api_key if current_user.api_key else "YOUR API KEY HERE" }}" \
@@ -36,10 +35,10 @@ content %}
           }"
         </code>
       </pre>
-    </div>
-    <div class="request-item">
-      <h2>Python</h2>
-      <pre>
+        </div>
+        <div class="request-item">
+            <h2>Python</h2>
+            <pre>
         <code>
           import requests
 
@@ -59,10 +58,10 @@ content %}
           print(r)
         </code>
       </pre>
-    </div>
-    <div class="request-item">
-      <h2>JSON Payload</h2>
-      <pre>
+        </div>
+        <div class="request-item">
+            <h2>JSON Payload</h2>
+            <pre>
         <code>
           {
             "license_url": "https://cwip-shaka-proxy.appspot.com/no_auth",
@@ -73,10 +72,10 @@ content %}
           }
         </code>
       </pre>
-    </div>
-    <div class="request-item">
-      <h2>JSON Response</h2>
-      <pre>
+        </div>
+        <div class="request-item">
+            <h2>JSON Response</h2>
+            <pre>
         <code>
           {
             "added_at": 1656267215,
@@ -92,7 +91,7 @@ content %}
         }
         </code>
       </pre>
+        </div>
     </div>
-  </div>
 </section>
 {% endblock %}

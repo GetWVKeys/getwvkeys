@@ -1,6 +1,6 @@
 """
  This file is part of the GetWVKeys project (https://github.com/GetWVKeys/getwvkeys)
- Copyright (C) 2022-2023 Notaghost, Puyodead1 and GetWVKeys contributors 
+ Copyright (C) 2022-2024 Notaghost, Puyodead1 and GetWVKeys contributors 
  
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as published
@@ -47,7 +47,17 @@ def post_request(url, headers, challenge, verbose):
 
 # Do Not Change Anything in this class
 class GetWVKeys:
-    def __init__(self, url: str, pssh: str, auth: str, verbose: bool = False, force: bool = False, buildinfo: str = "", _headers: dict[str, str] = headers, **kwargs) -> None:
+    def __init__(
+        self,
+        url: str,
+        pssh: str,
+        auth: str,
+        verbose: bool = False,
+        force: bool = False,
+        buildinfo: str = "",
+        _headers: dict[str, str] = headers,
+        **kwargs,
+    ) -> None:
         # dynamic injection of the API url
         self.url = url
         self.pssh = pssh
@@ -55,7 +65,7 @@ class GetWVKeys:
         self.verbose = verbose
         self.force = force
         self.buildinfo = buildinfo
-        
+
         self.baseurl = "https://getwvkeys.cc" if API_URL == "__getwvkeys_api_url__" else API_URL
         self.api_url = self.baseurl + "/pywidevine"
         self.headers = _headers
@@ -136,7 +146,7 @@ class GetWVKeys:
         if self.verbose:
             print(json.dumps(decrypt_response, indent=4))
             print("Decryption Session ID:", session_id)
-            
+
         if __name__ == "__main__":
             print("\n" * 5)
             print("[+] Keys:")
@@ -166,9 +176,17 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("url", help="License URL")
     parser.add_argument("pssh", help="PSSH")
-    parser.add_argument("--auth", "-api_key", help="GetWVKeys API Key")  # auth is deprecated, use api_key instead. auth will be removed in the next major version
+    parser.add_argument(
+        "--auth", "-api_key", help="GetWVKeys API Key"
+    )  # auth is deprecated, use api_key instead. auth will be removed in the next major version
     parser.add_argument("--verbose", "-v", help="increase output verbosity", action="store_true")
-    parser.add_argument("--force", "-f", help="Force fetch, bypasses cache (You should only use this if the cached keys are not working). Default is OFF", default=False, action="store_true")
+    parser.add_argument(
+        "--force",
+        "-f",
+        help="Force fetch, bypasses cache (You should only use this if the cached keys are not working). Default is OFF",
+        default=False,
+        action="store_true",
+    )
     parser.add_argument("--buildinfo", "-b", default="", help="Buildinfo", required=False)
     parser.add_argument("--version", "-V", help="Print version and exit", action="store_true")
 
@@ -180,7 +198,9 @@ if __name__ == "__main__":
         print(f"GetWVKeys Generic v{SCRIPT_VERSION} for API Version {API_VERSION}")
         exit(0)
 
-    while (args.url is None or args.pssh is None or args.auth is None) or (args.url == "" or args.pssh == "" or args.auth == ""):
+    while (args.url is None or args.pssh is None or args.auth is None) or (
+        args.url == "" or args.pssh == "" or args.auth == ""
+    ):
         if not args.url:
             args.url = input("Enter License URL: ")
         if not args.pssh:
