@@ -222,12 +222,13 @@ input[type="submit"]:focus {
     max-width: 1080px;
     margin-left: auto;
     margin-right: auto;
+    padding-bottom: 10px;
 }
 
 .result-container {
     display: block;
     color: #dde4ee;
-    margin-top: 24px;
+    margin: 24px 0;
     border-radius: 16px;
     border: 2px solid #242629;
     min-height: 240px;
