@@ -50,15 +50,15 @@
                         {% for device in devices %}
                         <li class="device-list-item">
                             <div class="form-item device-item">
-                                <div style=>
+                                <div style="display: grid; gap: 10px">
                                     <div class="flex-row">
                                         <label for="device-code">Code:</label>
-                                        <code id="device-code" style="margin-left:5px;">{{device.code}}</code>
+                                        <code id="device-code" style="margin-left: 5px">{{device.code}}</code>
                                     </div>
 
                                     <div class="flex-row">
                                         <label for="device-info">Info:</label>
-                                        <code id="device-info" style="margin-left:5px;">{{device.info}}</code>
+                                        <code id="device-info" style="margin-left: 5px">{{device.info}}</code>
                                     </div>
                                 </div>
                                 <button class="delete-button" onclick="deleteDevice('{{device.code}}')">
