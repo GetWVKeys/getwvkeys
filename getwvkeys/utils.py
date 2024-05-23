@@ -27,6 +27,7 @@ from coloredlogs import ColoredFormatter
 
 from getwvkeys import config
 from getwvkeys.pssh_utils import parse_pssh
+from getwvkeys.pywidevine.cdm.formats import wv_proto2_pb2
 
 
 class OPCode(Enum):
@@ -225,3 +226,9 @@ class Blacklist:
             if entry.matches(url):
                 return True
         return False
+
+def get_blob_id(blob):
+    blob_ = base64.b64decode(blob)
+    ci = wv_proto2_pb2.ClientIdentification()
+    ci.ParseFromString(blob_)
+    return str(ci.ClientInfo[5]).split("Value: ")[1].replace("\n", "").replace('"', "")

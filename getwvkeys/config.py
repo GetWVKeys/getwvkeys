@@ -44,12 +44,15 @@ OAUTH2_CLIENT_SECRET = CONFIG["oauth"]["client_secret"]  # Discord OAuth Client 
 OAUTH2_REDIRECT_URL = CONFIG["oauth"]["redirect_url"]  # Discord OAuth Callback URL
 SQLALCHEMY_DATABASE_URI = CONFIG["general"]["database_uri"]  # Database connection URI
 
+if SQLALCHEMY_DATABASE_URI.startswith("sqlite"):
+    raise Exception("SQLite is not supported, please use a different database.")
+
 API_HOST = CONFIG.get("api", {}).get("host", "0.0.0.0")
 API_PORT = int(CONFIG.get("api", {}).get("port", 8080))
 API_URL = CONFIG.get("api", {}).get("base_url", "https://getwvkeys.cc")
 
 MAX_SESSIONS = CONFIG["general"].get("max_sessions", 60)
-DEFAULT_CDMS = CONFIG["general"].get("default_cdms", [])  # list of build infos to use in key rotation
+DEFAULT_DEVICES = CONFIG["general"].get("default_keys", [])  # list of build infos to use in key rotation
 GUILD_ID = CONFIG["general"]["guild_id"]  # Discord Guild ID
 VERIFIED_ROLE_ID = CONFIG["general"]["verified_role_id"]  # Discord Verified role ID
 LOGIN_DISABLED = CONFIG["general"].get("login_disabled", False)
@@ -62,6 +65,6 @@ LOG_FORMAT = CONFIG["general"].get(
 LOG_DATE_FORMAT = CONFIG["general"].get("log_date_format", "%I:%M:%S")
 WVK_LOG_FILE_PATH = pathlib.Path(os.getcwd(), "logs", f"GWVK_{time.strftime('%Y-%m-%d')}.log")
 URL_BLACKLIST = CONFIG.get("url_blacklist", [])
-EXTERNAL_API_BUILD_INFOS = CONFIG.get("external_build_info", [])
-# List of CDMs that should use the blacklist, these are considered to be GetWVKeys System CDMs.
-SYSTEM_CDMS = CONFIG["general"].get("system_cdms", [])
+EXTERNAL_API_DEVICES = CONFIG.get("external_build_info", [])
+# List of device keys that should use the blacklist, these are considered to be GetWVKeys System keys.
+SYSTEM_DEVICES = CONFIG["general"].get("system_keys", [])

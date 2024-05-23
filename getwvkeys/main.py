@@ -41,6 +41,7 @@ from flask import (
     session,
 )
 from flask_login import LoginManager, current_user, login_user, logout_user
+from flask_sqlalchemy import SQLAlchemy
 from oauthlib.oauth2 import WebApplicationClient
 from oauthlib.oauth2.rfc6749.errors import OAuth2Error
 from werkzeug.exceptions import (
@@ -55,10 +56,12 @@ from werkzeug.exceptions import (
 )
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+from alembic import command
+from alembic.config import Config
 from getwvkeys import config, libraries
+from getwvkeys.models.Base import Base
 
 # these need to be kept
-from getwvkeys.models.Shared import db
 from getwvkeys.utils import Blacklist, UserFlags, Validators, construct_logger
 
 app = Flask(__name__.split(".")[0], root_path=str(Path(__file__).parent))
@@ -66,7 +69,7 @@ app.config["SQLALCHEMY_DATABASE_URI"] = config.SQLALCHEMY_DATABASE_URI
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.secret_key = config.SECRET_KEY
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
-db.init_app(app)
+db = SQLAlchemy(app, model_class=Base)
 
 # Logger setup
 logger = construct_logger()
@@ -146,10 +149,10 @@ def on_json_loading_failed(self, e):
 Request.on_json_loading_failed = on_json_loading_failed
 
 
-def blacklist_check(buildinfo, license_url):
-    # check if the license url is blacklisted, but only run this check on GetWVKeys owned CDMs
+def blacklist_check(deviceCode, license_url):
+    # check if the license url is blacklisted, but only run this check on GetWVKeys owned keys
     if (
-        buildinfo in config.SYSTEM_CDMS
+        deviceCode in config.SYSTEM_DEVICES
         and blacklist.is_url_blacklisted(license_url)
         and not current_user.is_blacklist_exempt()
     ):
@@ -189,7 +192,13 @@ def log_request_info(response):
 @app.route("/")
 @authentication_required()
 def home():
-    return render_template("index.html", page_title="GetWVkeys", current_user=current_user, website_version=sha)
+    return render_template(
+        "index.html",
+        page_title="GetWVkeys",
+        current_user=current_user,
+        website_version=sha,
+        keyCount=library.get_keycount(),
+    )
 
 
 @app.route("/faq")
@@ -244,7 +253,11 @@ def search():
         return jsonify(data)
     else:
         return render_template(
-            "search.html", page_title="Search Database", current_user=current_user, website_version=sha
+            "search.html",
+            page_title="Search Database",
+            current_user=current_user,
+            website_version=sha,
+            keyCount=library.get_keycount(),
         )
 
 
@@ -265,13 +278,15 @@ def upload_file():
         user = current_user.id
         blob = request.files["blob"]
         key = request.files["key"]
-        blob_base = base64.b64encode(blob.stream.read()).decode()
-        key_base = base64.b64encode(key.stream.read()).decode()
+        blob = base64.b64encode(blob.stream.read()).decode()
+        key = base64.b64encode(key.stream.read()).decode()
+
         try:
-            output = library.update_cdm(blob_base, key_base, user)
+            code = library.upload_device(blob, key, user)
         except Exception as e:
             return render_template("upload.html", current_user=current_user, website_version=sha, error=str(e))
-        return render_template("upload_complete.html", page_title="Success", buildinfo=output, website_version=sha)
+
+        return render_template("upload_complete.html", code=code, website_version=sha, title_text="Device Key Uploaded")
     elif request.method == "GET":
         return render_template("upload.html", current_user=current_user, website_version=sha)
 
@@ -280,21 +295,21 @@ def upload_file():
 @authentication_required()
 def wv():
     event_data = request.get_json(force=True)
-    (proxy, license_url, pssh, headers, buildinfo, force) = (
+    (proxy, license_url, pssh, headers, deviceCode, force) = (
         event_data.get("proxy", ""),
         event_data.get("license_url"),
         event_data.get("pssh"),
         event_data.get("headers", ""),
-        event_data.get("buildInfo"),
+        event_data.get("deviceCode"),
         event_data.get("force", False),
     )
     if not pssh or not license_url or not validationlib.url(license_url):
         raise BadRequest("Missing or Invalid Fields")
 
-    if not buildinfo:
-        buildinfo = libraries.get_random_cdm()
+    if not deviceCode:
+        deviceCode = libraries.get_random_device_key()
 
-    blacklist_check(buildinfo, license_url)
+    blacklist_check(deviceCode, license_url)
 
     magic = libraries.Pywidevine(
         library,
@@ -302,7 +317,7 @@ def wv():
         license_url=license_url,
         pssh=pssh,
         headers=headers,
-        buildinfo=buildinfo,
+        deviceCode=deviceCode,
         force=force,
         user_id=current_user.id,
     )
@@ -314,12 +329,12 @@ def wv():
 def curl():
     if request.method == "POST":
         event_data = request.get_json()
-        (proxy, license_url, pssh, headers, buildinfo, force, server_certificate, disable_privacy) = (
+        (proxy, license_url, pssh, headers, deviceCode, force, server_certificate, disable_privacy) = (
             event_data.get("proxy", ""),
             event_data.get("license_url"),
             event_data.get("pssh"),
             event_data.get("headers", ""),
-            event_data.get("buildInfo"),
+            event_data.get("deviceCode"),
             event_data.get("force", False),
             event_data.get("certificate"),
             event_data.get("disable_privacy", False),
@@ -327,10 +342,10 @@ def curl():
         if not pssh or not license_url:
             raise BadRequest("Missing Fields")
 
-        if not buildinfo:
-            buildinfo = libraries.get_random_cdm()
+        if not deviceCode:
+            deviceCode = libraries.get_random_device_key()
 
-        blacklist_check(buildinfo, license_url)
+        blacklist_check(deviceCode, license_url)
 
         magic = libraries.Pywidevine(
             library,
@@ -338,7 +353,7 @@ def curl():
             license_url=license_url,
             pssh=pssh,
             headers=headers,
-            buildinfo=buildinfo,
+            deviceCode=deviceCode,
             force=force,
             user_id=current_user.id,
             server_certificate=server_certificate,
@@ -353,12 +368,23 @@ def curl():
 @authentication_required()
 def pywidevine():
     event_data = request.get_json()
-    (proxy, license_url, pssh, headers, buildinfo, force, response, server_certificate, disable_privacy, session_id) = (
+    (
+        proxy,
+        license_url,
+        pssh,
+        headers,
+        deviceCode,
+        force,
+        response,
+        server_certificate,
+        disable_privacy,
+        session_id,
+    ) = (
         event_data.get("proxy", ""),
         event_data.get("license_url"),
         event_data.get("pssh"),
         event_data.get("headers", ""),
-        event_data.get("buildInfo"),
+        event_data.get("deviceCode"),
         event_data.get("force", False),
         event_data.get("response"),
         event_data.get("certificate"),
@@ -368,10 +394,10 @@ def pywidevine():
     if not pssh or not license_url or not validationlib.url(license_url) or (response and not session_id):
         raise BadRequest("Missing or Invalid Fields")
 
-    if not buildinfo and not libraries.is_custom_buildinfo(buildinfo):
-        buildinfo = libraries.get_random_cdm()
+    if not deviceCode and not libraries.is_custom_device_key(deviceCode):
+        deviceCode = libraries.get_random_device_key()
 
-    blacklist_check(buildinfo, license_url)
+    blacklist_check(deviceCode, license_url)
 
     magic = libraries.Pywidevine(
         library,
@@ -379,7 +405,7 @@ def pywidevine():
         license_url=license_url,
         pssh=pssh,
         headers=headers,
-        buildinfo=buildinfo,
+        deviceCode=deviceCode,
         force=force,
         response=response,
         user_id=current_user.id,
@@ -416,7 +442,7 @@ def vinetrimmer():
         if not validators.keys_validator(params):
             return jsonify({"status_code": 400, "message": "Malformed Params"})
         (cdmkeyresponse, session_id) = (params["cdmkeyresponse"], params["session_id"])
-        magic = libraries.Pywidevine(library, user.id, response=cdmkeyresponse, session_id=session_id, buildinfo=None)
+        magic = libraries.Pywidevine(library, user.id, response=cdmkeyresponse, session_id=session_id, deviceCode=None)
         res = magic.vinetrimmer(library)
         return jsonify({"status_code": 200, "message": res})
     elif method == "GetChallenge":
@@ -430,7 +456,7 @@ def vinetrimmer():
             params["licensetype"],
             params["device"],
         )
-        magic = libraries.Pywidevine(library, user.id, pssh=init, buildinfo=device, server_certificate=cert)
+        magic = libraries.Pywidevine(library, user.id, pssh=init, deviceCode=device, server_certificate=cert)
         res = magic.vinetrimmer(library)
         return jsonify({"status_code": 200, "message": res})
 
@@ -508,24 +534,24 @@ def logout():
 @app.route("/me")
 @authentication_required()
 def user_profile():
-    user_cdms = current_user.get_user_cdms()
-    return render_template("profile.html", current_user=current_user, cdms=user_cdms, website_version=sha)
+    user_devices = current_user.get_user_devices()
+    return render_template("profile.html", current_user=current_user, devices=user_devices, website_version=sha)
 
 
-@app.route("/me/cdms/<id>", methods=["DELETE"])
+@app.route("/me/devices/<id>", methods=["DELETE"])
 @authentication_required()
-def user_delete_cdm(id):
+def user_delete_device(id):
     if not id:
-        raise BadRequest("No CDM ID provided")
-    current_user.delete_cdm(id)
-    return jsonify({"status_code": 200, "message": "CDM Deleted"})
+        raise BadRequest("No device ID provided")
+    current_user.delete_device(id)
+    return jsonify({"status_code": 200, "message": "Device deleted"})
 
 
-@app.route("/me/cdms", methods=["GET"])
+@app.route("/me/devices", methods=["GET"])
 @authentication_required()
-def user_get_cdms():
-    user_cdms = current_user.get_user_cdms()
-    return jsonify({"status_code": 200, "message": user_cdms})
+def user_get_devices():
+    user_devices = current_user.get_user_devices()
+    return jsonify({"status_code": 200, "message": user_devices})
 
 
 # error handlers
@@ -609,6 +635,16 @@ def pssh():
     raise Moved("This route is no longer available, please use /pywidevine instead")
 
 
+@app.route("/me/cdms/<id>", methods=["DELETE"])
+def delete_cdm(id):
+    raise Moved("This route is no longer available, please use /me/devices/<id> instead")
+
+
+@app.route("/me/cdms", methods=["GET"])
+def get_cdms():
+    raise Moved("This route is no longer available, please use /me/devices instead")
+
+
 # routes that have been moved
 @app.route("/findpssh", methods=["GET", "POST"])
 def findpssh():
@@ -635,9 +671,9 @@ def main():
     app.run(config.API_HOST, config.API_PORT, debug=config.IS_DEVELOPMENT, use_reloader=False)
 
 
-def setup():
-    with app.app_context():
-        db.create_all()
+def run_migrations():
+    alembic_cfg = Config("alembic.ini")
+    command.upgrade(alembic_cfg, "head")
 
 
 if __name__ == "__main__":

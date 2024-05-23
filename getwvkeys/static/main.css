@@ -75,14 +75,21 @@ h6 {
     overflow-wrap: break-word;
 }
 
-a {
+a,
+a:visited {
+    color: skyblue;
+}
+
+.custom-anchor > a {
     text-decoration: none;
     color: #fffffe;
 }
-a:focus {
+
+.custom-anchor > a:focus {
     outline: 2px solid #7f5af0;
     outline-offset: 4px;
 }
+
 nav {
     background-color: #36333c;
 }
@@ -346,7 +353,7 @@ summary > * {
 .upload-complete-img {
     max-width: 50%;
 }
-.upload-complete-buildinfo {
+.upload-complete-code {
     font-size: 1.125rem;
     background-color: #242629;
     padding: 5px;
@@ -355,6 +362,7 @@ summary > * {
 footer {
     background-color: #242629;
     padding: 16px;
+    margin-top: 20px;
 }
 footer > p {
     text-align: center;
@@ -497,7 +505,7 @@ input[name="login"]:focus {
     flex-direction: row;
 }
 .apikey-container,
-.cdms-container {
+.devices-container {
     display: flex;
     flex: 1;
     align-items: center;
@@ -516,27 +524,27 @@ input[name="login"]:focus {
 .apikey-container.form-item > .form-item-items > input {
     text-align: center;
 }
-.cdms-container.form-item > .form-item-items {
+.devices-container.form-item > .form-item-items {
     display: flex;
     flex-direction: column;
     flex: 1;
     margin: 0;
     align-items: center;
 }
-.cdms-container > span {
+.devices-container > span {
     text-align: center;
     font-size: 1.3rem;
     margin-bottom: 12px;
 }
-.cdm-list-item {
+.devices-list-item {
     padding-bottom: 16px;
 }
-.cdm-item {
+.device-item {
     min-width: 50rem;
     display: flex;
-    flex-direction: row;
+    background-color: #36333c;
+    padding: 5px;
     align-items: center;
-    justify-content: flex-end;
 }
 .section-divider {
     margin: 32px 0 12px 0;
@@ -646,4 +654,14 @@ button[type="enable"]:focus {
 .keycount-wrapper {
     display: flex;
     justify-content: center;
+}
+
+code {
+    background-color: #242629;
+    padding: 0 5px;
+}
+
+#devices {
+    display: grid;
+    gap: 10px;
 }

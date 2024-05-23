@@ -40,18 +40,28 @@
                 </div>
             </div>
             <hr class="section-divider" />
-            <div class="form-item flex-column cdms-container">
-                <span><u>Your CDMS</u></span>
+            <div class="form-item flex-column devices-container">
+                <span><u>Your Devices</u></span>
                 <div class="form-item-items">
-                    {% if cdms|length == 0 %}
-                    <span>So empty</span>
+                    {% if devices|length == 0 %}
+                    <span>Nothing here, you can always <a href="/upload">upload</a> one.</span>
                     {% else %}
-                    <ul id="cdms" name="cdms">
-                        {% for cdm in cdms %}
-                        <li class="cdm-list-item">
-                            <div class="form-item cdm-item flex-row">
-                                <p>{{cdm.code}}</p>
-                                <button class="delete-button" onclick="deleteCdm('{{cdm.id}}')">
+                    <ul id="devices" name="devices">
+                        {% for device in devices %}
+                        <li class="device-list-item">
+                            <div class="form-item device-item">
+                                <div style=>
+                                    <div class="flex-row">
+                                        <label for="device-code">Code:</label>
+                                        <code id="device-code" style="margin-left:5px;">{{device.code}}</code>
+                                    </div>
+
+                                    <div class="flex-row">
+                                        <label for="device-info">Info:</label>
+                                        <code id="device-info" style="margin-left:5px;">{{device.info}}</code>
+                                    </div>
+                                </div>
+                                <button class="delete-button" onclick="deleteDevice('{{device.code}}')">
                                     <i class="fas fa-times"></i>
                                 </button>
                             </div>

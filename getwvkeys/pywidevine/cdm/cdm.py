@@ -12,6 +12,7 @@ from Cryptodome.Util import Padding
 from google.protobuf import text_format
 from google.protobuf.message import DecodeError
 
+from getwvkeys.pywidevine.cdm.deviceconfig import DeviceConfig
 from getwvkeys.pywidevine.cdm.formats import wv_proto2_pb2 as wv_proto2
 from getwvkeys.pywidevine.cdm.key import Key
 from getwvkeys.pywidevine.cdm.session import Session
@@ -23,22 +24,15 @@ class Cdm:
         self.sessions = {}
         self.raw_pssh = False
 
-    def open_session(self, init_data_b64, device, raw_init_data=None, offline=False):
+    def open_session(self, init_data_b64: str, device: DeviceConfig, raw_init_data=None, offline=False):
         self.logger.debug("open_session(init_data_b64={}, device={}".format(init_data_b64, device))
         self.logger.info("opening new cdm session")
-        if device.session_id_type == "android":
-            # format: 16 random hexdigits, 2 digit counter, 14 0s
-            rand_ascii = "".join(random.choice("ABCDEF0123456789") for _ in range(16))
-            counter = "01"  # this resets regularly so its fine to use 01
-            rest = "00000000000000"
-            session_id = rand_ascii + counter + rest
-            session_id = session_id.encode("ascii")
-        elif device.session_id_type == "chrome":
-            rand_bytes = get_random_bytes(16)
-            session_id = rand_bytes
-        else:
-            # other formats NYI
-            raise Exception("Device Type is unusable")
+        # format: 16 random hexdigits, 2 digit counter, 14 0s
+        rand_ascii = "".join(random.choice("ABCDEF0123456789") for _ in range(16))
+        counter = "01"  # this resets regularly so its fine to use 01
+        rest = "00000000000000"
+        session_id = rand_ascii + counter + rest
+        session_id = session_id.encode("ascii")
 
         self.raw_pssh = raw_init_data and isinstance(raw_init_data, (bytes, bytearray))
         if self.raw_pssh:
@@ -197,7 +191,9 @@ class Cdm:
             encrypted_client_id_proto = wv_proto2.EncryptedClientIdentification()
 
             encrypted_client_id_proto.ServiceId = session.service_certificate._DeviceCertificate.ServiceId
-            encrypted_client_id_proto.ServiceCertificateSerialNumber = session.service_certificate._DeviceCertificate.SerialNumber
+            encrypted_client_id_proto.ServiceCertificateSerialNumber = (
+                session.service_certificate._DeviceCertificate.SerialNumber
+            )
             encrypted_client_id_proto.EncryptedClientId = encrypted_client_id
             encrypted_client_id_proto.EncryptedClientIdIv = cid_iv
             encrypted_client_id_proto.EncryptedPrivacyKey = encrypted_cid_key
@@ -301,7 +297,9 @@ class Cdm:
         lic_hmac = HMAC.new(session.derived_keys["auth_1"], digestmod=SHA256)
         lic_hmac.update(signed_license.Msg.SerializeToString())
 
-        self.logger.debug("calculated sig: {} actual sig: {}".format(lic_hmac.hexdigest(), binascii.hexlify(signed_license.Signature)))
+        self.logger.debug(
+            "calculated sig: {} actual sig: {}".format(lic_hmac.hexdigest(), binascii.hexlify(signed_license.Signature))
+        )
 
         if lic_hmac.digest() != signed_license.Signature:
             self.logger.info("license signature doesn't match - writing bin so they can be debugged")
@@ -326,7 +324,7 @@ class Cdm:
             if key_type == "OPERATOR_SESSION":
                 permissions = []
                 perms = key._OperatorSessionKeyPermissions
-                for (descriptor, value) in perms.ListFields():
+                for descriptor, value in perms.ListFields():
                     if value == 1:
                         permissions.append(descriptor.name)
                 print(permissions)

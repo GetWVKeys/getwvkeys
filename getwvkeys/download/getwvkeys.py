@@ -54,7 +54,7 @@ class GetWVKeys:
         auth: str,
         verbose: bool = False,
         force: bool = False,
-        buildinfo: str = "",
+        deviceCode: str = "",
         _headers: dict[str, str] = headers,
         **kwargs,
     ) -> None:
@@ -64,7 +64,7 @@ class GetWVKeys:
         self.auth = auth
         self.verbose = verbose
         self.force = force
-        self.buildinfo = buildinfo
+        self.deviceCode = deviceCode
 
         self.baseurl = "https://getwvkeys.cc" if API_URL == "__getwvkeys_api_url__" else API_URL
         self.api_url = self.baseurl + "/pywidevine"
@@ -73,7 +73,7 @@ class GetWVKeys:
     def generate_request(self):
         if self.verbose:
             print("[+] Generating License Request ")
-        data = {"pssh": self.pssh, "buildInfo": self.buildinfo, "force": self.force, "license_url": self.url}
+        data = {"pssh": self.pssh, "deviceCode": self.deviceCode, "force": self.force, "license_url": self.url}
         header = {"X-API-Key": self.auth, "Content-Type": "application/json"}
         r = requests.post(self.api_url, json=data, headers=header)
         if not r.ok:
@@ -108,7 +108,7 @@ class GetWVKeys:
             "response": license_response,
             "license_url": self.url,
             "headers": self.headers,
-            "buildInfo": self.buildinfo,
+            "deviceCode": self.deviceCode,
             "force": self.force,
             "session_id": self.session_id,
         }
@@ -187,7 +187,7 @@ if __name__ == "__main__":
         default=False,
         action="store_true",
     )
-    parser.add_argument("--buildinfo", "-b", default="", help="Buildinfo", required=False)
+    parser.add_argument("--deviceCode", "-d", default="", help="Use custom device", required=False)
     parser.add_argument("--version", "-V", help="Print version and exit", action="store_true")
 
     args = parser.parse_args()
@@ -211,7 +211,7 @@ if __name__ == "__main__":
     if len(sys.argv) == 1:
         parser.print_help()
         print()
-        args.buildinfo = ""
+        args.deviceCode = ""
         args.verbose = False
 
     try:

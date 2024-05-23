@@ -17,12 +17,12 @@
 
 {% extends "base.html" %}
 <!-- -->
-{% block title %}Upload CDM{% endblock %}
+{% block title %}Upload Device Key{% endblock %}
 <!-- -->
 {% block content %}
 <section class="upload">
     <header>
-        <h1 class="section-title">Upload your own CDM and use it with API and requests</h1>
+        <h1 class="section-title">Upload your own device to use for requests</h1>
     </header>
     <div class="upload-container">
         <form action="/upload" method="POST" enctype="multipart/form-data">
@@ -34,7 +34,11 @@
                 <label for="key">device_private_key:</label>
                 <input type="file" name="key" id="key" required />
             </div>
-            <input type="submit" value="Submit" />
+            <input
+                type="submit"
+                value="Submit"
+                onClick="this.form.submit(); this.disabled=true; this.value='Uploading...'; "
+            />
             <input type="hidden" name="X-API-Key" value="{{ current_user.api_key }}" disabled />
         </form>
 

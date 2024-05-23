@@ -1,0 +1,150 @@
+"""init
+
+Revision ID: e1238372d8d1
+Revises: 
+Create Date: 2024-03-08 18:44:58.605453
+
+"""
+
+from typing import Sequence, Union
+
+import sqlalchemy as sa
+
+from alembic import op
+
+# revision identifiers, used by Alembic.
+revision: str = "e1238372d8d1"
+down_revision: Union[str, None] = None
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    bind = op.get_bind()
+    inspector = sa.Inspector.from_engine(bind)
+
+    migrate_existing_apikeys = "apikeys" in inspector.get_table_names()
+    migrate_existing_users = "users" in inspector.get_table_names()
+    migrate_existing_cdms = "cdms" in inspector.get_table_names()
+    migrate_existing_keys = "keys_" in inspector.get_table_names()
+
+    if migrate_existing_apikeys:
+        op.rename_table("apikeys", "apikeys_old")
+
+    if migrate_existing_users:
+        op.rename_table("users", "users_old")
+
+    if migrate_existing_cdms:
+        op.rename_table("cdms", "cdms_old")
+
+    if migrate_existing_keys:
+        op.rename_table("keys_", "keys__old")
+
+    # create new tables
+    op.create_table(
+        "apikeys",
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("api_key", sa.String(length=255), nullable=False),
+        sa.Column("user_id", sa.String(length=255), nullable=False),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("id"),
+    )
+
+    op.create_table(
+        "users",
+        sa.Column("id", sa.String(length=19), nullable=False),
+        sa.Column("username", sa.String(length=255), nullable=False),
+        sa.Column("discriminator", sa.String(length=255), nullable=False),
+        sa.Column("avatar", sa.String(length=255), nullable=True),
+        sa.Column("public_flags", sa.Integer(), nullable=False),
+        sa.Column("api_key", sa.String(length=255), nullable=False),
+        sa.Column("flags", sa.Integer(), nullable=False),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("id"),
+    )
+
+    op.create_table(
+        "cdms",
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("session_id_type", sa.String(length=255), nullable=False),
+        sa.Column("security_level", sa.Integer(), nullable=False),
+        sa.Column("client_id_blob_filename", sa.Text(), nullable=False),
+        sa.Column("device_private_key", sa.Text(), nullable=False),
+        sa.Column("code", sa.Text(), nullable=False),
+        sa.Column("uploaded_by", sa.String(length=255), nullable=True),
+        sa.ForeignKeyConstraint(
+            ["uploaded_by"],
+            ["users.id"],
+        ),
+        sa.PrimaryKeyConstraint("id"),
+    )
+
+    op.create_table(
+        "keys_",
+        sa.Column("kid", sa.String(length=32), nullable=False),
+        sa.Column("added_at", sa.Integer(), nullable=False),
+        sa.Column("added_by", sa.String(length=19), nullable=True),
+        sa.Column("license_url", sa.Text(), nullable=False),
+        sa.Column("key_", sa.String(length=255), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["added_by"],
+            ["users.id"],
+        ),
+        sa.PrimaryKeyConstraint("kid"),
+    )
+
+    if (
+        not migrate_existing_apikeys
+        and not migrate_existing_users
+        and not migrate_existing_cdms
+        and not migrate_existing_keys
+    ):
+        return
+
+    op.execute("SET FOREIGN_KEY_CHECKS=0;")  # due to some added_by columns being null
+
+    # copy data from old tables to new tables
+    if migrate_existing_users:
+        op.execute(
+            "INSERT INTO users (id, username, discriminator, avatar, public_flags, api_key, flags) SELECT id, username, discriminator, avatar, public_flags, api_key, flags FROM users_old"
+        )
+
+    if migrate_existing_cdms:
+        op.execute(
+            "INSERT INTO cdms (id, session_id_type, security_level, client_id_blob_filename, device_private_key, code, uploaded_by) SELECT id, session_id_type, security_level, client_id_blob_filename, device_private_key, code, uploaded_by FROM cdms_old"
+        )
+
+    if migrate_existing_apikeys:
+        op.execute(
+            "INSERT INTO apikeys (id, created_at, api_key, user_id) SELECT id, created_at, api_key, user_id FROM apikeys_old"
+        )
+
+    if migrate_existing_keys:
+        op.execute(
+            "INSERT INTO keys_ (kid, added_at, added_by, license_url, key_) SELECT kid, added_at, added_by, license_url, key_ FROM keys__old"
+        )
+
+    # drop old tables
+    if migrate_existing_apikeys:
+        op.drop_table("apikeys_old")
+
+    if migrate_existing_users:
+        op.drop_table("users_old")
+
+    if migrate_existing_cdms:
+        op.drop_table("cdms_old")
+
+    if migrate_existing_keys:
+        op.drop_table("keys__old")
+
+    op.execute("SET FOREIGN_KEY_CHECKS=1;")
+
+
+def downgrade() -> None:
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_table("keys_")
+    op.drop_table("cdms")
+    op.drop_table("users")
+    op.drop_table("apikeys")
+    # ### end Alembic commands ###

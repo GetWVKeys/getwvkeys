@@ -5,10 +5,14 @@ Widevine Utility Website and Remote Widevine Device API.
 # Setup
 
 -   Install Python Poetry: https://python-poetry.org/docs/master/#installation
--   Install depdencies: `poetry install`
+-   Install Dependencies:
+    -   For MySQL: `poetry install -E mysql`
+    -   For MariaDB: `poetry install -E mariadb`
 -   Copy `.env.example` to `.env`.(#environment-variables)
--   Copy `getwvkeys/config.py.example` to `getwvkeys/config.py`
--   Edit `config.py` and `.env`
+-   Copy `getwvkeys/config.toml.example` to `getwvkeys/config.toml`
+-   Edit `config.toml`
+    -   For a MySQL Database, use the prefix `mysql+mariadbconnector`
+    -   For a MariaDB Database, use the prefix `mariadb+mariadbconnector`
 -   Run database migrations. see [Database Migrations](#database-migrations)
 -   See [Deploy](#deploy)
 
