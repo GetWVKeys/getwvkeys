@@ -20,6 +20,7 @@ import json
 import logging
 import secrets
 import time
+import uuid
 from typing import Union
 from urllib.parse import urlsplit
 
@@ -39,7 +40,7 @@ from werkzeug.exceptions import (
 
 from getwvkeys import config
 from getwvkeys.models.APIKey import APIKey as APIKeyModel
-from getwvkeys.models.CDM import CDM as CDMModel
+from getwvkeys.models.Device import Device, generate_code
 from getwvkeys.models.Key import Key as KeyModel
 from getwvkeys.models.User import User as UserModel
 from getwvkeys.pywidevine.cdm import deviceconfig
@@ -49,6 +50,7 @@ from getwvkeys.utils import (
     FlagAction,
     UserFlags,
     extract_kid_from_pssh,
+    get_blob_id,
 )
 
 logger = logging.getLogger("getwvkeys")
@@ -70,14 +72,14 @@ common_privacy_cert = (
 sessions = dict()
 
 
-def get_random_cdm():
-    if len(config.DEFAULT_CDMS) == 0:
-        raise Exception("No CDMS configured")
-    return secrets.choice(config.DEFAULT_CDMS)
+def get_random_device_key():
+    if len(config.DEFAULT_DEVICES) == 0:
+        raise Exception("No Devices configured")
+    return secrets.choice(config.DEFAULT_DEVICES)
 
 
-def is_custom_buildinfo(buildinfo):
-    return next((True for entry in config.EXTERNAL_API_BUILD_INFOS if entry["buildinfo"] == buildinfo), False)
+def is_custom_device_key(code):
+    return next((True for entry in config.EXTERNAL_API_DEVICES if entry["code"] == code), False)
 
 
 class Library:
@@ -136,31 +138,29 @@ class Library:
             )
         return results
 
-    def cdm_selector(self, code: str) -> dict:
-        cdm = CDMModel.query.filter_by(code=code).first()
-        if not cdm:
-            raise NotFound("CDM not found")
-        return cdm.to_json()
+    def device_selector(self, code: str) -> dict:
+        device = Device.query.filter_by(code=code).first()
+        if not device:
+            raise NotFound("Device not found")
+        return device.to_json()
 
-    def update_cdm(self, client_id_blob, device_private_key, uploaded_by) -> str:
-        from getwvkeys.pywidevine.cdm.formats import wv_proto2_pb2
+    def does_device_exist(self, client_id_blob: str, device_private_key: str, uploaded_by) -> bool:
+        code = generate_code(client_id_blob, device_private_key, uploaded_by)
+        return bool(Device.query.filter_by(code=code).first())
 
-        def get_blob_id(blob):
-            blob_ = base64.b64decode(blob)
-            ci = wv_proto2_pb2.ClientIdentification()
-            ci.ParseFromString(blob_)
-            return str(ci.ClientInfo[5]).split("Value: ")[1].replace("\n", "").replace('"', "")
-
-        code = get_blob_id(client_id_blob)
-        cdm = CDMModel(
+    def upload_device(self, client_id_blob: str, device_private_key: str, uploaded_by) -> str:
+        if self.does_device_exist(client_id_blob, device_private_key, uploaded_by):
+            raise Exception("Device already uploaded, please use the existing code found on the profile page.")
+        info = get_blob_id(client_id_blob)
+        device = Device(
             client_id_blob_filename=client_id_blob,
             device_private_key=device_private_key,
-            code=code,
             uploaded_by=uploaded_by,
+            info=info,
         )
-        self.db.session.add(cdm)
+        self.db.session.add(device)
         self.db.session.commit()
-        return code
+        return device.code
 
     def add_keys(self, keys: list, user_id: str):
         cached_keys = list()
@@ -183,8 +183,8 @@ class Pywidevine:
         self,
         library: Library,
         user_id,
+        deviceCode: str,
         # TODO: we really shouldn't do this, but vinetrimmer doesn't send license urls without modifications
-        buildinfo,
         license_url="VINETRIMMER",
         pssh=None,
         proxy={},
@@ -201,7 +201,7 @@ class Pywidevine:
         self.pssh = pssh
         self.kid = None
         self.headers = headers
-        self.buildinfo = buildinfo
+        self.deviceCode = deviceCode
         self.force = force
         self.time = int(time.time())
         self.content_keys: list[CachedKey] = list()
@@ -281,9 +281,9 @@ class Pywidevine:
             raise BadRequest(f"Connection error: {e.args[0].reason}")
 
     def external_license(self, method, params, web=False):
-        entry = next((entry for entry in config.EXTERNAL_API_BUILD_INFOS if entry["buildinfo"] == self.buildinfo), None)
+        entry = next((entry for entry in config.EXTERNAL_API_DEVICES if entry["deviceCode"] == self.deviceCode), None)
         if not entry:
-            raise BadRequest("Invalid buildinfo")
+            raise BadRequest("Invalid device code")
         api = entry["url"]
         payload = {"method": method, "params": params, "token": entry["token"]}
         r = requests.post(api, headers=self.headers, json=payload, proxies=self.proxy)
@@ -338,7 +338,7 @@ class Pywidevine:
         except (Exception,):
             self.headers = self.yamldomagic(self.headers)
 
-        if is_custom_buildinfo(self.buildinfo):
+        if is_custom_device_key(self.deviceCode):
             if not self.server_certificate:
                 try:
                     self.server_certificate = self.post_data(
@@ -370,7 +370,7 @@ class Pywidevine:
             return render_template("success.html", page_title="Success", results=data)
 
         try:
-            wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(self.library, self.buildinfo))
+            wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(self.library, self.deviceCode))
         except Exception as e:
             raise InternalServerError(f"Failed to create session: {e}")
         if self.server_certificate:
@@ -403,7 +403,7 @@ class Pywidevine:
                 return r, 302
 
         if self.response is None:
-            if is_custom_buildinfo(self.buildinfo):
+            if is_custom_device_key(self.deviceCode):
                 if not self.server_certificate:
                     try:
                         self.server_certificate = self.post_data(
@@ -423,7 +423,7 @@ class Pywidevine:
                 return self.external_license("GetChallenge", params)
 
             # challenge generation
-            wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(self.library, self.buildinfo))
+            wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(self.library, self.deviceCode))
 
             # set server certificate if provided
             if self.server_certificate:
@@ -442,7 +442,7 @@ class Pywidevine:
 
             return jsonify({"challenge": base64.b64encode(challenge).decode(), "session_id": self.session_id})
 
-        if is_custom_buildinfo(self.buildinfo):
+        if is_custom_device_key(self.deviceCode):
             params = {"cdmkeyresponse": self.response, "session_id": self.session_id}
             self.external_license("GetKeys", params=params)
             output = self._cache_keys()
@@ -470,7 +470,7 @@ class Pywidevine:
 
     def vinetrimmer(self, library: Library):
         if self.response is None:
-            wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(library, self.buildinfo))
+            wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(library, self.deviceCode))
             challenge = wvdecrypt.create_challenge()
             if len(sessions) > config.MAX_SESSIONS:
                 # remove the oldest session
@@ -495,7 +495,7 @@ class Pywidevine:
 
 
 class WvDecrypt:
-    def __init__(self, pssh_b64, device):
+    def __init__(self, pssh_b64, device: deviceconfig.DeviceConfig):
         from getwvkeys.pywidevine.cdm import cdm
 
         self.cdm = cdm.Cdm()
@@ -549,12 +549,9 @@ class User(UserMixin):
         self.flags = Bitfield(user.flags)
         self.user_model = user
 
-    def get_user_cdms(self):
-        cdms = CDMModel.query.filter_by(uploaded_by=self.id).all()
-        return [
-            {"id": x.id, "code": x.code, "session_id_type": x.session_id_type, "security_level": x.security_level}
-            for x in cdms
-        ]
+    def get_user_devices(self):
+        devices = Device.query.filter_by(uploaded_by=self.id).all()
+        return [{"code": x.code, "info": x.info} for x in devices]
 
     def patch(self, data):
         disallowed_keys = ["id", "username", "discriminator", "avatar", "public_flags", "api_key"]
@@ -609,14 +606,14 @@ class User(UserMixin):
 
         self.db.session.commit()
 
-    def delete_cdm(self, id):
-        cdm: CDMModel = CDMModel.query.filter_by(id=id).first()
-        if cdm is None:
-            raise NotFound("CDM not found")
-        # check if uploaded_by is null, or if its not the users cdm
-        if not cdm.uploaded_by or (cdm.uploaded_by and cdm.uploaded_by != self.id):
+    def delete_device(self, code):
+        device: Device = Device.query.filter_by(code=code).first()
+        if device is None:
+            raise NotFound("Device not found")
+        # check if uploaded_by is null, or if its not the users device
+        if not device.uploaded_by or (device.uploaded_by and device.uploaded_by != self.id):
             raise Forbidden("Missing Access")
-        self.db.session.delete(cdm)
+        self.db.session.delete(device)
         self.db.session.commit()
 
     @staticmethod
