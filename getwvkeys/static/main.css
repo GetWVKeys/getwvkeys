@@ -545,6 +545,7 @@ input[name="login"]:focus {
     background-color: #36333c;
     padding: 5px;
     align-items: center;
+    justify-content: space-between;
 }
 .section-divider {
     margin: 32px 0 12px 0;
