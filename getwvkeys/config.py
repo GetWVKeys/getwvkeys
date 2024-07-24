@@ -15,6 +15,7 @@
  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import base64
 import logging
 import os
 import pathlib
@@ -26,8 +27,9 @@ logger = logging.getLogger(__name__)
 
 IS_DEVELOPMENT = bool(os.environ.get("DEVELOPMENT", False))
 IS_STAGING = bool(os.environ.get("STAGING", False))
+CONFIG_ENV = os.environ.get("CONFIG", None)  # used for docker, config is base64 encoded toml
 CONFIG_FILE = "config.dev.toml" if IS_DEVELOPMENT else "config.staging.toml" if IS_STAGING else "config.toml"
-CONFIG = toml.load(CONFIG_FILE)
+CONFIG = toml.loads(base64.b64decode(CONFIG_ENV).decode()) if CONFIG_ENV else toml.load(CONFIG_FILE)
 
 SECRET_KEY = CONFIG["general"]["secret_key"]  # Flask secret key
 

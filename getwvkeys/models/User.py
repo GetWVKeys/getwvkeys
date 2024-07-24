@@ -16,8 +16,10 @@
 """
 
 from sqlalchemy import VARCHAR, Column, Integer, String
+from sqlalchemy.orm import relationship
 
 from getwvkeys.models.Base import Base
+from getwvkeys.models.UserDevice import user_device_association
 
 
 class User(Base):
@@ -29,3 +31,4 @@ class User(Base):
     public_flags = Column(Integer, nullable=False)
     api_key = Column(String(255), nullable=False)
     flags = Column(Integer, default=0, nullable=False)
+    devices = relationship("Device", secondary=user_device_association, back_populates="users")

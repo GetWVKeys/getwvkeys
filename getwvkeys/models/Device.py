@@ -18,8 +18,10 @@
 import hashlib
 
 from sqlalchemy import Column, ForeignKey, Integer, String, Text, event
+from sqlalchemy.orm import relationship
 
 from getwvkeys.models.Base import Base
+from getwvkeys.models.UserDevice import user_device_association
 
 
 def generate_code(client_id_blob_filename: str, device_private_key: str, uploaded_by: str) -> str:
@@ -34,11 +36,12 @@ def generate_code(client_id_blob_filename: str, device_private_key: str, uploade
 class Device(Base):
     __tablename__ = "devices"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    code = Column(Text, nullable=False)
+    code = Column(Text, unique=True, nullable=False)
     client_id_blob_filename = Column(Text, nullable=False)
     device_private_key = Column(Text, nullable=False)
     uploaded_by = Column(String(255), ForeignKey("users.id"), nullable=False)
     info = Column(String(255), unique=True, nullable=False)
+    users = relationship("User", secondary=user_device_association, back_populates="devices")
 
     def to_json(self):
         return {

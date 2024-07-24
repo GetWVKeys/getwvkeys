@@ -550,8 +550,7 @@ class User(UserMixin):
         self.user_model = user
 
     def get_user_devices(self):
-        devices = Device.query.filter_by(uploaded_by=self.id).all()
-        return [{"code": x.code, "info": x.info} for x in devices]
+        return [{"code": x.code, "info": x.info} for x in self.user_model.devices]
 
     def patch(self, data):
         disallowed_keys = ["id", "username", "discriminator", "avatar", "public_flags", "api_key"]
