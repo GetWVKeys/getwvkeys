@@ -1,0 +1,52 @@
+services:
+    getwvkeys:
+        build:
+            context: .
+            dockerfile: Dockerfile
+            args:
+                DEVELOPMENT: true
+        restart: unless-stopped
+        ports:
+            - "8080:8080"
+        volumes:
+            - getwvkeys-storage:/exec/persistent/storage
+        environment:
+            DEVELOPMENT: true
+        depends_on:
+            db:
+                condition: service_healthy
+    db:
+        image: mariadb
+        restart: unless-stopped
+        environment:
+            - MARIADB_ROOT_PASSWORD=toor
+            - MARIADB_DATABASE=getwvkeys
+            - MARIADB_USER=getwvkeys
+            - MARIADB_PASSWORD=toor
+        ports:
+            - "3306:3306"
+        volumes:
+            - db:/var/lib/mysql
+        healthcheck:
+            test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+            start_period: 10s
+            interval: 10s
+            timeout: 5s
+            retries: 3
+    phpmyadmin:
+        image: phpmyadmin
+        restart: unless-stopped
+        ports:
+            - "8081:80"
+        depends_on:
+            - db
+        environment:
+            PMA_PORT: 3306
+            PMA_HOST: db
+            PMA_USER: root
+            PMA_PASSWORD: toor
+            PMA_PMADB: getwvkeys
+            UPLOAD_LIMIT: 1000000000
+volumes:
+    getwvkeys-storage:
+    db:

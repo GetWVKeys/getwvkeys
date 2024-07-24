@@ -35,7 +35,7 @@ For local development, you can use the built-in flask server with `poetry run se
 
 # Database Migrations
 
-`poetry run setup`
+`poetry run migrate`
 
 # Environment Variables
 
@@ -58,3 +58,14 @@ _never use more than 1 worker, getwvkeys does not currently support that and you
 -   GetWVKeys uses dynamic injection for scripts, this means that when a user downloads a script and is logged in, the server injects certain values by replacing strings such as their API key. Available placeholders are:
     -   `__getwvkeys_api_key__`: Authenticated users api key
     -   `__getwvkeys_api_url__`: The instances API URL, this is used for staging and production mainly but can also be used for self hosted instances
+
+
+# Docker
+- for development:
+    - create `config.dev.toml`
+    - `docker compose -f docker-compose-dev.yml up`
+- for non-development:
+    - create a regular `config.toml`
+    - `docker compose -f docker-compose.yml up`
+
+migrations are run automatically on boot
