@@ -275,15 +275,15 @@ def keys():
 @authentication_required()
 def upload_file():
     if request.method == "POST":
-        user = current_user.id
         blob = request.files["blob"]
         key = request.files["key"]
         blob = base64.b64encode(blob.stream.read()).decode()
         key = base64.b64encode(key.stream.read()).decode()
 
         try:
-            code = library.upload_device(blob, key, user)
+            code = library.upload_device(blob, key, current_user.id)
         except Exception as e:
+            raise e
             return render_template("upload.html", current_user=current_user, website_version=sha, error=str(e))
 
         return render_template("upload_complete.html", code=code, website_version=sha, title_text="Device Key Uploaded")
@@ -538,13 +538,13 @@ def user_profile():
     return render_template("profile.html", current_user=current_user, devices=user_devices, website_version=sha)
 
 
-@app.route("/me/devices/<id>", methods=["DELETE"])
+@app.route("/me/devices/<code>", methods=["DELETE"])
 @authentication_required()
-def user_delete_device(id):
-    if not id:
-        raise BadRequest("No device ID provided")
-    current_user.delete_device(id)
-    return jsonify({"status_code": 200, "message": "Device deleted"})
+def user_delete_device(code):
+    if not code:
+        raise BadRequest("No device code provided")
+    msg = current_user.delete_device(code)
+    return jsonify({"status_code": 200, "message": msg})
 
 
 @app.route("/me/devices", methods=["GET"])

@@ -31,7 +31,16 @@ def upgrade() -> None:
             sa.String(length=255),
             nullable=False,
             default=sa.text(
-                "SHA2(CONCAT(CONVERT(SHA2(CONVERT(`client_id_blob_filename` using utf8mb4),256) using utf8mb4),':',CONVERT(SHA2(CONVERT(`client_id_blob_filename` using utf8mb4),256) using utf8mb4),':',CONVERT(`uploaded_by` using utf8mb4)),256)"
+                """
+                SHA2(
+                    CONCAT(
+                        SHA2(CONVERT(client_id_blob_filename USING utf8mb4), 256),
+                        ':',
+                        SHA2(CONVERT(client_id_blob_filename USING utf8mb4), 256)
+                    ),
+                    256
+                )
+                """
             ),
         ),
     )
@@ -50,9 +59,7 @@ def upgrade() -> None:
             CONCAT(
                 SHA2(CONVERT(client_id_blob_filename USING utf8mb4), 256),
                 ':',
-                SHA2(CONVERT(client_id_blob_filename USING utf8mb4), 256),
-                ':',
-                CONVERT(uploaded_by USING utf8mb4)
+                SHA2(CONVERT(client_id_blob_filename USING utf8mb4), 256)
             ),
             256
         )

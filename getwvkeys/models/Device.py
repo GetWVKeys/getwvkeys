@@ -24,13 +24,13 @@ from getwvkeys.models.Base import Base
 from getwvkeys.models.UserDevice import user_device_association
 
 
-def generate_code(client_id_blob_filename: str, device_private_key: str, uploaded_by: str) -> str:
+def generate_device_code(client_id_blob_filename: str, device_private_key: str) -> str:
     # get sha of client_id_blob_filename
     client_id_blob_filename_sha = hashlib.sha256(client_id_blob_filename.encode()).hexdigest()
     # get sha of device_private_key
     device_private_key_sha = hashlib.sha256(device_private_key.encode()).hexdigest()
     # get final hash
-    return hashlib.sha256(f"{client_id_blob_filename_sha}:{device_private_key_sha}:{uploaded_by}".encode()).hexdigest()
+    return hashlib.sha256(f"{client_id_blob_filename_sha}:{device_private_key_sha}".encode()).hexdigest()
 
 
 class Device(Base):
@@ -56,9 +56,9 @@ class Device(Base):
 
 @event.listens_for(Device, "before_insert")
 def set_info(mapper, connection, target):
-    target.code = generate_code(target.client_id_blob_filename, target.device_private_key, target.uploaded_by)
+    target.code = generate_device_code(target.client_id_blob_filename, target.device_private_key)
 
 
 @event.listens_for(Device, "before_update")
 def update_info(mapper, connection, target):
-    target.code = generate_code(target.client_id_blob_filename, target.device_private_key, target.uploaded_by)
+    target.code = generate_device_code(target.client_id_blob_filename, target.device_private_key)

@@ -30,6 +30,7 @@ from flask import jsonify, render_template
 from flask_login import UserMixin
 from flask_sqlalchemy import SQLAlchemy
 from requests.exceptions import ProxyError
+from sqlalchemy import text
 from werkzeug.exceptions import (
     BadRequest,
     Forbidden,
@@ -40,9 +41,10 @@ from werkzeug.exceptions import (
 
 from getwvkeys import config
 from getwvkeys.models.APIKey import APIKey as APIKeyModel
-from getwvkeys.models.Device import Device, generate_code
+from getwvkeys.models.Device import Device, generate_device_code
 from getwvkeys.models.Key import Key as KeyModel
 from getwvkeys.models.User import User as UserModel
+from getwvkeys.models.UserDevice import user_device_association
 from getwvkeys.pywidevine.cdm import deviceconfig
 from getwvkeys.utils import (
     Bitfield,
@@ -139,27 +141,39 @@ class Library:
         return results
 
     def device_selector(self, code: str) -> dict:
-        device = Device.query.filter_by(code=code).first()
+        device = self.db.session.query(Device).filter_by(code=code).first()
         if not device:
             raise NotFound("Device not found")
         return device.to_json()
 
-    def does_device_exist(self, client_id_blob: str, device_private_key: str, uploaded_by) -> bool:
-        code = generate_code(client_id_blob, device_private_key, uploaded_by)
-        return bool(Device.query.filter_by(code=code).first())
+    def upload_device(self, client_id_blob: str, device_private_key: str, user_id: str) -> str:
+        user = self.db.session.query(UserModel).filter_by(id=user_id).first()
+        if not user:
+            raise NotFound("User not found")
+        # calculate the device code
+        code = generate_device_code(client_id_blob, device_private_key)
 
-    def upload_device(self, client_id_blob: str, device_private_key: str, uploaded_by) -> str:
-        if self.does_device_exist(client_id_blob, device_private_key, uploaded_by):
+        # get device
+        device = self.db.session.query(Device).filter_by(code=code).first()
+        if not device:
+            # create device
+            info = get_blob_id(client_id_blob)
+            device = Device(
+                client_id_blob_filename=client_id_blob,
+                device_private_key=device_private_key,
+                uploaded_by=user.id,
+                info=info,
+            )
+            self.db.session.add(device)
+            user.devices.append(device)
+            self.db.session.commit()
+        elif device not in user.devices:
+            # add device to user if its not already there
+            user.devices.append(device)
+            self.db.session.commit()
+        else:
             raise Exception("Device already uploaded, please use the existing code found on the profile page.")
-        info = get_blob_id(client_id_blob)
-        device = Device(
-            client_id_blob_filename=client_id_blob,
-            device_private_key=device_private_key,
-            uploaded_by=uploaded_by,
-            info=info,
-        )
-        self.db.session.add(device)
-        self.db.session.commit()
+
         return device.code
 
     def add_keys(self, keys: list, user_id: str):
@@ -605,15 +619,34 @@ class User(UserMixin):
 
         self.db.session.commit()
 
-    def delete_device(self, code):
-        device: Device = Device.query.filter_by(code=code).first()
-        if device is None:
+    def delete_device(self, code) -> str:
+        # Start a new session
+        session = self.db.session
+
+        # Query the device by code
+        device = session.query(Device).filter_by(code=code).first()
+        if not device:
             raise NotFound("Device not found")
-        # check if uploaded_by is null, or if its not the users device
-        if not device.uploaded_by or (device.uploaded_by and device.uploaded_by != self.id):
-            raise Forbidden("Missing Access")
-        self.db.session.delete(device)
-        self.db.session.commit()
+
+        # Check if the device is associated with the user
+        if device in self.user_model.devices:
+            association_query = text("DELETE FROM user_device WHERE user_id = :user_id AND device_code = :device_code")
+            session.execute(association_query, {"user_id": self.user_model.id, "device_code": device.code})
+            session.commit()
+
+            # Check if the device is still associated with any other users
+            count_query = text("SELECT COUNT(*) FROM user_device WHERE device_code = :device_code")
+            device_users_count = session.execute(count_query, {"device_code": device.code}).scalar()
+
+            if device_users_count == 0:
+                # If no other users are associated, delete the device
+                session.delete(device)
+                session.commit()
+                return "Device deleted"
+            else:
+                return "Device unlinked"
+        else:
+            raise NotFound("You do not have this device associated with your profile")
 
     @staticmethod
     def get(db: SQLAlchemy, user_id: str):
