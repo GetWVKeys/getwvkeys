@@ -17,7 +17,7 @@ from alembic import op
 revision: str = "684292138a0a"
 down_revision: Union[str, None] = "c8ce82d0c054"
 branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = "c8ce82d0c054"
 
 
 def upgrade() -> None:
@@ -91,14 +91,8 @@ def upgrade() -> None:
         "user_device",
         sa.Column("user_id", sa.VARCHAR(255), nullable=False),
         sa.Column("device_code", sa.VARCHAR(255), nullable=False),
-        sa.ForeignKeyConstraint(
-            ["device_code"],
-            ["devices.code"],
-        ),
-        sa.ForeignKeyConstraint(
-            ["user_id"],
-            ["users.id"],
-        ),
+        sa.ForeignKeyConstraint(["device_code"], ["devices.code"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
     )
 
     # remove useless columns, these never served any purpose

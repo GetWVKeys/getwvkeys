@@ -36,18 +36,16 @@ def generate_device_code(client_id_blob_filename: str, device_private_key: str) 
 class Device(Base):
     __tablename__ = "devices"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    code = Column(Text, unique=True, nullable=False)
-    client_id_blob_filename = Column(Text, nullable=False)
-    device_private_key = Column(Text, nullable=False)
+    code = Column(String(255), unique=True, nullable=False)
+    wvd = Column(Text, nullable=False)
     uploaded_by = Column(String(255), ForeignKey("users.id"), nullable=False)
-    info = Column(String(255), unique=True, nullable=False)
+    info = Column(String(255), nullable=False)
     users = relationship("User", secondary=user_device_association, back_populates="devices")
 
     def to_json(self):
         return {
             "id": self.id,
-            "client_id_blob_filename": self.client_id_blob_filename,
-            "device_private_key": self.device_private_key,
+            "wvd": self.wvd,
             "uploaded_by": self.uploaded_by,
             "code": self.code,
             "info": self.info,

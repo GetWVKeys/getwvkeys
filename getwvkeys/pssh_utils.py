@@ -20,7 +20,7 @@
 import base64
 import struct
 
-from getwvkeys.pywidevine.cdm.formats.widevine_pssh_data_pb2 import WidevinePsshData
+from getwvkeys.formats.widevine_pssh_data_pb2 import WidevinePsshData
 
 WIDEVINE_SYSTEM_ID = base64.b16decode("EDEF8BA979D64ACEA3C827DCD51D21ED")
 
