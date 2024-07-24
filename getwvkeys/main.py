@@ -283,7 +283,6 @@ def upload_file():
         try:
             code = library.upload_device(blob, key, current_user.id)
         except Exception as e:
-            raise e
             return render_template("upload.html", current_user=current_user, website_version=sha, error=str(e))
 
         return render_template("upload_complete.html", code=code, website_version=sha, title_text="Device Key Uploaded")
