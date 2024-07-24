@@ -150,10 +150,10 @@ def on_json_loading_failed(self, e):
 Request.on_json_loading_failed = on_json_loading_failed
 
 
-def blacklist_check(deviceCode, license_url):
+def blacklist_check(device_code, license_url):
     # check if the license url is blacklisted, but only run this check on GetWVKeys owned keys
     if (
-        deviceCode in config.SYSTEM_DEVICES
+        device_code in config.SYSTEM_DEVICES
         and blacklist.is_url_blacklisted(license_url)
         and not current_user.is_blacklist_exempt()
     ):
@@ -301,21 +301,21 @@ def upload_file():
 @authentication_required()
 def wv():
     event_data = request.get_json(force=True)
-    (proxy, license_url, pssh, headers, deviceCode, force) = (
+    (proxy, license_url, pssh, headers, device_code, force) = (
         event_data.get("proxy", ""),
         event_data.get("license_url"),
         event_data.get("pssh"),
         event_data.get("headers", ""),
-        event_data.get("deviceCode"),
+        event_data.get("device_code"),
         event_data.get("force", False),
     )
     if not pssh or not license_url or not validationlib.url(license_url):
         raise BadRequest("Missing or Invalid Fields")
 
-    if not deviceCode:
-        deviceCode = libraries.get_random_device_key()
+    if not device_code:
+        device_code = libraries.get_random_device_key()
 
-    blacklist_check(deviceCode, license_url)
+    blacklist_check(device_code, license_url)
 
     magic = libraries.Pywidevine(
         gwvk,
@@ -323,7 +323,7 @@ def wv():
         license_url=license_url,
         pssh=pssh,
         headers=headers,
-        deviceCode=deviceCode,
+        device_code=device_code,
         force=force,
         user_id=current_user.id,
     )
@@ -335,12 +335,12 @@ def wv():
 def curl():
     if request.method == "POST":
         event_data = request.get_json()
-        (proxy, license_url, pssh, headers, deviceCode, force, service_certificate, disable_privacy) = (
+        (proxy, license_url, pssh, headers, device_code, force, service_certificate, disable_privacy) = (
             event_data.get("proxy", ""),
             event_data.get("license_url"),
             event_data.get("pssh"),
             event_data.get("headers", ""),
-            event_data.get("deviceCode"),
+            event_data.get("device_code"),
             event_data.get("force", False),
             event_data.get("certificate"),
             event_data.get("disable_privacy", False),
@@ -348,10 +348,10 @@ def curl():
         if not pssh or not license_url:
             raise BadRequest("Missing Fields")
 
-        if not deviceCode:
-            deviceCode = libraries.get_random_device_key()
+        if not device_code:
+            device_code = libraries.get_random_device_key()
 
-        blacklist_check(deviceCode, license_url)
+        blacklist_check(device_code, license_url)
 
         magic = libraries.Pywidevine(
             gwvk,
@@ -359,7 +359,7 @@ def curl():
             license_url=license_url,
             pssh=pssh,
             headers=headers,
-            deviceCode=deviceCode,
+            device_code=device_code,
             force=force,
             user_id=current_user.id,
             service_certificate=service_certificate,
@@ -379,7 +379,7 @@ def pywidevine():
         license_url,
         pssh,
         headers,
-        deviceCode,
+        device_code,
         force,
         response,
         service_certificate,
@@ -390,7 +390,7 @@ def pywidevine():
         event_data.get("license_url"),
         event_data.get("pssh"),
         event_data.get("headers", ""),
-        event_data.get("deviceCode"),
+        event_data.get("device_code"),
         event_data.get("force", False),
         event_data.get("response"),
         event_data.get("certificate"),
@@ -400,10 +400,10 @@ def pywidevine():
     if not pssh or not license_url or not validationlib.url(license_url) or (response and not session_id):
         raise BadRequest("Missing or Invalid Fields")
 
-    if not deviceCode and not libraries.is_custom_device_key(deviceCode):
-        deviceCode = libraries.get_random_device_key()
+    if not device_code and not libraries.is_custom_device_key(device_code):
+        device_code = libraries.get_random_device_key()
 
-    blacklist_check(deviceCode, license_url)
+    blacklist_check(device_code, license_url)
 
     magic = libraries.Pywidevine(
         gwvk,
@@ -411,7 +411,7 @@ def pywidevine():
         license_url=license_url,
         pssh=pssh,
         headers=headers,
-        deviceCode=deviceCode,
+        device_code=device_code,
         force=force,
         license_response=response,
         user_id=current_user.id,

@@ -191,7 +191,7 @@ class Pywidevine:
         self,
         gwvk: GetWVKeys,
         user_id,
-        deviceCode: str,
+        device_code: str,
         # TODO: we really shouldn't do this, but vinetrimmer doesn't send license urls without modifications
         license_url="VINETRIMMER",
         pssh=None,
@@ -207,7 +207,7 @@ class Pywidevine:
         self.gwvk = gwvk
         self.license_url = license_url
         self.headers = headers
-        self.device_code = deviceCode
+        self.device_code = device_code
         self.force = force
         self.time = int(time.time())
         self.content_keys: list[CachedKey] = list()
@@ -219,7 +219,7 @@ class Pywidevine:
         if self.proxy and isinstance(self.proxy, str):
             self.proxy = {"http": self.proxy, "https": self.proxy}
         self.store_request = {}
-        self.session_id = session_id
+        self.session_id = bytes.fromhex(session_id) if session_id else None
         self.disable_privacy = disable_privacy
 
         try:
@@ -250,7 +250,7 @@ class Pywidevine:
             "license_url": self.license_url,
             "added_at": self.time,
             "keys": list(),
-            "session_id": self.session_id,
+            "session_id": self.session_id.hex(),
         }
         for key in self.content_keys:
             # s = urlsplit(self.license_url)
@@ -285,44 +285,44 @@ class Pywidevine:
         except ConnectionError as e:
             raise BadRequest(f"Connection error: {e.args[0].reason}")
 
-    def external_license(self, method, params, web=False):
-        entry = next((entry for entry in config.EXTERNAL_API_DEVICES if entry["deviceCode"] == self.device_code), None)
-        if not entry:
-            raise BadRequest("Invalid device code")
-        api = entry["url"]
-        payload = {"method": method, "params": params, "token": entry["token"]}
-        r = requests.post(api, headers=self.headers, json=payload, proxies=self.proxy)
-        if r.status_code != 200:
-            if "message" in r.text:
-                raise Exception(f"Error: {r.json()['message']}")
-            raise Exception(f"Unknown Error: [{r.status_code}] {r.text}")
-        if method == "GetChallenge":
-            d = r.json()
-            if entry["version"] == 2:
-                challenge = d["message"]["challenge"]
-                self.session_id = d["message"]["session_id"]
-            else:
-                challenge = d["challenge"]
-                self.session_id = d["session_id"]
-            if not web:
-                return jsonify({"challenge": challenge, "session_id": self.session_id})
-            return challenge
-        elif method == "GetKeys":
-            d = r.json()
-            if entry["version"] == 2:
-                keys = d["message"]["keys"]
-            else:
-                keys = d["keys"]
-            for x in keys:
-                kid = x["kid"]
-                key = x["key"]
-                self.content_keys.append(
-                    CachedKey(kid, self.time, self.user_id, self.license_url, "{}:{}".format(kid, key))
-                )
-        elif method == "GetKeysX":
-            raise NotImplemented()
-        else:
-            raise Exception("Unknown method")
+    # def external_license(self, method, params, web=False):
+    #     entry = next((entry for entry in config.EXTERNAL_API_DEVICES if entry["device_code"] == self.device_code), None)
+    #     if not entry:
+    #         raise BadRequest("Invalid device code")
+    #     api = entry["url"]
+    #     payload = {"method": method, "params": params, "token": entry["token"]}
+    #     r = requests.post(api, headers=self.headers, json=payload, proxies=self.proxy)
+    #     if r.status_code != 200:
+    #         if "message" in r.text:
+    #             raise Exception(f"Error: {r.json()['message']}")
+    #         raise Exception(f"Unknown Error: [{r.status_code}] {r.text}")
+    #     if method == "GetChallenge":
+    #         d = r.json()
+    #         if entry["version"] == 2:
+    #             challenge = d["message"]["challenge"]
+    #             self.session_id = d["message"]["session_id"]
+    #         else:
+    #             challenge = d["challenge"]
+    #             self.session_id = d["session_id"]
+    #         if not web:
+    #             return jsonify({"challenge": challenge, "session_id": self.session_id})
+    #         return challenge
+    #     elif method == "GetKeys":
+    #         d = r.json()
+    #         if entry["version"] == 2:
+    #             keys = d["message"]["keys"]
+    #         else:
+    #             keys = d["keys"]
+    #         for x in keys:
+    #             kid = x["kid"]
+    #             key = x["key"]
+    #             self.content_keys.append(
+    #                 CachedKey(kid, self.time, self.user_id, self.license_url, "{}:{}".format(kid, key))
+    #             )
+    #     elif method == "GetKeysX":
+    #         raise NotImplemented()
+    #     else:
+    #         raise Exception("Unknown method")
 
     def main(self, curl=False):
         # Search for cached keys first
@@ -343,7 +343,7 @@ class Pywidevine:
         except (Exception,):
             self.headers = self.yamldomagic(self.headers)
 
-        # if is_custom_device_key(self.deviceCode):
+        # if is_custom_device_key(self.device_code):
         #     if not self.server_certificate:
         #         try:
         #             self.server_certificate = self.post_data(
@@ -382,14 +382,14 @@ class Pywidevine:
             cdm = sessions[(self.user_id, self.device_code)] = Cdm.from_device(device)
 
         try:
-            session_id = cdm.open()
+            self.session_id = cdm.open()
         except TooManySessions as e:
             raise InternalServerError("Too many open sessions, please try again in a few minutes")
 
         privacy_mode = False
 
         if self.service_certificate:
-            cdm.set_service_certificate(session_id=session_id, certificate=self.service_certificate)
+            cdm.set_service_certificate(session_id=self.session_id, certificate=self.service_certificate)
             privacy_mode = True
         # elif not self.disable_privacy:
         #     cdm.set_service_certificate(session_id=session_id, certificate=common_privacy_cert)
@@ -397,7 +397,7 @@ class Pywidevine:
 
         try:
             license_request = cdm.get_license_challenge(
-                session_id=session_id, pssh=self.pssh, license_type="STREAMING", privacy_mode=privacy_mode
+                session_id=self.session_id, pssh=self.pssh, license_type="STREAMING", privacy_mode=privacy_mode
             )
         except InvalidInitData as e:
             logger.exception(e)
@@ -409,7 +409,7 @@ class Pywidevine:
         license_response = self.post_data(self.license_url, self.headers, license_request, self.proxy)
 
         try:
-            cdm.parse_license(session_id=session_id, license_message=license_response)
+            cdm.parse_license(session_id=self.session_id, license_message=license_response)
         except InvalidLicenseMessage as e:
             logger.exception(e)
             raise BadRequest("Invalid license message")
@@ -421,7 +421,7 @@ class Pywidevine:
             raise BadRequest("Signature mismatch")
 
         try:
-            keys = cdm.get_keys(session_id=session_id, type_="CONTENT")
+            keys = cdm.get_keys(session_id=self.session_id, type_="CONTENT")
         except ValueError as e:
             logger.exception(e)
             raise BadRequest("Failed to get keys")
@@ -432,7 +432,7 @@ class Pywidevine:
         # caching
         data = self._cache_keys()
         # close the session
-        cdm.close(session_id=session_id)
+        cdm.close(session_id=self.session_id)
         if curl:
             return jsonify(data)
         return render_template("success.html", page_title="Success", results=data)
@@ -479,14 +479,14 @@ class Pywidevine:
                 cdm = sessions[(self.user_id, self.device_code)] = Cdm.from_device(device)
 
             try:
-                session_id = cdm.open()
+                self.session_id = cdm.open()
             except TooManySessions as e:
                 raise InternalServerError("Too many open sessions, please try again in a few minutes")
 
             privacy_mode = False
 
             if self.service_certificate:
-                cdm.set_service_certificate(session_id=session_id, certificate=self.service_certificate)
+                cdm.set_service_certificate(session_id=self.session_id, certificate=self.service_certificate)
                 privacy_mode = True
             # elif not self.disable_privacy:
             #     cdm.set_service_certificate(session_id=session_id, certificate=common_privacy_cert)
@@ -494,7 +494,7 @@ class Pywidevine:
 
             try:
                 license_request = cdm.get_license_challenge(
-                    session_id=session_id, pssh=self.pssh, license_type="STREAMING", privacy_mode=privacy_mode
+                    session_id=self.session_id, pssh=self.pssh, license_type="STREAMING", privacy_mode=privacy_mode
                 )
             except InvalidInitData as e:
                 logger.exception(e)
@@ -503,10 +503,12 @@ class Pywidevine:
                 logger.exception(e)
                 raise BadRequest("Invalid license type")
 
-            return jsonify({"challenge": base64.b64encode(license_request).decode(), "session_id": self.session_id})
+            return jsonify(
+                {"challenge": base64.b64encode(license_request).decode(), "session_id": self.session_id.hex()}
+            )
 
         if is_custom_device_key(self.device_code):
-            params = {"cdmkeyresponse": self.license_response, "session_id": self.session_id}
+            params = {"cdmkeyresponse": self.license_response, "session_id": self.session_id.hex()}
             self.external_license("GetKeys", params=params)
             output = self._cache_keys()
             return jsonify(output)
@@ -519,7 +521,7 @@ class Pywidevine:
             raise BadRequest("Session not found, did you generate a challenge first?")
 
         try:
-            cdm.parse_license(session_id=session_id, license_message=self.license_response)
+            cdm.parse_license(session_id=self.session_id, license_message=self.license_response)
         except InvalidLicenseMessage as e:
             logger.exception(e)
             raise BadRequest("Invalid license message")
@@ -531,7 +533,7 @@ class Pywidevine:
             raise BadRequest("Signature mismatch")
 
         try:
-            keys = cdm.get_keys(session_id=session_id, type_="CONTENT")
+            keys = cdm.get_keys(session_id=self.session_id, type_="CONTENT")
         except ValueError as e:
             logger.exception(e)
             raise BadRequest("Failed to get keys")
@@ -542,12 +544,12 @@ class Pywidevine:
         # caching
         output = self._cache_keys()
         # close the session
-        cdm.close_session()
+        cdm.close(session_id=self.session_id)
         return jsonify(output)
 
     # def vinetrimmer(self, library: Library):
     #     if self.response is None:
-    #         wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(library, self.deviceCode))
+    #         wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(library, self.device_code))
     #         challenge = wvdecrypt.create_challenge()
     #         if len(sessions) > config.MAX_SESSIONS:
     #             # remove the oldest session
