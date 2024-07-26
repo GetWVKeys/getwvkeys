@@ -51,6 +51,9 @@ Example command to run on port 8081 listening on all interfaces:
 
 -   `poetry run gunicorn -w 1 -b 0.0.0.0:8081 getwvkeys.main:app`
 
+or waitress:
+-   `poetry run waitress-serve --listen=*:8081 getwvkeys.main:app`
+
 _never use more than 1 worker, getwvkeys does not currently support that and you will encounter issues with sessions._
 
 # Other Info

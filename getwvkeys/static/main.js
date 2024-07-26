@@ -43,7 +43,7 @@ async function doRequest() {
                 license_url: document.getElementById("license").value,
                 headers: document.getElementById("headers").value,
                 pssh: document.getElementById("pssh").value,
-                deviceCode: document.getElementById("deviceCode").value,
+                device_code: document.getElementById("deviceCode").value,
                 proxy: document.getElementById("proxy").value,
                 force: document.getElementById("force").checked,
             }),
