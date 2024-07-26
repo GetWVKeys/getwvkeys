@@ -450,6 +450,7 @@ class Pywidevine:
         device = self.gwvk.get_device_by_code(self.device_code)
 
         if self.license_response is None:
+            # TODO: I dont remember what this shit was for?
             # if is_custom_device_key(self.device_code):
             #     if not self.service_certificate:
             #         try:
@@ -507,11 +508,12 @@ class Pywidevine:
                 {"challenge": base64.b64encode(license_request).decode(), "session_id": self.session_id.hex()}
             )
 
-        if is_custom_device_key(self.device_code):
-            params = {"cdmkeyresponse": self.license_response, "session_id": self.session_id.hex()}
-            self.external_license("GetKeys", params=params)
-            output = self._cache_keys()
-            return jsonify(output)
+        # TODO: I dont remember what this shit was for?
+        # if is_custom_device_key(self.device_code):
+        #     params = {"cdmkeyresponse": self.license_response, "session_id": self.session_id.hex()}
+        #     self.external_license("GetKeys", params=params)
+        #     output = self._cache_keys()
+        #     return jsonify(output)
 
         # license parsing
 
