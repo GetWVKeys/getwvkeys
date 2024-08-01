@@ -40,6 +40,7 @@ from flask import (
     send_from_directory,
     session,
 )
+from flask_caching import Cache
 from flask_login import LoginManager, current_user, login_user, logout_user
 from oauthlib.oauth2 import WebApplicationClient
 from oauthlib.oauth2.rfc6749.errors import OAuth2Error
@@ -79,7 +80,7 @@ client = WebApplicationClient(config.OAUTH2_CLIENT_ID)
 
 # get current git commit sha
 sha = Version.from_git().serialize(
-    style=Style.SemVer, dirty=True, format="{base}-post.{distance}+{commit}.{dirty}.{branch}"
+    style=None, dirty=True, format="{base}-post.{distance}+{commit}.{dirty}.{branch}"
 )
 
 # create library instance
@@ -92,8 +93,14 @@ validators = Validators()
 if not config.IS_STAGING and config.REDIS_URI is not None:
     # TODO: currently staging can reply which is unintended, but ignoring stuff like disabling users might not be ideal
     redis = Redis(app, library)
+    app.config['CACHE_TYPE'] = 'redis'
+    app.config['CACHE_REDIS_URL'] = config.REDIS_URI
 else:
     logger.warning("Redis is disabled, IPC will not work")
+    app.config['CACHE_TYPE'] = 'simple'
+    app.config['CACHE_DEFAULT_TIMEOUT'] = 300
+
+cache = Cache(app)
 
 # initialize blacklist class
 blacklist = Blacklist()
@@ -229,6 +236,7 @@ def downloadfile(file):
 
 
 @app.route("/count")
+@cache.cached(timeout=300)
 def count():
     return str(library.get_keycount())
 

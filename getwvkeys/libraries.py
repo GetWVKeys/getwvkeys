@@ -51,6 +51,8 @@ from getwvkeys.utils import (
     extract_kid_from_pssh,
 )
 
+from sqlalchemy import func
+
 logger = logging.getLogger("getwvkeys")
 
 common_privacy_cert = (
@@ -102,6 +104,7 @@ class Library:
         self.db.session.commit()
 
     def get_keycount(self) -> int:
+        return self.db.session.query(func.count(KeyModel.kid)).scalar()
         return KeyModel().query.count()
 
     def search(self, query: str) -> list:
