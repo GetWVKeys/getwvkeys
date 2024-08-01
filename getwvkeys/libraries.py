@@ -114,10 +114,17 @@ class GetWVKeys:
     def get_keycount(self) -> int:
         return KeyModel().query.count()
 
-    def search(self, query: Union[PSSH, str]) -> list:
+    def search(self, query: PSSH | str) -> list:
         if isinstance(query, PSSH):
-            query = query.key_ids[0].hex()
-        elif "-" in query:
+            query = query.key_ids[0].hex
+        elif query.startswith("AAAA"):
+            # Try to parse the query as a PSSH and extract a KID
+            try:
+                query = PSSH(base64.b64decode(query)).key_ids[0].hex
+            except Exception as e:
+                logger.exception(e)
+                raise e
+        else:
             query = query.replace("-", "")
 
         return KeyModel.query.filter_by(kid=query).all()
@@ -325,7 +332,7 @@ class Pywidevine:
         if not self.force:
             result = self.gwvk.search(self.pssh)
             if result and len(result) > 0:
-                cached = search_res_to_dict(self.pssh.key_ids[0].hex(), result)
+                cached = search_res_to_dict(self.pssh.key_ids[0].hex, result)
                 if not curl:
                     return render_template("cache.html", results=cached)
                 r = jsonify(cached)
