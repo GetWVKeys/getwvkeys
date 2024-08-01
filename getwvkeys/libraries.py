@@ -20,7 +20,7 @@ import json
 import logging
 import secrets
 import time
-from typing import Dict
+from typing import Dict, Union
 
 import requests
 import yaml
@@ -114,16 +114,12 @@ class GetWVKeys:
     def get_keycount(self) -> int:
         return KeyModel().query.count()
 
-    def search(self, query: str) -> list:
-        if query.startswith("AAAA"):
-            # Try to parse the query as a PSSH and extract a KID
-            try:
-                query = extract_kid_from_pssh(query)
-            except Exception as e:
-                logger.exception(e)
-                raise e
-        if "-" in query:
+    def search(self, query: Union[PSSH, str]) -> list:
+        if isinstance(query, PSSH):
+            query = query.key_ids[0].hex()
+        elif "-" in query:
             query = query.replace("-", "")
+
         return KeyModel.query.filter_by(kid=query).all()
 
     def device_selector(self, code: str) -> dict:
