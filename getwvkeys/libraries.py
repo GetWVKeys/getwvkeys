@@ -29,6 +29,7 @@ from flask import jsonify, render_template
 from flask_login import UserMixin
 from flask_sqlalchemy import SQLAlchemy
 from requests.exceptions import ProxyError
+from sqlalchemy import func
 from werkzeug.exceptions import (
     BadRequest,
     Forbidden,
@@ -50,8 +51,6 @@ from getwvkeys.utils import (
     UserFlags,
     extract_kid_from_pssh,
 )
-
-from sqlalchemy import func
 
 logger = logging.getLogger("getwvkeys")
 
