@@ -1239,4 +1239,4 @@ mysql = ["mysql-connector-python"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<4.0"
-content-hash = "3d9782a6797db8b80934f3dde73f6f5a00f5557226db5cfb2d1d59a0c680bff3"
+content-hash = "45302b76b9b648a7a863c6a405fa0f133679ae9c0538f9d57e607dfc3b330949"

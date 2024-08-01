@@ -141,3 +141,5 @@ dmypy.json
 
 *.toml
 !config.example.toml
+devices/
+util_scripts/

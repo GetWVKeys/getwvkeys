@@ -124,7 +124,7 @@ def authentication_required(exempt_methods=[], flags_required: int = None, ignor
                 # check if the key is a valid user key
                 user = FlaskUser.get_user_by_api_key(db, api_key)
 
-                if not user:
+                if not user or user.flags.has(UserFlags.SYSTEM):
                     raise Forbidden("Invalid API Key")
 
                 login_user(user, remember=False)
@@ -286,8 +286,12 @@ def upload_file():
         try:
             code = gwvk.upload_device(blob, key, current_user.id)
         except Exception as e:
-            return render_template(
-                "upload.html", current_user=current_user, website_version=website_version, error=str(e)
+            logger.exception(e)
+            return (
+                render_template(
+                    "upload.html", current_user=current_user, website_version=website_version, error=str(e)
+                ),
+                400,
             )
 
         return render_template(

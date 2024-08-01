@@ -52,6 +52,7 @@ class UserFlags(Enum):
     KEY_ADDING = 1 << 3
     SUSPENDED = 1 << 4
     BLACKLIST_EXEMPT = 1 << 5
+    SYSTEM = 1 << 6
 
 
 class FlagAction(Enum):

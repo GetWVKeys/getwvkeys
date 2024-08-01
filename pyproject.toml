@@ -31,6 +31,7 @@ mariadb = { version = "^1.1.10", optional = true }
 mysql-connector-python = { version = "^8.4.0", optional = true }
 pywidevine = "^1.8.0"
 waitress = "^3.0.0"
+click = "^8.1.7"
 
 [tool.poetry.dev-dependencies]
 black = "^22.3.0"
@@ -39,6 +40,7 @@ isort = "^5.10.1"
 [tool.poetry.scripts]
 serve = 'getwvkeys.main:main'
 migrate = 'getwvkeys.main:run_migrations'
+gwvk = 'getwvkeys.scripts:main'
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

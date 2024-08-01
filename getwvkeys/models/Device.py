@@ -17,7 +17,7 @@
 
 import hashlib
 
-from sqlalchemy import Column, ForeignKey, Integer, String, Text, event
+from sqlalchemy import Column, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from getwvkeys.models.Base import Base
@@ -50,13 +50,3 @@ class Device(Base):
             "code": self.code,
             "info": self.info,
         }
-
-
-@event.listens_for(Device, "before_insert")
-def set_info(mapper, connection, target):
-    target.code = generate_device_code(target.client_id_blob_filename, target.device_private_key)
-
-
-@event.listens_for(Device, "before_update")
-def update_info(mapper, connection, target):
-    target.code = generate_device_code(target.client_id_blob_filename, target.device_private_key)
