@@ -442,6 +442,39 @@ def vinetrimmer():
     return jsonify({"status_code": 400, "message": "Invalid Method"})
 
 
+@app.route("/vault", methods=["GET"])
+def vault():
+    service = request.args.get("service").lower()
+    password = request.args.get("password")
+    kid = request.args.get("kid")
+    key = request.args.get("key")
+    user = libraries.User.get_user_by_api_key(db, password)
+
+    if not user:
+        return jsonify({"status_code": 401, "message": "Invalid API Key"})
+
+    if not user.flags.has(UserFlags.KEY_ADDING):
+        return jsonify({"status_code": 403, "message": "Missing Access"})
+
+    if len(kid) != 32 or not kid:
+        return jsonify({"status_code": 403, "message": "Invalid Kid Length"})
+
+    if not key:
+        data = library.search(kid)
+        data = library.search_res_to_dict(kid, data)
+        data["status_code"] = 200
+        for keys in data["keys"]:
+            k = keys["key"].split(":")
+            keys["kid"] = k[0]
+            keys["key"] = k[-1]
+        del data["kid"]
+        return jsonify(data)
+    else:
+        keys = [{"key": f"{kid}:{key}", "license_url": f"https://{service}/"}]
+        library.add_keys(keys=keys, user_id=current_user.id)
+        return jsonify({"message": "added in database.", "inserted": True, "status_code": 200})
+
+
 # auth endpoints
 @app.route("/login")
 def login():
