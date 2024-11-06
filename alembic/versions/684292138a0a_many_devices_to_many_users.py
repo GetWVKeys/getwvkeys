@@ -69,12 +69,18 @@ def upgrade() -> None:
     # for mapping, cause we need to dedupe and create a unique constraint
     old_devices = op.get_bind().execute(sa.text("SELECT * FROM devices")).fetchall()
 
-    user_device_insert = """INSERT INTO user_device (user_id, device_code) VALUES """
+    user_device_insert = []
     for device in old_devices:
-        user_device_insert += f"('{device[6]}', '{device[7]}'),"
+        user_device_insert.append(f"('{device[6]}', '{device[7]}')")
 
-    # remove trailing comma
-    user_device_insert = user_device_insert[:-1]
+    # Join the values and create the full INSERT statement
+    if user_device_insert:
+        user_device_insert_sql = "INSERT INTO user_device (user_id, device_code) VALUES " + ",".join(user_device_insert)
+
+        # insert data into user_device
+        op.execute(sa.text(user_device_insert_sql))
+    else:
+        print("No devices found to insert into user_device table.")
 
     # deduplicate devices by code
     op.execute("DELETE FROM devices WHERE id NOT IN (SELECT MIN(id) FROM devices GROUP BY code)")
@@ -99,9 +105,6 @@ def upgrade() -> None:
     op.drop_column("devices", "security_level")
     op.drop_column("devices", "session_id_type")
     # ### end Alembic commands ###
-
-    # insert data into user_device
-    op.execute(user_device_insert)
 
 
 def downgrade() -> None:

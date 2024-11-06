@@ -38,7 +38,8 @@ def upgrade() -> None:
     # Copy data from the old table to the new table, setting added_by to NULL for invalid references, and strip the kid prefix
     op.execute(
         "INSERT INTO keys_ (kid, added_at, added_by, license_url, key_) "
-        "SELECT kid, added_at, CASE WHEN added_by IN (SELECT id FROM users) THEN added_by ELSE NULL END, license_url, split_part(key_, ':', 2) FROM keys_old"
+        "SELECT kid, added_at, CASE WHEN added_by IN (SELECT id FROM users) THEN added_by ELSE NULL END, license_url, "
+        "SUBSTRING_INDEX(SUBSTRING_INDEX(key_, ':', -2), ':', 1) FROM keys_old"
     )
 
     # Drop the old table

@@ -27,7 +27,7 @@ from sqlite3 import DatabaseError
 
 import requests
 import validators as validationlib
-from dunamai import Style, Version
+from dunamai import Version
 from flask import (
     Flask,
     Request,
