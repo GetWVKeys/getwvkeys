@@ -45,6 +45,7 @@ OAUTH2_CLIENT_ID = CONFIG["oauth"]["client_id"]  # Discord OAuth Client ID
 OAUTH2_CLIENT_SECRET = CONFIG["oauth"]["client_secret"]  # Discord OAuth Client Secret
 OAUTH2_REDIRECT_URL = CONFIG["oauth"]["redirect_url"]  # Discord OAuth Callback URL
 SQLALCHEMY_DATABASE_URI = CONFIG["general"]["database_uri"]  # Database connection URI
+REDIS_URI = CONFIG["general"].get("redis_uri", None)  # Redis connection URI
 
 if SQLALCHEMY_DATABASE_URI.startswith("sqlite"):
     raise Exception("SQLite is not supported, please use a different database.")

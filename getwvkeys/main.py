@@ -60,7 +60,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from alembic import command
 from alembic.config import Config
 from getwvkeys import config, libraries
-from getwvkeys.models.Base import Base
+from getwvkeys.models.Shared import db
 
 # these need to be kept
 from getwvkeys.user import FlaskUser
@@ -71,7 +71,7 @@ app.config["SQLALCHEMY_DATABASE_URI"] = config.SQLALCHEMY_DATABASE_URI
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.secret_key = config.SECRET_KEY
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
-db = SQLAlchemy(app, model_class=Base)
+db.init_app(app)
 
 # Logger setup
 logger = construct_logger()

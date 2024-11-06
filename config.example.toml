@@ -13,6 +13,7 @@ login_disabled = false
 registration_disabled = false
 log_format = "[%(asctime)s] [%(name)s] [%(funcName)s:%(lineno)d] %(levelname)s: %(message)s"
 log_date_format = "%I:%M:%S"
+redis_uri = "redis://localhost:6379/0"
 
 [api]
 host = "0.0.0.0"
