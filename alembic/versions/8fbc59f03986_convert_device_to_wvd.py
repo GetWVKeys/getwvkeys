@@ -37,19 +37,24 @@ def upgrade() -> None:
         op.get_bind().execute(sa.text("SELECT code,client_id_blob_filename,device_private_key FROM devices")).fetchall()
     )
     for code, client_id, private_key in devices:
-        logger.info(f"Converting device {code} to WVD")
-        wvd = Device(
-            type_=DeviceTypes.ANDROID,
-            security_level=3,
-            flags=None,
-            private_key=base64.b64decode(private_key),
-            client_id=base64.b64decode(client_id),
-        )
+        try:
+            logger.info(f"Converting device {code} to WVD")
+            wvd = Device(
+                type_=DeviceTypes.ANDROID,
+                security_level=3,
+                flags=None,
+                private_key=base64.b64decode(private_key),
+                client_id=base64.b64decode(client_id),
+            )
 
-        wvd_b64 = base64.b64encode(wvd.dumps()).decode()
-        op.get_bind().execute(
-            sa.text("UPDATE devices SET wvd = :wvd WHERE code = :code"), {"wvd": wvd_b64, "code": code}
-        )
+            wvd_b64 = base64.b64encode(wvd.dumps()).decode()
+            op.get_bind().execute(
+                sa.text("UPDATE devices SET wvd = :wvd WHERE code = :code"), {"wvd": wvd_b64, "code": code}
+            )
+        except Exception as e:
+            logger.error(f"Failed to convert device {code} to WVD: {e}\nPK: {private_key}\nCID: {client_id}")
+            # remove the device from the database
+            op.get_bind().execute(sa.text("DELETE FROM devices WHERE code = :code"), {"code": code})
 
     # make the wvd column non-nullable
     op.alter_column("devices", "wvd", existing_type=sa.Text(), nullable=False)
