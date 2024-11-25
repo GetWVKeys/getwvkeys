@@ -101,6 +101,9 @@ class GetWVKeys:
             self.cache_key(cached_key)
 
     def cache_key(self, cached_key: CachedKey):
+        # do not add existing kid and key_ pairs
+        if KeyModel.query.filter_by(kid=cached_key.kid, key_=cached_key.key).first():
+            return
         k = KeyModel(
             kid=cached_key.kid,
             added_at=cached_key.added_at,
