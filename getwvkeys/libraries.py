@@ -74,7 +74,7 @@ common_privacy_cert = (
     "7gLwDS6NWYYQSqzE3Udf2W7pzk4ybyG4PHBYV3s4cyzdq8amvtE/sNSdOKReuHpfQ="
 )
 
-sessions: dict[tuple[str, str], Cdm] = dict()
+sessions: dict[str, Cdm] = dict()
 
 # increase max number of sessions
 Cdm.MAX_NUM_OF_SESSIONS = config.MAX_SESSIONS
@@ -222,7 +222,7 @@ class Pywidevine:
         if self.proxy and isinstance(self.proxy, str):
             self.proxy = {"http": self.proxy, "https": self.proxy}
         self.store_request = {}
-        self.session_id = bytes.fromhex(session_id) if session_id else None
+        self.session_id = session_id if session_id else None
         self.disable_privacy = disable_privacy
 
         try:
@@ -253,7 +253,7 @@ class Pywidevine:
             "license_url": self.license_url,
             "added_at": self.time,
             "keys": list(),
-            "session_id": self.session_id.hex(),
+            "session_id": self.session_id,
         }
         for key in self.content_keys:
             # s = urlsplit(self.license_url)
@@ -379,20 +379,21 @@ class Pywidevine:
 
         device = self.gwvk.get_device_by_code(self.device_code)
 
-        cdm = sessions.get((self.user_id, self.device_code))
+        cdm = sessions.get(self.session_id)
         if not cdm:
             device = Device.loads(device.wvd)
-            cdm = sessions[(self.user_id, self.device_code)] = Cdm.from_device(device)
+            cdm = Cdm.from_device(device)
 
         try:
-            self.session_id = cdm.open()
+            self.session_id = cdm.open().hex()
+            sessions[self.session_id] = cdm
         except TooManySessions as e:
             raise InternalServerError("Too many open sessions, please try again in a few minutes")
 
         privacy_mode = False
 
         if self.service_certificate:
-            cdm.set_service_certificate(session_id=self.session_id, certificate=self.service_certificate)
+            cdm.set_service_certificate(session_id=bytes.fromhex(self.session_id), certificate=self.service_certificate)
             privacy_mode = True
         # elif not self.disable_privacy:
         #     cdm.set_service_certificate(session_id=session_id, certificate=common_privacy_cert)
@@ -400,7 +401,10 @@ class Pywidevine:
 
         try:
             license_request = cdm.get_license_challenge(
-                session_id=self.session_id, pssh=self.pssh, license_type="STREAMING", privacy_mode=privacy_mode
+                session_id=bytes.fromhex(self.session_id),
+                pssh=self.pssh,
+                license_type="STREAMING",
+                privacy_mode=privacy_mode,
             )
         except InvalidInitData as e:
             logger.exception(e)
@@ -412,7 +416,7 @@ class Pywidevine:
         license_response = self.post_data(self.license_url, self.headers, license_request, self.proxy)
 
         try:
-            cdm.parse_license(session_id=self.session_id, license_message=license_response)
+            cdm.parse_license(session_id=bytes.fromhex(self.session_id), license_message=license_response)
         except InvalidLicenseMessage as e:
             logger.exception(e)
             raise BadRequest("Invalid license message")
@@ -424,7 +428,7 @@ class Pywidevine:
             raise BadRequest("Signature mismatch")
 
         try:
-            keys = cdm.get_keys(session_id=self.session_id, type_="CONTENT")
+            keys = cdm.get_keys(session_id=bytes.fromhex(self.session_id), type_="CONTENT")
         except ValueError as e:
             logger.exception(e)
             raise BadRequest("Failed to get keys")
@@ -435,7 +439,7 @@ class Pywidevine:
         # caching
         data = self._cache_keys()
         # close the session
-        cdm.close(session_id=self.session_id)
+        cdm.close(session_id=bytes.fromhex(self.session_id))
         if curl:
             return jsonify(data)
         return render_template("success.html", page_title="Success", results=data)
@@ -445,7 +449,7 @@ class Pywidevine:
         if not self.force:
             result = self.gwvk.search(self.pssh)
             if result and len(result) > 0:
-                cached = search_res_to_dict(self.kid, result)
+                cached = search_res_to_dict(self.pssh.key_ids[0].hex, result)
                 r = jsonify(cached)
                 r.headers.add_header("X-Cache", "HIT")
                 return r, 302
@@ -477,20 +481,23 @@ class Pywidevine:
             if len(sessions) > config.MAX_SESSIONS:
                 sessions.pop(next(iter(sessions)))
 
-            cdm = sessions.get((self.user_id, self.device_code))
+            cdm = sessions.get(self.session_id)
             if not cdm:
                 device = Device.loads(device.wvd)
-                cdm = sessions[(self.user_id, self.device_code)] = Cdm.from_device(device)
+                cdm = Cdm.from_device(device)
 
             try:
-                self.session_id = cdm.open()
+                self.session_id = cdm.open().hex()
+                sessions[self.session_id] = cdm
             except TooManySessions as e:
                 raise InternalServerError("Too many open sessions, please try again in a few minutes")
 
             privacy_mode = False
 
             if self.service_certificate:
-                cdm.set_service_certificate(session_id=self.session_id, certificate=self.service_certificate)
+                cdm.set_service_certificate(
+                    session_id=bytes.fromhex(self.session_id), certificate=self.service_certificate
+                )
                 privacy_mode = True
             # elif not self.disable_privacy:
             #     cdm.set_service_certificate(session_id=session_id, certificate=common_privacy_cert)
@@ -498,7 +505,10 @@ class Pywidevine:
 
             try:
                 license_request = cdm.get_license_challenge(
-                    session_id=self.session_id, pssh=self.pssh, license_type="STREAMING", privacy_mode=privacy_mode
+                    session_id=bytes.fromhex(self.session_id),
+                    pssh=self.pssh,
+                    license_type="STREAMING",
+                    privacy_mode=privacy_mode,
                 )
             except InvalidInitData as e:
                 logger.exception(e)
@@ -507,9 +517,7 @@ class Pywidevine:
                 logger.exception(e)
                 raise BadRequest("Invalid license type")
 
-            return jsonify(
-                {"challenge": base64.b64encode(license_request).decode(), "session_id": self.session_id.hex()}
-            )
+            return jsonify({"challenge": base64.b64encode(license_request).decode(), "session_id": self.session_id})
 
         # TODO: I dont remember what this shit was for?
         # if is_custom_device_key(self.device_code):
@@ -521,12 +529,12 @@ class Pywidevine:
         # license parsing
 
         # get session
-        cdm = sessions.get((self.user_id, self.device_code))
+        cdm = sessions.get(self.session_id)
         if not cdm:
             raise BadRequest("Session not found, did you generate a challenge first?")
 
         try:
-            cdm.parse_license(session_id=self.session_id, license_message=self.license_response)
+            cdm.parse_license(session_id=bytes.fromhex(self.session_id), license_message=self.license_response)
         except InvalidLicenseMessage as e:
             logger.exception(e)
             raise BadRequest("Invalid license message")
@@ -538,7 +546,7 @@ class Pywidevine:
             raise BadRequest("Signature mismatch")
 
         try:
-            keys = cdm.get_keys(session_id=self.session_id, type_="CONTENT")
+            keys = cdm.get_keys(session_id=bytes.fromhex(self.session_id), type_="CONTENT")
         except ValueError as e:
             logger.exception(e)
             raise BadRequest("Failed to get keys")
@@ -549,7 +557,7 @@ class Pywidevine:
         # caching
         output = self._cache_keys()
         # close the session
-        cdm.close(session_id=self.session_id)
+        cdm.close(session_id=bytes.fromhex(self.session_id))
         return jsonify(output)
 
     # def vinetrimmer(self, library: Library):
