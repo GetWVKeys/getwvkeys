@@ -15,9 +15,11 @@
   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  -->
 
-{% extends "base.html" %} {% block title %}Search{% endblock %} {% block js %}
-<script defer src="{{url_for('static', filename='search.js')}}"></script>
-{% endblock %} {% block content %}
+{% extends "base.html" %}
+<!-- -->
+{% block title %}Search{% endblock %}
+<!-- -->
+{% block content %}
 <section class="wdvn-request">
     <header>
         <h1 class="section-title">Send Widevine Request</h1>
@@ -42,11 +44,15 @@
     <div class="info-container">
         <div class="keycount-wrapper">
             <span>Total key count: </span>
-            <span id="keycount">Loading... </span>
+            <span id="keycount">{{keyCount}}</span>
         </div>
-        <div class="result-container" id="demo">
+        <div class="result-container" id="container-text">
             <pre>Send a request to see the result.</pre>
         </div>
     </div>
 </section>
+{% endblock %}
+<!-- -->
+{% block js %}
+<script defer src="{{url_for('static', filename='search.js')}}"></script>
 {% endblock %}

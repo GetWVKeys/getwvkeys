@@ -28,24 +28,9 @@ function handleFormSubmit(event) {
     server_request();
 }
 
-async function keycount() {
-    async function key_count() {
-        const apiKey = getCookie("api_key");
-        const response = await fetch("/count", {
-            method: "GET",
-            headers: {
-                "X-API-Key": apiKey,
-            },
-        });
-        return await response.text();
-    }
-    const key_count_value = await key_count();
-    document.getElementById("keycount").innerText = key_count_value;
-}
-
 async function server_request() {
     async function server_request_data() {
-        document.getElementById("demo").innerHTML = "Searching the database";
+        document.getElementById("container-text").innerHTML = "Searching the database";
 
         const apiKey = getCookie("api_key");
         const response = await fetch("/search", {
@@ -59,7 +44,7 @@ async function server_request() {
         return await response.json();
     }
     const response = await server_request_data();
-    setInnerHTML(document.getElementById("demo"), response);
+    setInnerHTML(document.getElementById("container-text"), response);
 
     formButton.disabled = false;
     formButton.value = "Send";
@@ -115,4 +100,4 @@ const formButton = mainForm.querySelector('input[type="submit"]');
 
 mainForm.addEventListener("submit", handleFormSubmit);
 
-keycount();
+updateKeyCount();

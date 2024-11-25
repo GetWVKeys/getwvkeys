@@ -21,11 +21,14 @@ import logging.handlers
 import re
 from enum import Enum
 from typing import Union
+from urllib.parse import urlsplit
 
 from cerberus import Validator
 from coloredlogs import ColoredFormatter
 
 from getwvkeys import config
+from getwvkeys.formats import wv_proto2_pb2
+from getwvkeys.models.Key import Key as KeyModel
 from getwvkeys.pssh_utils import parse_pssh
 
 
@@ -45,10 +48,11 @@ class OPCode(Enum):
 class UserFlags(Enum):
     ADMIN = 1 << 0
     BETA_TESTER = 1 << 1
-    VINETRIMMER = 1 << 2
+    DEVINE = 1 << 2
     KEY_ADDING = 1 << 3
     SUSPENDED = 1 << 4
     BLACKLIST_EXEMPT = 1 << 5
+    SYSTEM = 1 << 6
 
 
 class FlagAction(Enum):
@@ -143,34 +147,34 @@ def extract_kid_from_pssh(pssh: str):
         raise e
 
 
-class Validators:
-    def __init__(self) -> None:
-        self.vinetrimmer_schema = {
-            "method": {"required": True, "type": "string", "allowed": ["GetKeysX", "GetKeys", "GetChallenge"]},
-            "params": {"required": False, "type": "dict"},
-            "token": {"required": True, "type": "string"},
-        }
-        self.key_exchange_schema = {
-            "cdmkeyresponse": {"required": True, "type": ["string", "binary"]},
-            "encryptionkeyid": {"required": True, "type": ["string", "binary"]},
-            "hmackeyid": {"required": True, "type": ["string", "binary"]},
-            "session_id": {"required": True, "type": "string"},
-        }
-        self.keys_schema = {
-            "cdmkeyresponse": {"required": True, "type": ["string", "binary"]},
-            "session_id": {"required": True, "type": "string"},
-        }
-        self.challenge_schema = {
-            "init": {"required": True, "type": "string"},
-            "cert": {"required": True, "type": "string"},
-            "raw": {"required": True, "type": "boolean"},
-            "licensetype": {"required": True, "type": "string", "allowed": ["OFFLINE", "STREAMING"]},
-            "device": {"required": True, "type": "string"},
-        }
-        self.vinetrimmer_validator = Validator(self.vinetrimmer_schema)
-        self.key_exchange_validator = Validator(self.key_exchange_schema)
-        self.keys_validator = Validator(self.keys_schema)
-        self.challenge_validator = Validator(self.challenge_schema)
+# class Validators:
+#     def __init__(self) -> None:
+#         self.vinetrimmer_schema = {
+#             "method": {"required": True, "type": "string", "allowed": ["GetKeysX", "GetKeys", "GetChallenge"]},
+#             "params": {"required": False, "type": "dict"},
+#             "token": {"required": True, "type": "string"},
+#         }
+#         self.key_exchange_schema = {
+#             "cdmkeyresponse": {"required": True, "type": ["string", "binary"]},
+#             "encryptionkeyid": {"required": True, "type": ["string", "binary"]},
+#             "hmackeyid": {"required": True, "type": ["string", "binary"]},
+#             "session_id": {"required": True, "type": "string"},
+#         }
+#         self.keys_schema = {
+#             "cdmkeyresponse": {"required": True, "type": ["string", "binary"]},
+#             "session_id": {"required": True, "type": "string"},
+#         }
+#         self.challenge_schema = {
+#             "init": {"required": True, "type": "string"},
+#             "cert": {"required": True, "type": "string"},
+#             "raw": {"required": True, "type": "boolean"},
+#             "licensetype": {"required": True, "type": "string", "allowed": ["OFFLINE", "STREAMING"]},
+#             "device": {"required": True, "type": "string"},
+#         }
+#         self.vinetrimmer_validator = Validator(self.vinetrimmer_schema)
+#         self.key_exchange_validator = Validator(self.key_exchange_schema)
+#         self.keys_validator = Validator(self.keys_schema)
+#         self.challenge_validator = Validator(self.challenge_schema)
 
 
 class Bitfield:
@@ -217,7 +221,7 @@ class Blacklist:
     def __init__(self) -> None:
         self.blacklist: list[BlacklistEntry] = list()
 
-        for x in config.DEFAULT_BLACKLISTED_URLS:
+        for x in config.URL_BLACKLIST:
             self.blacklist.append(BlacklistEntry(x))
 
     def is_url_blacklisted(self, url: str):
@@ -225,3 +229,31 @@ class Blacklist:
             if entry.matches(url):
                 return True
         return False
+
+
+def get_blob_id(blob):
+    blob_ = base64.b64decode(blob)
+    ci = wv_proto2_pb2.ClientIdentification()
+    ci.ParseFromString(blob_)
+    return str(ci.ClientInfo[5]).split("Value: ")[1].replace("\n", "").replace('"', "")
+
+
+def search_res_to_dict(kid: str, keys: list[KeyModel]) -> dict:
+    """
+    Converts a list of Keys from search method to a list of dicts
+    """
+    results = {"kid": kid, "keys": list()}
+    for key in keys:
+        license_url = key.license_url
+        if license_url:
+            s = urlsplit(key.license_url)
+            license_url = "{}://{}".format(s.scheme, s.netloc)
+        results["keys"].append(
+            {
+                "added_at": key.added_at,
+                # We shouldnt return the license url as that could have sensitive information it in still
+                "license_url": license_url,
+                "key": key.key_,
+            }
+        )
+    return results

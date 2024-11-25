@@ -15,7 +15,11 @@
   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  -->
 
-{% extends "base.html" %} {% block title %}API Request{% endblock %} {% block content %}
+{% extends "base.html" %}
+<!-- -->
+{% block title %}API Request{% endblock %}
+<!-- -->
+{% block content %}
 <section class="api-request">
     <header>
         <h1 class="section-title">Send API Request</h1>
@@ -23,74 +27,58 @@
     <div class="requests-container">
         <div class="request-item">
             <h2>Curl</h2>
-            <pre>
-        <code>
-          curl -L -X POST "https://getwvkeys.cc/api" \
-          -H "X-API-Key: {{current_user.api_key if current_user.api_key else "YOUR API KEY HERE" }}" \
-          -H "Content-Type: application/json" \
-          -d "{
-              \"license_url\": \"https://cwip-shaka-proxy.appspot.com/no_auth\",
-              \"pssh\": \"AAAAp3Bzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAAIcSEFF0U4YtQlb9i61PWEIgBNcSEPCTfpp3yFXwptQ4ZMXZ82USEE1LDKJawVjwucGYPFF+4rUSEJAqBRprNlaurBkm/A9dkjISECZHD0KW1F0Eqbq7RC4WmAAaDXdpZGV2aW5lX3Rlc3QiFnNoYWthX2NlYzViZmY1ZGM0MGRkYzlI49yVmwY=\",
-              \"cache\": false
-          }"
-        </code>
-      </pre>
+            <pre class="codeblock"><code>curl -L -X POST "https://getwvkeys.cc/api" \
+-H "X-API-Key: {{current_user.api_key if current_user.api_key else "YOUR API KEY HERE" }}" \
+-H "Content-Type: application/json" \
+-d "{
+    \"license_url\": \"https://cwip-shaka-proxy.appspot.com/no_auth\",
+    \"pssh\": \"AAAAp3Bzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAAIcSEFF0U4YtQlb9i61PWEIgBNcSEPCTfpp3yFXwptQ4ZMXZ82USEE1LDKJawVjwucGYPFF+4rUSEJAqBRprNlaurBkm/A9dkjISECZHD0KW1F0Eqbq7RC4WmAAaDXdpZGV2aW5lX3Rlc3QiFnNoYWthX2NlYzViZmY1ZGM0MGRkYzlI49yVmwY=\",
+    \"cache\": false
+}"</code></pre>
         </div>
         <div class="request-item">
             <h2>Python</h2>
-            <pre>
-        <code>
-          import requests
+            <pre class="codeblock"><code>import requests
 
-          api_url = "https://getwvkeys.cc/api"
-          license_url = "https://cwip-shaka-proxy.appspot.com/no_auth"
-          pssh = "AAAAp3Bzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAAIcSEFF0U4YtQlb9i61PWEIgBNcSEPCTfpp3yFXwptQ4ZMXZ82USEE1LDKJawVjwucGYPFF+4rUSEJAqBRprNlaurBkm/A9dkjISECZHD0KW1F0Eqbq7RC4WmAAaDXdpZGV2aW5lX3Rlc3QiFnNoYWthX2NlYzViZmY1ZGM0MGRkYzlI49yVmwY="
-          headers = {
-              "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (Ktesttemp, like Gecko) Chrome/90.0.4430.85 Safari/537.36",
-              "Content-Type": "application/json",
-              "X-API-Key": '{{ current_user.api_key if current_user.api_key else "YOUR API KEY HERE" }}',
-          }
-          payload = {
-              "license_url": license_url,
-              "pssh": pssh,
-          }
-          r = requests.post(api_url, headers=headers, json=payload).text
-          print(r)
-        </code>
-      </pre>
+api_url = "https://getwvkeys.cc/api"
+license_url = "https://cwip-shaka-proxy.appspot.com/no_auth"
+pssh = "AAAAp3Bzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAAIcSEFF0U4YtQlb9i61PWEIgBNcSEPCTfpp3yFXwptQ4ZMXZ82USEE1LDKJawVjwucGYPFF+4rUSEJAqBRprNlaurBkm/A9dkjISECZHD0KW1F0Eqbq7RC4WmAAaDXdpZGV2aW5lX3Rlc3QiFnNoYWthX2NlYzViZmY1ZGM0MGRkYzlI49yVmwY="
+headers = {
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (Ktesttemp, like Gecko) Chrome/90.0.4430.85 Safari/537.36",
+    "Content-Type": "application/json",
+    "X-API-Key": '{{ current_user.api_key if current_user.api_key else "YOUR API KEY HERE" }}',
+}
+payload = {
+    "license_url": license_url,
+    "pssh": pssh,
+}
+r = requests.post(api_url, headers=headers, json=payload).text
+print(r)</code></pre>
         </div>
         <div class="request-item">
             <h2>JSON Payload</h2>
-            <pre>
-        <code>
-          {
-            "license_url": "https://cwip-shaka-proxy.appspot.com/no_auth",
-            "pssh": "AAAAp3Bzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAAIcSEFF0U4YtQlb9i61PWEIgBNcSEPCTfpp3yFXwptQ4ZMXZ82USEE1LDKJawVjwucGYPFF+4rUSEJAqBRprNlaurBkm/A9dkjISECZHD0KW1F0Eqbq7RC4WmAAaDXdpZGV2aW5lX3Rlc3QiFnNoYWthX2NlYzViZmY1ZGM0MGRkYzlI49yVmwY=",
-            "proxy": "",
-            "buildinfo": "",
-            "cache": true
-          }
-        </code>
-      </pre>
+            <pre class="codeblock"><code>{
+  "license_url": "https://cwip-shaka-proxy.appspot.com/no_auth",
+  "pssh": "AAAAp3Bzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAAIcSEFF0U4YtQlb9i61PWEIgBNcSEPCTfpp3yFXwptQ4ZMXZ82USEE1LDKJawVjwucGYPFF+4rUSEJAqBRprNlaurBkm/A9dkjISECZHD0KW1F0Eqbq7RC4WmAAaDXdpZGV2aW5lX3Rlc3QiFnNoYWthX2NlYzViZmY1ZGM0MGRkYzlI49yVmwY=",
+  "proxy": "",
+  "device_code": "",
+  "cache": true
+}</code></pre>
         </div>
         <div class="request-item">
             <h2>JSON Response</h2>
-            <pre>
-        <code>
-          {
-            "added_at": 1656267215,
-            "keys": [
-                "902a051a6b3656aeac1926fc0f5d9232:7a13acb8d7cf12fdfaecea19c96edc4e",
-                "4d4b0ca25ac158f0b9c1983c517ee2b5:41954cca5a98b00ad05db8bbf2330fee",
-                "f0937e9a77c855f0a6d43864c5d9f365:d041141f4e556079a89c685a6ca50f4a",
-                "517453862d4256fd8bad4f58422004d7:5b4b848eac0855d79165d05f3cf16d56",
-                "26470f4296d45d04a9babb442e169800:a38e1ade8a367b7f6fd0427126902c19"
-            ],
-            "kid": "517453862d4256fd8bad4f58422004d7",
-            "license_url": "https://cwip-shaka-proxy.appspot.com/no_auth"
-        }
-        </code>
-      </pre>
+            <pre class="codeblock"><code>{
+  "added_at": 1656267215,
+  "keys": [
+      "902a051a6b3656aeac1926fc0f5d9232:7a13acb8d7cf12fdfaecea19c96edc4e",
+      "4d4b0ca25ac158f0b9c1983c517ee2b5:41954cca5a98b00ad05db8bbf2330fee",
+      "f0937e9a77c855f0a6d43864c5d9f365:d041141f4e556079a89c685a6ca50f4a",
+      "517453862d4256fd8bad4f58422004d7:5b4b848eac0855d79165d05f3cf16d56",
+      "26470f4296d45d04a9babb442e169800:a38e1ade8a367b7f6fd0427126902c19"
+  ],
+  "kid": "517453862d4256fd8bad4f58422004d7",
+  "license_url": "https://cwip-shaka-proxy.appspot.com/no_auth"
+}</code></pre>
         </div>
     </div>
 </section>

@@ -1,0 +1,45 @@
+[general]
+# Auto generated on first run if empty
+secret_key = ""
+database_uri = "mysql+mysqlconnector://user:password@host/database"
+max_sessions = 60
+# List of device keys that are used in rotation
+default_devices = ["device code"]
+# List of devices that should use the blacklist, these are considered to be GetWVKeys System keys.
+system_devices = ["device code"]
+guild_id = ""
+verified_role_id = ""
+login_disabled = false
+registration_disabled = false
+log_format = "[%(asctime)s] [%(name)s] [%(funcName)s:%(lineno)d] %(levelname)s: %(message)s"
+log_date_format = "%I:%M:%S"
+redis_uri = "redis://localhost:6379/0"
+
+[api]
+host = "0.0.0.0"
+port = 8080
+base_url = "http://localhost:8080"
+
+###
+# OAuth2 Configuration
+###
+[oauth]
+# Discord OAuth Client ID
+client_id = ""
+# Discord OAuth Client Secret
+client_secret = ""
+# Discord OAuth Redirect URI
+redirect_url = ""
+
+[[url_blacklist]]
+url = ".*my\\.awesome\\.site\\.com.*"
+partial = true
+
+[[url_blacklist]]
+url = "https://example.com/some_page_to_block"
+partial = false
+
+[[external_build_info]]
+code = "device_code"
+url = "https://example.com/api"
+token = "s3cr$t"

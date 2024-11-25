@@ -15,7 +15,11 @@
   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  -->
 
-{% extends "base.html" %} {% block title %}Home{% endblock %} {% block content %}
+{% extends "base.html" %}
+<!-- -->
+{% block title %}Home{% endblock %}
+<!-- -->
+{% block content %}
 <section class="wdvn-request">
     <header>
         <h1 class="section-title">Send Widevine Request</h1>
@@ -49,17 +53,17 @@
             <div class="form-item">
                 <span>Headers:</span>
                 <div class="form-item-items">
-                    <textarea data-lpignore="true" rows="4" cols="64" id="headers" name="headers">
-User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:106.0) Gecko/20100101 Firefox/106.0</textarea
-                    >
+                    <textarea data-lpignore="true" rows="4" cols="64" id="headers" name="headers"></textarea>
                     <label for="headers">Headers that are sent to the license server.</label>
                 </div>
             </div>
             <div class="form-item">
-                <span>Build Info:</span>
+                <span>Device Code:</span>
                 <div class="form-item-items">
-                    <input data-lpignore="true" type="text" id="buildInfo" name="buildInfo" value="" />
-                    <label for="buildInfo">Build Info to use. Leave blank unless you know what you're doing.</label>
+                    <input data-lpignore="true" type="text" id="deviceCode" name="deviceCode" value="" />
+                    <label for="deviceCode"
+                        >Code of device to use. Leave blank unless you know what you're doing.</label
+                    >
                 </div>
             </div>
             <div class="form-item">
@@ -82,12 +86,15 @@ User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:106.0) Gecko/20100101 F
     <div class="info-container">
         <div class="keycount-wrapper">
             <span>Total key count: </span>
-            <span id="keycount">Loading... </span>
+            <span id="keycount">{{keyCount}}</span>
         </div>
-        <div class="result-container" id="demo">
+        <div class="result-container" id="container-text">
             <pre>Send a request to see the result.</pre>
         </div>
     </div>
-
 </section>
+{% endblock %}
+<!-- -->
+{% block js %}
+<script defer src="{{url_for('static', filename='main.js')}}"></script>
 {% endblock %}

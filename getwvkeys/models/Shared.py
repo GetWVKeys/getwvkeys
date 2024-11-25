@@ -17,4 +17,6 @@
 
 from flask_sqlalchemy import SQLAlchemy
 
-db = SQLAlchemy()
+from getwvkeys.models.Base import Base
+
+db = SQLAlchemy(model_class=Base)
