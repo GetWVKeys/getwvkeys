@@ -447,7 +447,7 @@ def vault():
     password = request.args.get("password")
     kid = request.args.get("kid")
     key = request.args.get("key")
-    user = libraries.User.get_user_by_api_key(db, password)
+    user = FlaskUser.get_user_by_api_key(db, password)
 
     if not user:
         return jsonify({"status_code": 401, "message": "Invalid API Key"})
@@ -459,8 +459,8 @@ def vault():
         return jsonify({"status_code": 403, "message": "Invalid Kid Length"})
 
     if not key:
-        data = library.search(kid)
-        data = library.search_res_to_dict(kid, data)
+        data = gwvk.search(kid)
+        data = search_res_to_dict(kid, data)
         data["status_code"] = 200
         for keys in data["keys"]:
             k = keys["key"].split(":")
@@ -470,7 +470,7 @@ def vault():
         return jsonify(data)
     else:
         keys = [{"key": f"{kid}:{key}", "license_url": f"https://{service}/"}]
-        library.add_keys(keys=keys, user_id=current_user.id)
+        gwvk.add_keys(keys=keys, user_id=current_user.id)
         return jsonify({"message": "added in database.", "inserted": True, "status_code": 200})
 
 
