@@ -118,7 +118,7 @@ class GetWVKeys:
         return KeyModel().query.count()
 
     def search(self, query: PSSH | str) -> list:
-        if isinstance(query, PSSH):
+        if isinstance(query, PSSH) and len(query.key_ids) > 0:
             query = query.key_ids[0].hex
         elif query.startswith("AAAA"):
             # Try to parse the query as a PSSH and extract a KID
