@@ -41,6 +41,7 @@ from flask import (
     send_from_directory,
     session,
 )
+from flask_caching import Cache
 from flask_login import LoginManager, current_user, login_user, logout_user
 from flask_sqlalchemy import SQLAlchemy
 from oauthlib.oauth2 import WebApplicationClient
@@ -89,12 +90,6 @@ website_version = Version.from_git().serialize(
 # create library instance
 gwvk = libraries.GetWVKeys(db)
 
-# create validators instance
-# validators = Validators()
-
-# initialize blacklist class
-blacklist = Blacklist()
-
 # initialize redis instance
 if not config.IS_STAGING and config.REDIS_URI is not None:
     # TODO: currently staging can reply which is unintended, but ignoring stuff like disabling users might not be ideal
@@ -105,6 +100,14 @@ else:
     logger.warning("Redis is disabled, IPC will not work")
     app.config["CACHE_TYPE"] = "simple"
     app.config["CACHE_DEFAULT_TIMEOUT"] = 300
+
+# create validators instance
+# validators = Validators()
+
+# initialize blacklist class
+blacklist = Blacklist()
+
+cache = Cache(app)
 
 
 # Utilities
@@ -245,6 +248,7 @@ def downloadfile(file):
 
 
 @app.route("/count")
+@cache.cached(timeout=300)
 def count():
     return str(gwvk.get_keycount())
 

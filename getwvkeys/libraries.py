@@ -20,7 +20,6 @@ import json
 import logging
 import secrets
 import time
-from typing import Dict, Union
 
 import requests
 import yaml
@@ -37,6 +36,7 @@ from pywidevine.exceptions import (
     TooManySessions,
 )
 from requests.exceptions import ProxyError
+from sqlalchemy import func
 from werkzeug.exceptions import (
     BadRequest,
     InternalServerError,
@@ -115,7 +115,8 @@ class GetWVKeys:
         self.db.session.commit()
 
     def get_keycount(self) -> int:
-        return KeyModel().query.count()
+        return self.db.session.query(func.count(KeyModel.kid)).scalar()
+        # return KeyModel().query.count()
 
     def search(self, query: PSSH | str) -> list:
         if isinstance(query, PSSH) and len(query.key_ids) > 0:
