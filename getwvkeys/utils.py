@@ -253,7 +253,7 @@ def search_res_to_dict(kid: str, keys: list[KeyModel]) -> dict:
                 "added_at": key.added_at,
                 # We shouldnt return the license url as that could have sensitive information it in still
                 "license_url": license_url,
-                "key": key.key_,
+                "key": "{}:{}".format(key.kid, key.key_),
             }
         )
     return results
