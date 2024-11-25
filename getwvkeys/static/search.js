@@ -99,5 +99,3 @@ const mainForm = document.querySelector(".form-container>form");
 const formButton = mainForm.querySelector('input[type="submit"]');
 
 mainForm.addEventListener("submit", handleFormSubmit);
-
-updateKeyCount();
