@@ -262,7 +262,8 @@ class Pywidevine:
         for key in self.content_keys:
             # s = urlsplit(self.license_url)
             # license_url = "{}//{}".format(s.scheme, s.netloc)
-            results["keys"].append(key.key)
+            # results["keys"].append(key.key) # the people spoke, they dont like this
+            results["keys"].append("{}:{}".format(key.kid, key.key))
 
         return results
 
