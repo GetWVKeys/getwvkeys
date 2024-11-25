@@ -129,7 +129,7 @@ class GetWVKeys:
         if license_request["cache"] == True:
             if __name__ == "__main__":
                 print("\n" * 5)
-                print("[+] Keys:")
+                print("[+] Keys (Cached):")
                 keys = license_request["keys"]
                 for k in keys:
                     print("--key {}".format(k["key"]))
