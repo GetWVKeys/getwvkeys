@@ -21,11 +21,11 @@ import redis
 
 from getwvkeys import config, libraries
 from getwvkeys.models.Shared import db
-from getwvkeys.utils import OPCode
+from getwvkeys.utils import OPCode, search_res_to_dict
 
 
 class Redis:
-    def __init__(self, app, library: libraries.Library) -> None:
+    def __init__(self, app, library: libraries.GetWVKeys) -> None:
         self.app = app
         self.library = library
         self.redis = redis.Redis.from_url(config.REDIS_URI, decode_responses=True, encoding="utf8")
@@ -101,9 +101,10 @@ class Redis:
                 with self.app.app_context():
                     try:
                         results = self.library.search(query)
-                        results = self.library.search_res_to_dict(query, results)
+                        results = search_res_to_dict(query, results)
                         self.publish_response(reply_to, results)
                     except Exception as e:
+                        print(e)
                         self.publish_error(reply_to, "Error searching: {}".format(e))
             elif op == OPCode.UPDATE_PERMISSIONS.value:
                 user_id = d.get("user_id")

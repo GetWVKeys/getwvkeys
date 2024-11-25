@@ -61,6 +61,7 @@ from alembic import command
 from alembic.config import Config
 from getwvkeys import config, libraries
 from getwvkeys.models.Shared import db
+from getwvkeys.redis import Redis
 
 # these need to be kept
 from getwvkeys.user import FlaskUser
@@ -93,6 +94,17 @@ gwvk = libraries.GetWVKeys(db)
 
 # initialize blacklist class
 blacklist = Blacklist()
+
+# initialize redis instance
+if not config.IS_STAGING and config.REDIS_URI is not None:
+    # TODO: currently staging can reply which is unintended, but ignoring stuff like disabling users might not be ideal
+    redis = Redis(app, gwvk)
+    app.config["CACHE_TYPE"] = "redis"
+    app.config["CACHE_REDIS_URL"] = config.REDIS_URI
+else:
+    logger.warning("Redis is disabled, IPC will not work")
+    app.config["CACHE_TYPE"] = "simple"
+    app.config["CACHE_DEFAULT_TIMEOUT"] = 300
 
 
 # Utilities
