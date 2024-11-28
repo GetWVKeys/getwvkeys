@@ -29,6 +29,7 @@ mariadb = "^1.1.10"
 sqlalchemy = ">=2.0.16"
 waitress = "^3.0.0"
 flask-caching = "^2.3.0"
+toml = "^0.10.2"
 
 [tool.poetry.dev-dependencies]
 black = "^22.3.0"

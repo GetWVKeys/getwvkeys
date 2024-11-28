@@ -139,4 +139,7 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-config.py
+#config.py
+devices/
+util_scripts
+*.toml
