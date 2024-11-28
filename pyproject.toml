@@ -4,7 +4,7 @@ version = "0.1.1"
 description = "Widevine License Proxy"
 authors = [
     "notaghost <65109659+Notaghost9997@users.noreply.github.com>",
-    "Puyodead1 <14828766+Puyodead1@users.noreply.github.com>"
+    "Puyodead1 <14828766+Puyodead1@users.noreply.github.com>",
 ]
 license = "AGPL-3.0-only"
 
@@ -25,7 +25,6 @@ Flask-SQLAlchemy = ">=3.1.1"
 gunicorn = "^20.1.0"
 redis = "^4.4.4"
 validators = "^0.20.0"
-mariadb = "^1.1.10"
 sqlalchemy = ">=2.0.16"
 waitress = "^3.0.0"
 flask-caching = "^2.3.0"
@@ -45,3 +44,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.isort]
 profile = "black"
+
+[tool.poetry.extras]
+mysql = ["mysql-connector-python"]
+mariadb = ["mariadb"]
