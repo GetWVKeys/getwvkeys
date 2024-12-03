@@ -18,7 +18,7 @@
 {% extends "base.html" %} {% block title %}Home{% endblock %} {% block content %}
 <section class="wdvn-request">
     <header>
-        <h1 class="section-title">Send Widevine Request</h1>
+        <h1 class="section-title">Send DRM Request</h1>
     </header>
     <div class="form-container">
         <form>
@@ -73,7 +73,14 @@ User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:106.0) Gecko/20100101 F
                 <span>Force:</span>
                 <div class="form-item-items">
                     <input type="checkbox" id="force" name="force" />
-                    <label for="force">Force</label>
+                    <label for="force">Force the request</label>
+                </div>
+            </div>
+            <div class="form-item downgrade-item">
+                <span>Downgrade:</span>
+                <div class="form-item-items">
+                    <input type="checkbox" id="downgrade" name="downgrade" />
+                    <label for="downgrade">Playready Only</label>
                 </div>
             </div>
             <input type="submit" value="Send" />
@@ -88,6 +95,5 @@ User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:106.0) Gecko/20100101 F
             <pre>Send a request to see the result.</pre>
         </div>
     </div>
-
 </section>
 {% endblock %}

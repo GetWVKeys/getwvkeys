@@ -15,21 +15,20 @@
   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  -->
 
-{% extends "base.html" %} {% block title %}Scripts{% endblock %} {% block content %}
-<section class="scripts">
+{% extends "base.html" %} {% block title %}Upload PRD{% endblock %} {% block content %}
+<section class="upload">
     <header>
-        <h1 class="section-title">Scripts</h1>
+        <h1 class="section-title">Upload your own PRD and use it with API and requests</h1>
     </header>
-    <div class="scripts-list">
-        <ul>
-            {%for script_name in script_names%}
-            <li><a class="link" href="/scripts/{{script_name}}"> {{script_name}} </a></li>
-            {%endfor%}
-        </ul>
-    </div>
-
-    <div class="scripts-footer">
-        <i>Looking for something else? Try looking in the #scripts channel in our Discord server.</i>
+    <div class="upload-container">
+        <form action="/upload/prd" method="POST" enctype="multipart/form-data">
+            <div class="upload-form-item">
+                <label for="prd">PRD:</label>
+                <input type="file" name="prd" id="prd" accept=".prd" />
+            </div>
+            <input type="submit" value="Submit" />
+            <input type="hidden" name="X-API-Key" value="{{ current_user.api_key }}" />
+        </form>
     </div>
 </section>
 {% endblock %}

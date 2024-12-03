@@ -15,21 +15,12 @@
   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  -->
 
-{% extends "base.html" %} {% block title %}Scripts{% endblock %} {% block content %}
-<section class="scripts">
-    <header>
-        <h1 class="section-title">Scripts</h1>
-    </header>
-    <div class="scripts-list">
-        <ul>
-            {%for script_name in script_names%}
-            <li><a class="link" href="/scripts/{{script_name}}"> {{script_name}} </a></li>
-            {%endfor%}
-        </ul>
-    </div>
-
-    <div class="scripts-footer">
-        <i>Looking for something else? Try looking in the #scripts channel in our Discord server.</i>
-    </div>
-</section>
+{% extends "base.html" %} {% block title %}Upload Complete{% endblock %} {% block content %}
+<h1 class="section-title">UPDATED</h1>
+<br />
+<p style="text-align: center">You can use this code with Build Info to change the PRD now.</p>
+<br />
+<h1 class="section-title">{{buildinfo}}</h1>
+<br />
+<img src="https://i.imgur.com/aIpIbJj.png" alt="Italian Trulli" />
 {% endblock %}

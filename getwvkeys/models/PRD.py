@@ -15,8 +15,25 @@
  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import Column, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import relationship
 
 from getwvkeys.models.Base import Base
+from getwvkeys.models.UserPRD import user_prd_association
 
-db = SQLAlchemy(model_class=Base)
+
+class PRD(Base):
+    __tablename__ = "prds"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    hash = Column(String(255), unique=True, nullable=False)
+    prd = Column(Text, nullable=False)
+    uploaded_by = Column(String(255), ForeignKey("users.id"), nullable=False)
+    users = relationship("User", secondary=user_prd_association, back_populates="prds")
+
+    def to_json(self):
+        return {
+            "id": self.id,
+            "prd": self.prd,
+            "uploaded_by": self.uploaded_by,
+            "hash": self.hash,
+        }

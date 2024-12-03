@@ -51,6 +51,7 @@ API_URL = CONFIG.get("api", {}).get("base_url", "https://getwvkeys.cc")
 MAX_SESSIONS = CONFIG["general"].get("max_sessions", 60)
 PROXY = {}
 DEFAULT_CDMS = CONFIG["general"].get("default_cdms", [])  # list of build infos to use in key rotation
+DEFAULT_PRDS = CONFIG["general"].get("default_prds", [])  # list of PRDs used in key rotation
 APPENDERS = []  # passwords for dumping keys, deprecated in favor of flags
 GUILD_ID = CONFIG["general"]["guild_id"]  # Discord Guild ID
 VERIFIED_ROLE_ID = CONFIG["general"]["verified_role_id"]  # Discord Verified role ID
@@ -67,3 +68,4 @@ URL_BLACKLIST = CONFIG.get("url_blacklist", [])
 EXTERNAL_API_BUILD_INFOS = CONFIG.get("external_build_info", [])
 # List of CDMs that should use the blacklist, these are considered to be GetWVKeys System CDMs.
 SYSTEM_CDMS = CONFIG["general"].get("system_cdms", [])
+SYSTEM_PRDS = CONFIG["general"].get("system_prds", [])

@@ -15,20 +15,20 @@
  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from sqlalchemy import ForeignKey
+from sqlalchemy import Column, ForeignKey, Integer, String, Text
 
-from getwvkeys.models.Shared import db
+from getwvkeys.models.Base import Base
 
 
-class CDM(db.Model):
+class CDM(Base):
     __tablename__ = "cdms"
-    id = db.Column(db.Integer, primary_key=True, nullable=False, autoincrement=True)
-    session_id_type = db.Column(db.String(255), nullable=False, default="android")
-    security_level = db.Column(db.Integer, nullable=False, default=3)
-    client_id_blob_filename = db.Column(db.Text, nullable=False)
-    device_private_key = db.Column(db.Text, nullable=False)
-    code = db.Column(db.Text, nullable=False)
-    uploaded_by = db.Column(db.String(255), ForeignKey("users.id"), nullable=True)
+    id = Column(Integer, primary_key=True, nullable=False, autoincrement=True)
+    session_id_type = Column(String(255), nullable=False, default="android")
+    security_level = Column(Integer, nullable=False, default=3)
+    client_id_blob_filename = Column(Text, nullable=False)
+    device_private_key = Column(Text, nullable=False)
+    code = Column(Text, nullable=False)
+    uploaded_by = Column(String(255), ForeignKey("users.id"), nullable=True)
 
     def to_json(self):
         return {

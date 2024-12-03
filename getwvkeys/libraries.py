@@ -16,18 +16,28 @@
 """
 
 import base64
+import hashlib
 import json
 import logging
 import secrets
 import time
-from typing import Union
+import xml.etree.ElementTree as ET
 from urllib.parse import urlsplit
 
 import requests
 import yaml
 from flask import jsonify, render_template
-from flask_login import UserMixin
 from flask_sqlalchemy import SQLAlchemy
+from pyplayready.cdm import Cdm as PlayreadyCdm
+from pyplayready.device import Device as PlayreadyDevice
+from pyplayready.exceptions import (
+    InvalidInitData,
+    InvalidLicense,
+    InvalidSession,
+    PyPlayreadyException,
+    TooManySessions,
+)
+from pyplayready.pssh import PSSH as PlayreadyPSSH
 from requests.exceptions import ProxyError
 from sqlalchemy import func
 from werkzeug.exceptions import (
@@ -42,6 +52,7 @@ from getwvkeys import config
 from getwvkeys.models.APIKey import APIKey as APIKeyModel
 from getwvkeys.models.CDM import CDM as CDMModel
 from getwvkeys.models.Key import Key as KeyModel
+from getwvkeys.models.PRD import PRD
 from getwvkeys.models.User import User as UserModel
 from getwvkeys.pywidevine.cdm import deviceconfig
 from getwvkeys.utils import (
@@ -68,7 +79,8 @@ common_privacy_cert = (
     "7gLwDS6NWYYQSqzE3Udf2W7pzk4ybyG4PHBYV3s4cyzdq8amvtE/sNSdOKReuHpfQ="
 )
 
-sessions = dict()
+wv_sessions = dict()
+pr_sessions: dict[str, PlayreadyCdm] = dict()
 
 
 def get_random_cdm():
@@ -77,8 +89,18 @@ def get_random_cdm():
     return secrets.choice(config.DEFAULT_CDMS)
 
 
+def get_random_prd():
+    if len(config.DEFAULT_PRDS) == 0:
+        raise Exception("No PRDs configured")
+    return secrets.choice(config.DEFAULT_PRDS)
+
+
 def is_custom_buildinfo(buildinfo):
     return next((True for entry in config.EXTERNAL_API_BUILD_INFOS if entry["buildinfo"] == buildinfo), False)
+
+
+def is_user_prd(device: str):
+    return next((False for entry in config.DEFAULT_PRDS if entry["code"] == device), False)
 
 
 class Library:
@@ -92,19 +114,21 @@ class Library:
             self.cache_key(cached_key)
 
     def cache_key(self, cached_key: CachedKey):
-        k = KeyModel(
-            kid=cached_key.kid,
-            added_at=cached_key.added_at,
-            added_by=cached_key.added_by,
-            license_url=cached_key.license_url,
-            key_=cached_key.key,
-        )
-        self.db.session.merge(k)
-        self.db.session.commit()
+        # add key to the cache only if kid and key_ are not already in the cache
+        if not KeyModel.query.filter_by(kid=cached_key.kid, key_=cached_key.key).first():
+            k = KeyModel(
+                kid=cached_key.kid,
+                added_at=cached_key.added_at,
+                added_by=cached_key.added_by,
+                license_url=cached_key.license_url,
+                key_=cached_key.key,
+            )
+            self.db.session.add(k)
+            self.db.session.commit()
 
     def get_keycount(self) -> int:
         return self.db.session.query(func.count(KeyModel.kid)).scalar()
-        return KeyModel().query.count()
+        # return KeyModel().query.count()
 
     def search(self, query: str) -> list:
         if query.startswith("AAAA"):
@@ -164,6 +188,39 @@ class Library:
         self.db.session.commit()
         return code
 
+    def upload_prd(self, prd_data: str, user_id: str) -> str:
+        user = UserModel.query.filter_by(id=user_id).first()
+        if not user:
+            raise NotFound("User not found")
+
+        # used to check if the prd is valid
+        try:
+            prd = PlayreadyDevice.loads(prd_data)
+        except Exception as e:
+            logger.exception(e)
+            raise BadRequest(f"Invalid PRD")
+
+        prd_raw = base64.b64decode(prd_data)
+
+        # calculate the hash of the prd
+        prd_hash = hashlib.sha256(prd_raw).hexdigest()
+
+        # get device
+        device = PRD.query.filter_by(hash=prd_hash).first()
+        if not device:
+            device = PRD(uploaded_by=user.id, prd=prd_data, hash=prd_hash)
+            self.db.session.add(device)
+            user.prds.append(device)
+            self.db.session.commit()
+        elif device not in user.prds:
+            # add device to user if its not already there
+            user.prds.append(device)
+            self.db.session.commit()
+        else:
+            raise Exception("PRD already uploaded, please use the existing hash found on the profile page.")
+
+        return device.hash
+
     def add_keys(self, keys: list, user_id: str):
         cached_keys = list()
 
@@ -179,14 +236,61 @@ class Library:
         self.cache_keys(cached_keys)
         return jsonify({"error": False, "message": "Added {} keys".format(len(keys))}), 201
 
+    def get_prd_by_hash(self, hash: str):
+        return PRD.query.filter_by(hash=hash).first()
 
-class Pywidevine:
+
+class BaseService:
+    def __init__(self, library: Library):
+        self.library = library
+
+    @staticmethod
+    def yamldomagic(headers):
+        try:
+            return (
+                {
+                    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (Ktesttemp, like Gecko) "
+                    "Chrome/90.0.4430.85 Safari/537.36"
+                }
+                if headers == ""
+                else yaml.safe_load(headers)
+            )
+        except Exception as e:
+            raise BadRequest(f"Wrong headers: {str(e)}")
+
+
+class MainService:
+    @staticmethod
+    def main(**kwargs):
+        library = kwargs.pop("library")
+        buildinfo = kwargs.pop("buildinfo")
+
+        d = library.get_prd_by_hash(buildinfo)
+        if d:
+            print("Detected a Playready device")
+            to_pop = [
+                "server_certificate",
+                "disable_privacy",
+            ]
+            for key in to_pop:
+                kwargs.pop(key, None)
+            return Playready(library=library, device_hash=buildinfo, **kwargs)
+
+        to_pop = [
+            "downgrade",
+        ]
+        for key in to_pop:
+            kwargs.pop(key, None)
+        return Pywidevine(library=library, buildinfo=buildinfo, **kwargs)
+
+
+class Pywidevine(BaseService):
     def __init__(
         self,
         library: Library,
         user_id,
-        # TODO: we really shouldn't do this, but vinetrimmer doesn't send license urls without modifications
         buildinfo,
+        # TODO: we really shouldn't do this, but vinetrimmer doesn't send license urls without modifications
         license_url="VINETRIMMER",
         pssh=None,
         proxy={},
@@ -197,7 +301,9 @@ class Pywidevine:
         server_certificate=None,
         session_id=None,
         disable_privacy=False,
+        is_web=False,
     ):
+        super().__init__(library)
         self.library = library
         self.license_url = license_url
         self.pssh = pssh
@@ -216,6 +322,7 @@ class Pywidevine:
             self.proxy = {"http": self.proxy, "https": self.proxy}
         self.store_request = {}
         self.session_id = session_id
+        self.is_web = is_web
 
         # extract KID from pssh
         if self.pssh:
@@ -224,50 +331,6 @@ class Pywidevine:
             except Exception as e:
                 logger.exception(e)
                 raise BadRequest(f"Failed to extract KID from PSSH: {e}")
-
-    def _cache_keys(self, vt=False):
-        self.library.cache_keys(self.content_keys)
-
-        # return a list of dicts containing kid and key, this is what vinetrimmer expects
-        if vt:
-            results = list()
-            for entry in self.content_keys:
-                k = entry.key.split(":")
-                results.append(
-                    {
-                        "kid": k[0],
-                        "key": k[1],
-                    }
-                )
-            return results
-
-        results = {
-            "kid": self.kid,
-            "license_url": self.license_url,
-            "added_at": self.time,
-            "keys": list(),
-            "session_id": self.session_id,
-        }
-        for key in self.content_keys:
-            # s = urlsplit(self.license_url)
-            # license_url = "{}//{}".format(s.scheme, s.netloc)
-            results["keys"].append(key.key)
-
-        return results
-
-    @staticmethod
-    def yamldomagic(headers):
-        try:
-            return (
-                {
-                    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (Ktesttemp, like Gecko) "
-                    "Chrome/90.0.4430.85 Safari/537.36"
-                }
-                if headers == ""
-                else yaml.safe_load(headers)
-            )
-        except Exception as e:
-            raise BadRequest(f"Wrong headers: {str(e)}")
 
     @staticmethod
     def post_data(license_url, headers, data, proxy):
@@ -321,80 +384,7 @@ class Pywidevine:
         else:
             raise Exception("Unknown method")
 
-    def main(self, curl=False):
-        # Search for cached keys first
-        if not self.force:
-            result = self.library.search(self.pssh)
-            if result and len(result) > 0:
-                cached = self.library.search_res_to_dict(self.kid, result)
-                if not curl:
-                    return render_template("cache.html", results=cached)
-                r = jsonify(cached)
-                r.headers.add_header("X-Cache", "HIT")
-                return r, 302
-
-        # Headers
-        # TODO: better parsing
-        try:
-            self.headers = json.loads(self.headers)
-        except (Exception,):
-            self.headers = self.yamldomagic(self.headers)
-
-        if is_custom_buildinfo(self.buildinfo):
-            if not self.server_certificate:
-                try:
-                    self.server_certificate = self.post_data(
-                        self.license_url, self.headers, base64.b64decode("CAQ="), self.proxy
-                    )
-                except Exception as e:
-                    raise BadRequest(
-                        f"Failed to retrieve server certificate: {e}. Please provide a server certificate manually."
-                    )
-            params = {
-                "init": self.pssh,
-                "cert": self.server_certificate,
-                "raw": False,
-                "licensetype": "STREAMING",
-                "device": "api",
-            }
-            challenge = self.external_license("GetChallenge", params, web=True)
-
-            # post challenge to license server
-            license = self.post_data(self.license_url, self.headers, base64.b64decode(challenge), self.proxy)
-
-            params = {"cdmkeyresponse": license, "session_id": self.session_id}
-            self.external_license("GetKeys", params=params, web=True)
-
-            # caching
-            data = self._cache_keys()
-            if curl:
-                return jsonify(data)
-            return render_template("success.html", page_title="Success", results=data)
-
-        try:
-            wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(self.library, self.buildinfo))
-        except Exception as e:
-            raise InternalServerError(f"Failed to create session: {e}")
-        if self.server_certificate:
-            wvdecrypt.set_server_certificate(self.server_certificate)
-        challenge = wvdecrypt.create_challenge()
-
-        decode = self.post_data(self.license_url, self.headers, challenge, self.proxy)
-
-        wvdecrypt.decrypt_license(decode)
-        for _, y in enumerate(wvdecrypt.get_content_key()):
-            (kid, _) = y.split(":")
-            self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, y))
-
-        # caching
-        data = self._cache_keys()
-        # close the session
-        wvdecrypt.close_session()
-        if curl:
-            return jsonify(data)
-        return render_template("success.html", page_title="Success", results=data)
-
-    def api(self):
+    def run(self, curl=False):
         # Search for cached keys first
         if not self.force:
             result = self.library.search(self.pssh)
@@ -405,24 +395,31 @@ class Pywidevine:
                 return r, 302
 
         if self.response is None:
-            if is_custom_buildinfo(self.buildinfo):
-                if not self.server_certificate:
-                    try:
-                        self.server_certificate = self.post_data(
-                            self.license_url, self.headers, base64.b64decode("CAQ="), self.proxy
-                        )
-                    except Exception as e:
-                        raise BadRequest(
-                            f"Failed to retrieve server certificate: {e}. Please provide a server certificate manually."
-                        )
-                params = {
-                    "init": self.pssh,
-                    "cert": self.server_certificate,
-                    "raw": False,
-                    "licensetype": "STREAMING",
-                    "device": "api",
-                }
-                return self.external_license("GetChallenge", params)
+            # Headers
+            # TODO: better parsing
+            try:
+                self.headers = json.loads(self.headers)
+            except (Exception,):
+                self.headers = self.yamldomagic(self.headers)
+
+            # if is_custom_buildinfo(self.buildinfo):
+            #     if not self.server_certificate:
+            #         try:
+            #             self.server_certificate = self.post_data(
+            #                 self.license_url, self.headers, base64.b64decode("CAQ="), self.proxy
+            #             )
+            #         except Exception as e:
+            #             raise BadRequest(
+            #                 f"Failed to retrieve server certificate: {e}. Please provide a server certificate manually."
+            #             )
+            #     params = {
+            #         "init": self.pssh,
+            #         "cert": self.server_certificate,
+            #         "raw": False,
+            #         "licensetype": "STREAMING",
+            #         "device": "api",
+            #     }
+            #     return self.external_license("GetChallenge", params)
 
             # challenge generation
             wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(self.library, self.buildinfo))
@@ -434,66 +431,394 @@ class Pywidevine:
             # get the challenge
             challenge = wvdecrypt.create_challenge()
 
-            if len(sessions) > config.MAX_SESSIONS:
-                # remove the oldest session
-                sessions.pop(next(iter(sessions)))
+            if curl or self.is_web:
+                try:
+                    license_response = self.post_data(self.license_url, self.headers, challenge, self.proxy)
 
-            # store the session
-            self.session_id = wvdecrypt.session.hex()
-            sessions[self.session_id] = wvdecrypt
+                    wvdecrypt.decrypt_license(license_response)
+                    for _, y in enumerate(wvdecrypt.get_content_key()):
+                        (kid, _) = y.split(":")
+                        self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, y))
 
-            return jsonify({"challenge": base64.b64encode(challenge).decode(), "session_id": self.session_id})
+                    # caching
+                    data = self._cache_keys()
 
-        if is_custom_buildinfo(self.buildinfo):
-            params = {"cdmkeyresponse": self.response, "session_id": self.session_id}
-            self.external_license("GetKeys", params=params)
-            output = self._cache_keys()
-            return jsonify(output)
+                    wvdecrypt.close_session()
 
-        # license decryption
-        if self.session_id not in sessions:
-            raise BadRequest("Session not found, did you generate a challenge first?")
+                    if curl:
+                        return jsonify(data)
 
-        # get the session
-        wvdecrypt: WvDecrypt = sessions[self.session_id]
+                    return render_template("success.html", page_title="Success", results=data)
+                except Exception as e:
+                    raise BadRequest(f"Failed to get license: {e}")
+            else:
+                if len(wv_sessions) > config.MAX_SESSIONS:
+                    # remove the oldest session
+                    wv_sessions.pop(next(iter(wv_sessions)))
 
-        # decrypt the license
-        wvdecrypt.decrypt_license(self.response)
-
-        for _, y in enumerate(wvdecrypt.get_content_key()):
-            (kid, _) = y.split(":")
-            self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, y))
-
-        # caching
-        output = self._cache_keys()
-        # close the session
-        wvdecrypt.close_session()
-        return jsonify(output)
-
-    def vinetrimmer(self, library: Library):
-        if self.response is None:
-            wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(library, self.buildinfo))
-            challenge = wvdecrypt.create_challenge()
-            if len(sessions) > config.MAX_SESSIONS:
-                # remove the oldest session
-                sessions.pop(next(iter(sessions)))
-            self.session_id = wvdecrypt.session.hex()
-            sessions[self.session_id] = wvdecrypt
-
-            res = base64.b64encode(challenge).decode()
-            return {"challenge": res, "session_id": self.session_id}
+                # store the session
+                self.session_id = wvdecrypt.session.hex()
+                wv_sessions[self.session_id] = wvdecrypt
+                return jsonify({"challenge": base64.b64encode(challenge).decode(), "session_id": self.session_id})
         else:
-            if self.session_id not in sessions:
+            # if is_custom_buildinfo(self.buildinfo):
+            #     params = {"cdmkeyresponse": self.response, "session_id": self.session_id}
+            #     self.external_license("GetKeys", params=params)
+            #     output = self._cache_keys()
+            #     return jsonify(output)
+
+            # get the session
+            wvdecrypt: WvDecrypt = wv_sessions.get(self.session_id)
+            if not wvdecrypt:
                 raise BadRequest("Session not found, did you generate a challenge first?")
-            wvdecrypt = sessions[self.session_id]
+
+            # decrypt the license
             wvdecrypt.decrypt_license(self.response)
+
             for _, y in enumerate(wvdecrypt.get_content_key()):
                 (kid, _) = y.split(":")
                 self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, y))
-            keys = self._cache_keys(vt=True)
+
+            # caching
+            output = self._cache_keys()
+
             # close the session
             wvdecrypt.close_session()
-            return {"keys": keys, "session_id": self.session_id}
+
+            return jsonify(output)
+
+    # def vinetrimmer(self, library: Library):
+    #     if self.response is None:
+    #         wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(library, self.buildinfo))
+    #         challenge = wvdecrypt.create_challenge()
+    #         if len(wv_sessions) > config.MAX_SESSIONS:
+    #             # remove the oldest session
+    #             wv_sessions.pop(next(iter(wv_sessions)))
+    #         self.session_id = wvdecrypt.session.hex()
+    #         wv_sessions[self.session_id] = wvdecrypt
+
+    #         res = base64.b64encode(challenge).decode()
+    #         return {"challenge": res, "session_id": self.session_id}
+    #     else:
+    #         if self.session_id not in wv_sessions:
+    #             raise BadRequest("Session not found, did you generate a challenge first?")
+    #         wvdecrypt = wv_sessions[self.session_id]
+    #         wvdecrypt.decrypt_license(self.response)
+    #         for _, y in enumerate(wvdecrypt.get_content_key()):
+    #             (kid, _) = y.split(":")
+    #             self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, y))
+    #         keys = self._cache_keys(vt=True)
+    #         # close the session
+    #         wvdecrypt.close_session()
+    #         return {"keys": keys, "session_id": self.session_id}
+
+    def _cache_keys(self, vt=False):
+        # self.library.cache_keys(self.content_keys)
+
+        # return a list of dicts containing kid and key, this is what vinetrimmer expects
+        if vt:
+            results = list()
+            for entry in self.content_keys:
+                k = entry.key.split(":")
+                results.append(
+                    {
+                        "kid": k[0],
+                        "key": k[1],
+                    }
+                )
+            return results
+
+        results = {
+            "kid": self.kid,
+            "license_url": self.license_url,
+            "added_at": self.time,
+            "keys": list(),
+            "session_id": self.session_id,
+        }
+        for key in self.content_keys:
+            # s = urlsplit(self.license_url)
+            # license_url = "{}//{}".format(s.scheme, s.netloc)
+            results["keys"].append(key.key)
+
+        return results
+
+
+class Playready(BaseService):
+    def __init__(
+        self,
+        library: Library,
+        user_id,
+        device_hash,
+        # TODO: we really shouldn't do this, but vinetrimmer doesn't send license urls without modifications
+        license_url="VINETRIMMER",
+        pssh=None,
+        proxy={},
+        headers={},
+        force=False,
+        response=None,
+        challenge=False,
+        session_id=None,
+        downgrade=False,
+        is_web=False,
+    ):
+        super().__init__(library)
+        self.library = library
+        self.license_url = license_url
+        self.pssh: PlayreadyPSSH = PlayreadyPSSH(pssh)
+        self.kid = None
+        self.headers = headers
+        self.device = device_hash
+        self.force = force
+        self.time = int(time.time())
+        self.content_keys: list[CachedKey] = list()
+        self.license_request = challenge
+        self.license_response = response
+        self.user_id = user_id
+        self.proxy = proxy
+        if self.proxy and isinstance(self.proxy, str):
+            self.proxy = {"http": self.proxy, "https": self.proxy}
+        self.store_request = {}
+        self.session_id = session_id
+        self.downgrade = downgrade
+        self.is_web = is_web
+
+        # if pssh:
+        #     kids = [x.read_attributes()[0] for x in self.pssh.wrm_headers]
+        #     self.kid = base64.b64decode(kids[0][0].value).hex()
+
+    @staticmethod
+    def post_data(license_url, headers, data, proxy):
+        try:
+            r = requests.post(
+                url=license_url,
+                data=data,
+                headers=headers,
+                proxies=proxy,
+                timeout=10,
+            )
+            if r.status_code != 200:
+                raise BadRequest(f"Failed to get license: {r.status_code} {r.reason}")
+
+            try:
+                ET.fromstring(r.text)
+                return r.text
+            except Exception:
+                raise BadRequest(f"Invalid response: {r.text}")
+        except ProxyError as e:
+            raise BadRequest(f"Proxy error: {e.args[0].reason}")
+        except ConnectionError as e:
+            raise BadRequest(f"Connection error: {e.args[0].reason}")
+
+    def external_license(self, method, params, web=False):
+        entry = next((entry for entry in config.EXTERNAL_API_BUILD_INFOS if entry["buildinfo"] == self.buildinfo), None)
+        if not entry:
+            raise BadRequest("Invalid buildinfo")
+        api = entry["url"]
+        payload = {"method": method, "params": params, "token": entry["token"]}
+        r = requests.post(api, headers=self.headers, json=payload, proxies=self.proxy)
+        if r.status_code != 200:
+            if "message" in r.text:
+                raise Exception(f"Error: {r.json()['message']}")
+            raise Exception(f"Unknown Error: [{r.status_code}] {r.text}")
+        if method == "GetChallenge":
+            d = r.json()
+            if entry["version"] == 2:
+                challenge = d["message"]["challenge"]
+                self.session_id = d["message"]["session_id"]
+            else:
+                challenge = d["challenge"]
+                self.session_id = d["session_id"]
+            if not web:
+                return jsonify({"challenge": challenge, "session_id": self.session_id})
+            return challenge
+        elif method == "GetKeys":
+            d = r.json()
+            if entry["version"] == 2:
+                keys = d["message"]["keys"]
+            else:
+                keys = d["keys"]
+            for x in keys:
+                kid = x["kid"]
+                key = x["key"]
+                self.content_keys.append(
+                    CachedKey(kid, self.time, self.user_id, self.license_url, "{}:{}".format(kid, key))
+                )
+        elif method == "GetKeysX":
+            raise NotImplemented()
+        else:
+            raise Exception("Unknown method")
+
+    def run(self, curl=False):
+        # TODO:
+        # Search for cached keys first
+        # if not self.force:
+        #     result = self.library.search(kid)
+        #     if result and len(result) > 0:
+        #         cached = self.library.search_res_to_dict(kid, result)
+        #         if not curl:
+        #             return render_template("cache.html", results=cached)
+        #         r = jsonify(cached)
+        #         r.headers.add_header("X-Cache", "HIT")
+        #         return r, 302
+
+        if self.license_response is None:
+            # Headers
+            # TODO: better parsing
+            try:
+                self.headers = json.loads(self.headers)
+            except (Exception,):
+                self.headers = self.yamldomagic(self.headers)
+
+            # if is_custom_buildinfo(self.buildinfo):
+            #     if not self.server_certificate:
+            #         try:
+            #             self.server_certificate = self.post_data(
+            #                 self.license_url, self.headers, base64.b64decode("CAQ="), self.proxy
+            #             )
+            #         except Exception as e:
+            #             raise BadRequest(
+            #                 f"Failed to retrieve server certificate: {e}. Please provide a server certificate manually."
+            #             )
+            #     params = {
+            #         "init": self.pssh,
+            #         "cert": self.server_certificate,
+            #         "raw": False,
+            #         "licensetype": "STREAMING",
+            #         "device": "api",
+            #     }
+            #     challenge = self.external_license("GetChallenge", params, web=True)
+
+            #     # post challenge to license server
+            #     license = self.post_data(self.license_url, self.headers, base64.b64decode(challenge), self.proxy)
+
+            #     params = {"cdmkeyresponse": license, "session_id": self.session_id}
+            #     self.external_license("GetKeys", params=params, web=True)
+
+            #     # caching
+            #     data = self._cache_keys()
+            #     if curl:
+            #         return jsonify(data)
+            #     return render_template("success.html", page_title="Success", results=data)
+
+            device = self.library.get_prd_by_hash(self.device)
+            if not device:
+                raise NotFound("PRD not found")
+
+            cdm = pr_sessions.get(self.session_id)
+            if not cdm:
+                device = PlayreadyDevice.loads(device.prd)
+                cdm = PlayreadyCdm.from_device(device)
+
+            try:
+                self.session_id = cdm.open().hex()
+                pr_sessions[self.session_id] = cdm
+            except TooManySessions as e:
+                raise InternalServerError("Too many open sessions, please try again in a few minutes")
+
+            try:
+                wrm_headers = self.pssh.get_wrm_headers(self.downgrade)
+                license_request = cdm.get_license_challenge(
+                    session_id=bytes.fromhex(self.session_id), wrm_header=wrm_headers
+                )
+            except InvalidInitData as e:
+                logger.exception(e)
+                raise BadRequest("Invalid init data")
+            except Exception as e:
+                logger.exception(e)
+                raise BadRequest("Playready exception: " + str(e))
+
+            if curl or self.is_web:
+                try:
+                    license_response = self.post_data(self.license_url, self.headers, license_request, self.proxy)
+                    cdm.parse_license(session_id=bytes.fromhex(self.session_id), licence=license_response)
+                except InvalidSession as e:
+                    logger.exception(e)
+                    raise BadRequest("Invalid session")
+                except InvalidLicense as e:
+                    logger.exception(e)
+                    raise BadRequest("Invalid License")
+                except Exception as e:
+                    logger.exception(e)
+                    raise BadRequest("Playready exception: " + str(e))
+
+                try:
+                    keys = cdm.get_keys(session_id=bytes.fromhex(self.session_id))
+                except ValueError as e:
+                    logger.exception(e)
+                    raise BadRequest("Failed to get keys")
+
+                for key in keys:
+                    self.content_keys.append(
+                        CachedKey(key.key_id.hex, self.time, self.user_id, self.license_url, key.key.hex())
+                    )
+
+                # caching
+                data = self._cache_keys()
+
+                # close the session
+                cdm.close(session_id=bytes.fromhex(self.session_id))
+
+                if curl:
+                    return jsonify(data)
+
+                return render_template("success.html", page_title="Success", results=data)
+            else:
+                return jsonify({"challenge": license_request, "session_id": self.session_id})
+        else:
+            # get session
+            cdm = pr_sessions.get(self.session_id)
+            if not cdm:
+                raise BadRequest("Session not found, did you generate a challenge first?")
+
+            try:
+                cdm.parse_license(session_id=bytes.fromhex(self.session_id), licence=self.license_response)
+            except InvalidLicense as e:
+                logger.exception(e)
+                raise BadRequest("Invalid license")
+            except InvalidSession as e:
+                logger.exception(e)
+                raise BadRequest("Invalid session")
+            except Exception as e:
+                logger.exception(e)
+                raise BadRequest("Playready exception: " + str(e))
+
+            try:
+                keys = cdm.get_keys(session_id=bytes.fromhex(self.session_id))
+            except InvalidSession as e:
+                logger.exception(e)
+                raise BadRequest("Invalid session")
+            except ValueError as e:
+                logger.exception(e)
+                raise BadRequest("Failed to get keys")
+
+            for key in keys:
+                self.content_keys.append(
+                    CachedKey(key.key_id.hex, self.time, self.user_id, self.license_url, key.key.hex())
+                )
+
+            # caching
+            output = self._cache_keys()
+
+            # close the session
+            cdm.close(session_id=bytes.fromhex(self.session_id))
+
+            return jsonify(output)
+
+    def _cache_keys(self):
+        self.library.cache_keys(self.content_keys)
+
+        results = {
+            "license_url": self.license_url,
+            "added_at": self.time,
+            "keys": list(),
+            "session_id": self.session_id,
+        }
+        for key in self.content_keys:
+            # s = urlsplit(self.license_url)
+            # license_url = "{}//{}".format(s.scheme, s.netloc)
+            results["keys"].append(f"{key.kid}:{key.key}")
+
+        return results
 
 
 class WvDecrypt:
@@ -536,220 +861,3 @@ class WvDecrypt:
 
     def close_session(self):
         self.cdm.close_session(self.session)
-
-
-class User(UserMixin):
-    def __init__(self, db: SQLAlchemy, user: UserModel):
-        self.db = db
-        self.id = user.id
-        self.username = user.username
-        self.discriminator = user.discriminator
-        self.avatar = user.avatar
-        self.public_flags = user.public_flags
-        self.api_key = user.api_key
-        self.flags_raw = user.flags
-        self.flags = Bitfield(user.flags)
-        self.user_model = user
-
-    def get_user_cdms(self):
-        cdms = CDMModel.query.filter_by(uploaded_by=self.id).all()
-        return [
-            {"id": x.id, "code": x.code, "session_id_type": x.session_id_type, "security_level": x.security_level}
-            for x in cdms
-        ]
-
-    def patch(self, data):
-        disallowed_keys = ["id", "username", "discriminator", "avatar", "public_flags", "api_key"]
-
-        for key, value in data.items():
-            # Skip attributes that cant be changed
-            if key in disallowed_keys:
-                logger.warning("{} cannot be updated".format(key))
-                continue
-            # change attribute
-            setattr(self.user_model, key, value)
-        # save changes
-        self.db.session.commit()
-        # get a new user object
-        return User(self.db, self.user_model)
-
-    def to_json(self, api_key=False):
-        return {
-            "id": self.id,
-            "username": self.username,
-            "discriminator": self.discriminator,
-            "avatar": self.avatar,
-            "public_flags": self.public_flags,
-            "api_key": self.api_key if api_key else None,
-            "flags": self.flags_raw,
-        }
-
-    def update_flags(self, flags: Union[int, Bitfield], action: FlagAction):
-        # get bits from bitfield if it is one
-        if isinstance(flags, Bitfield):
-            flags = flags.bits
-
-        if action == FlagAction.ADD.value:
-            self.user_model.flags = self.flags.add(flags)
-        elif action == FlagAction.REMOVE.value:
-            self.user_model.flags = self.flags.remove(flags)
-        else:
-            raise BadRequest("Unknown flag action")
-
-        self.db.session.commit()
-        return User(self.db, self.user_model)
-
-    def reset_api_key(self):
-        api_key = secrets.token_hex(32)
-        self.user_model.api_key = api_key
-
-        # check if we already have the key recorded in the history, if not (ex: accounts created before implementation), add it
-        a = APIKeyModel.query.filter_by(user_id=self.user_model.id, api_key=api_key)
-        if not a:
-            history_entry = APIKeyModel(user_id=self.user_model.id, api_key=api_key)
-            self.db.session.add(history_entry)
-
-        self.db.session.commit()
-
-    def delete_cdm(self, id):
-        cdm: CDMModel = CDMModel.query.filter_by(id=id).first()
-        if cdm is None:
-            raise NotFound("CDM not found")
-        # check if uploaded_by is null, or if its not the users cdm
-        if not cdm.uploaded_by or (cdm.uploaded_by and cdm.uploaded_by != self.id):
-            raise Forbidden("Missing Access")
-        self.db.session.delete(cdm)
-        self.db.session.commit()
-
-    @staticmethod
-    def get(db: SQLAlchemy, user_id: str):
-        user = UserModel.query.filter_by(id=user_id).first()
-        if not user:
-            return None
-
-        return User(db, user)
-
-    @staticmethod
-    def create(db: SQLAlchemy, userinfo: dict):
-        api_key = secrets.token_hex(32)
-        user = UserModel(
-            id=userinfo.get("id"),
-            username=userinfo.get("username"),
-            discriminator=userinfo.get("discriminator"),
-            avatar=userinfo.get("avatar"),
-            public_flags=userinfo.get("public_flags"),
-            api_key=api_key,
-        )
-        history_entry = APIKeyModel(user_id=user.id, api_key=api_key)
-        db.session.add(history_entry)
-        db.session.add(user)
-        db.session.commit()
-
-    @staticmethod
-    def update(db: SQLAlchemy, userinfo: dict):
-        user = UserModel.query.filter_by(id=userinfo.get("id")).first()
-        if not user:
-            return None
-
-        user.username = userinfo.get("username")
-        user.discriminator = userinfo.get("discriminator")
-        user.avatar = userinfo.get("avatar")
-        user.public_flags = userinfo.get("public_flags")
-        db.session.commit()
-
-    @staticmethod
-    def user_is_in_guild(token):
-        url = "https://discord.com/api/users/@me/guilds"
-        headers = {"Authorization": f"Bearer {token}"}
-        r = requests.get(url, headers=headers)
-        if not r.ok:
-            raise Exception(f"Failed to get user guilds: [{r.status_code}] {r.text}")
-        guilds = r.json()
-        is_in_guild = any(guild.get("id") == config.GUILD_ID for guild in guilds)
-        return is_in_guild
-
-    @staticmethod
-    def user_is_verified(token):
-        url = f"https://discord.com/api/users/@me/guilds/{config.GUILD_ID}/member"
-        headers = {
-            "Authorization": f"Bearer {token}",
-        }
-        r = requests.get(url, headers=headers)
-        if not r.ok:
-            raise Exception(f"Failed to get guild member: [{r.status_code}] {r.text}")
-        data = r.json()
-        return any(role == config.VERIFIED_ROLE_ID for role in data.get("roles"))
-
-    @staticmethod
-    def is_api_key_bot(api_key):
-        """checks if the api key is from the bot"""
-        bot_key = base64.b64encode(
-            "{}:{}".format(config.OAUTH2_CLIENT_ID, config.OAUTH2_CLIENT_SECRET).encode()
-        ).decode("utf8")
-        return api_key == bot_key
-
-    @staticmethod
-    def get_user_by_api_key(db: SQLAlchemy, api_key):
-        user = UserModel.query.filter_by(api_key=api_key).first()
-        if not user:
-            return None
-
-        return User(db, user)
-
-    def is_blacklist_exempt(self):
-        return self.flags.has(UserFlags.BLACKLIST_EXEMPT)
-
-    def check_status(self, ignore_suspended=False):
-        if self.flags.has(UserFlags.SUSPENDED) == 1 and not ignore_suspended:
-            raise Forbidden("Your account has been suspended.")
-
-    @staticmethod
-    def is_api_key_valid(db: SQLAlchemy, api_key: str):
-        # allow the bot to pass
-        if User.is_api_key_bot(api_key):
-            return True
-
-        user = User.get_user_by_api_key(db, api_key)
-        if not user:
-            return False
-
-        # if the user is suspended, throw forbidden
-        user.check_status()
-
-        return True
-
-    @staticmethod
-    def disable_user(db: SQLAlchemy, user_id: str):
-        user = UserModel.query.filter_by(id=user_id).first()
-        if not user:
-            raise NotFound("User not found")
-        flags = Bitfield(user.flags)
-        flags.add(UserFlags.SUSPENDED)
-        user.flags = flags.bits
-        db.session.commit()
-
-    @staticmethod
-    def disable_users(db: SQLAlchemy, user_ids: list):
-        print("Request to disable {} users: {}".format(len(user_ids), ", ".join([str(x) for x in user_ids])))
-        if len(user_ids) == 0:
-            raise BadRequest("No data to update or update is not allowed")
-
-        for user_id in user_ids:
-            try:
-                User.disable_user(db, user_id)
-            except NotFound:
-                continue
-
-    @staticmethod
-    def enable_user(db: SQLAlchemy, user_id):
-        user = UserModel.query.filter_by(id=user_id).first()
-        if not user:
-            raise NotFound("User not found")
-        flags = Bitfield(user.flags)
-        flags.remove(UserFlags.SUSPENDED)
-        user.flags = flags.bits
-        db.session.commit()
-
-    @staticmethod
-    def get_user_count():
-        return UserModel.query.count()

@@ -34,107 +34,7 @@ async function keycount() {
         return await response.text();
     }
     const key_count_value = await key_count();
-    document.getElementById("keycount").innerText = key_count_value;
-}
-
-async function generating_request() {
-    async function genrating_license_request() {
-        document.getElementById("demo").innerHTML = "Generating License Request";
-        const dicted = {
-            pssh: document.getElementById("pssh").value,
-            buildInfo: document.getElementById("buildInfo").value,
-        };
-        const apiKey = getCookie("api_key");
-        const response = await fetch("/pssh", {
-            method: "POST",
-            headers: {
-                Accept: "application/json, text/plain, */*",
-                "Content-Type": "application/json",
-                "X-API-Key": apiKey,
-            },
-            body: JSON.stringify(dicted),
-        });
-        if (!response.ok) {
-            alert("Wrong PSSH/BUILDINFO");
-            throw new FatalError("Something went badly wrong!");
-        }
-        return await response.arrayBuffer();
-    }
-
-    async function get_headers() {
-        document.getElementById("demo").innerHTML = "Generating Headers";
-        const dicted = {
-            headers: document.getElementById("headers").value,
-        };
-        const apiKey = getCookie("api_key");
-        const response = await fetch("/headers", {
-            method: "POST",
-            headers: {
-                Accept: "application/json, text/plain, */*",
-                "Content-Type": "application/json",
-                "X-API-Key": apiKey,
-            },
-            body: JSON.stringify(dicted),
-        });
-        if (!response.ok) {
-            alert("WRONG HEADERS");
-            throw new FatalError("Something went badly wrong!");
-        }
-        return await response.text();
-    }
-
-    async function post_license_request(genrated_request, headers) {
-        document.getElementById("demo").innerHTML = "Sending Post License Request";
-        const posturl = document.getElementById("license").value;
-        headers = JSON.parse(headers);
-        headers["Content-Type"] = "application/x-www-form-urlencoded";
-        headers["Origin"] = posturl;
-        headers["Referer"] = posturl;
-        const response = await fetch(posturl, {
-            method: "POST",
-            headers: headers,
-            body: genrated_request,
-        });
-        if (!response.ok) {
-            alert("WRONG SENDING LICENSE REQUEST ");
-            throw new FatalError("Something went badly wrong!");
-        }
-        return await response.arrayBuffer();
-    }
-    async function decrypt_response(license_response, headers) {
-        license_response_base64String = btoa(String.fromCharCode.apply(null, new Uint8Array(license_response)));
-        const dicted = {
-            license_response: license_response_base64String,
-            license_url: document.getElementById("license").value,
-            headers: headers,
-            pssh: document.getElementById("pssh").value,
-            buildInfo: document.getElementById("buildInfo").value,
-        };
-        const apiKey = getCookie("api_key");
-        const response = await fetch("/decrypter", {
-            method: "POST",
-            headers: {
-                Accept: "application/json, text/plain, */*",
-                "Content-Type": "application/json",
-                "X-API-Key": apiKey,
-            },
-            body: JSON.stringify(dicted),
-        });
-        if (!response.ok) {
-            alert("ERROR DECRYPTION / WRONG RESPONSE / JSONED RESPONSE");
-            document.getElementById("demo").innerHTML = license_response;
-            throw new FatalError("Something went badly wrong!");
-        }
-        return await response.text();
-    }
-    const genrated_request = await genrating_license_request();
-    document.getElementById("demo").innerHTML = "License Request Generated";
-    const headers = await get_headers();
-    document.getElementById("demo").innerHTML = "Headers Corrected";
-    const license_response = await post_license_request(genrated_request, headers);
-    document.getElementById("demo").innerHTML = "Decrypting Content";
-    const content_keys = await decrypt_response(license_response, headers);
-    document.getElementById("demo").innerHTML = content_keys;
+    keycountElement.innerText = key_count_value;
 }
 
 function getCookie(name) {
@@ -153,9 +53,10 @@ async function server_request() {
             buildInfo: document.getElementById("buildInfo").value,
             proxy: document.getElementById("proxy").value,
             force: document.getElementById("force").checked,
+            is_web: true,
         };
         const apiKey = getCookie("api_key");
-        const response = await fetch("/wv", {
+        const response = await fetch("/api", {
             method: "POST",
             headers: {
                 Accept: "application/json, text/plain, */*",
@@ -214,9 +115,59 @@ function deleteCdm(id) {
         });
 }
 
-keycount();
+function deletePrd(id) {
+    const doDelete = confirm("Are you sure you want to delete this PRD?");
+    if (!doDelete) return;
+    const apiKey = getCookie("api_key");
+    fetch(`/me/prds/${id}`, {
+        method: "DELETE",
+        headers: {
+            Accept: "application/json, text/plain, */*",
+            "Content-Type": "application/json",
+            "X-API-Key": apiKey,
+        },
+    })
+        .catch((e) => {
+            alert(`Error deleting PRD: ${e}`);
+        })
+        .then(async (r) => {
+            const text = await r.json();
+            if (!r.ok) alert(`An error occurred: ${text.message}`);
+            else {
+                alert(text.message);
+                location.reload();
+            }
+        });
+}
 
+const keycountElement = document.getElementById("keycount");
 const mainForm = document.querySelector(".form-container>form");
 const formButton = mainForm.querySelector('input[type="submit"]');
+const psshInput = mainForm.querySelector('input[id="pssh"]');
+const urlInput = mainForm.querySelector('input[id="license"]');
+const headersInput = mainForm.querySelector('textarea[name="headers"]');
+const downgradeItem = document.querySelector(".downgrade-item");
 
-mainForm.addEventListener("submit", handleFormSubmit);
+const queryString = window.location.search;
+const urlParams = new URLSearchParams(queryString);
+const drm = urlParams.get("drm");
+
+if (psshInput && urlInput && headersInput && downgradeItem) {
+    if (!drm) {
+        console.log("hit the else");
+        // hide the downgrade item
+        downgradeItem.style.display = "none";
+    } else if (drm.toLowerCase() === "playready") {
+        psshInput.defaultValue =
+            "AAADfHBzc2gAAAAAmgTweZhAQoarkuZb4IhflQAAA1xcAwAAAQABAFIDPABXAFIATQBIAEUAQQBEAEUAUgAgAHgAbQBsAG4AcwA9ACIAaAB0AHQAcAA6AC8ALwBzAGMAaABlAG0AYQBzAC4AbQBpAGMAcgBvAHMAbwBmAHQALgBjAG8AbQAvAEQAUgBNAC8AMgAwADAANwAvADAAMwAvAFAAbABhAHkAUgBlAGEAZAB5AEgAZQBhAGQAZQByACIAIAB2AGUAcgBzAGkAbwBuAD0AIgA0AC4AMAAuADAALgAwACIAPgA8AEQAQQBUAEEAPgA8AFAAUgBPAFQARQBDAFQASQBOAEYATwA+ADwASwBFAFkATABFAE4APgAxADYAPAAvAEsARQBZAEwARQBOAD4APABBAEwARwBJAEQAPgBBAEUAUwBDAFQAUgA8AC8AQQBMAEcASQBEAD4APAAvAFAAUgBPAFQARQBDAFQASQBOAEYATwA+ADwASwBJAEQAPgA0AFIAcABsAGIAKwBUAGIATgBFAFMAOAB0AEcAawBOAEYAVwBUAEUASABBAD0APQA8AC8ASwBJAEQAPgA8AEMASABFAEMASwBTAFUATQA+AEsATABqADMAUQB6AFEAUAAvAE4AQQA9ADwALwBDAEgARQBDAEsAUwBVAE0APgA8AEwAQQBfAFUAUgBMAD4AaAB0AHQAcABzADoALwAvAHAAcgBvAGYAZgBpAGMAaQBhAGwAcwBpAHQAZQAuAGsAZQB5AGQAZQBsAGkAdgBlAHIAeQAuAG0AZQBkAGkAYQBzAGUAcgB2AGkAYwBlAHMALgB3AGkAbgBkAG8AdwBzAC4AbgBlAHQALwBQAGwAYQB5AFIAZQBhAGQAeQAvADwALwBMAEEAXwBVAFIATAA+ADwAQwBVAFMAVABPAE0AQQBUAFQAUgBJAEIAVQBUAEUAUwA+ADwASQBJAFMAXwBEAFIATQBfAFYARQBSAFMASQBPAE4APgA4AC4AMQAuADIAMwAwADQALgAzADEAPAAvAEkASQBTAF8ARABSAE0AXwBWAEUAUgBTAEkATwBOAD4APAAvAEMAVQBTAFQATwBNAEEAVABUAFIASQBCAFUAVABFAFMAPgA8AC8ARABBAFQAQQA+ADwALwBXAFIATQBIAEUAQQBEAEUAUgA+AA==";
+        urlInput.defaultValue =
+            "https://test.playready.microsoft.com/service/rightsmanager.asmx?cfg=(persist:false,sl:2000)";
+        headersInput.defaultValue = "Content-Type: text/xml; charset=UTF-8";
+    }
+}
+
+if (keycountElement) keycount();
+else console.warn("Keycount Element not found, skipping keycount fetch");
+
+if (formButton) mainForm.addEventListener("submit", handleFormSubmit);
+else console.warn("Form Button not found, skipping form submit event listener");
