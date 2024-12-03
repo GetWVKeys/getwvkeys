@@ -102,6 +102,8 @@ def upgrade() -> None:
     ):
         return
 
+    op.execute("SET FOREIGN_KEY_CHECKS=0;")  # due to some added_by columns being null
+
     # copy data from old tables to new tables
     if migrate_existing_users:
         op.execute(
@@ -135,6 +137,8 @@ def upgrade() -> None:
 
     if migrate_existing_keys:
         op.drop_table("keys__old")
+
+    op.execute("SET FOREIGN_KEY_CHECKS=1;")
     # ### end Alembic commands ###
 
 
