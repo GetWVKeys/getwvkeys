@@ -27,10 +27,7 @@ def upgrade() -> None:
         sa.Column("hash", sa.String(length=255), nullable=False),
         sa.Column("prd", sa.Text(), nullable=False),
         sa.Column("uploaded_by", sa.String(length=19), nullable=False),
-        sa.ForeignKeyConstraint(
-            ["uploaded_by"],
-            ["users.id"],
-        ),
+        sa.ForeignKeyConstraint(["uploaded_by"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("hash"),
     )
