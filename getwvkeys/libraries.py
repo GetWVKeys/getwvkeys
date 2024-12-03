@@ -487,33 +487,33 @@ class Pywidevine(BaseService):
 
             return jsonify(output)
 
-    # def vinetrimmer(self, library: Library):
-    #     if self.response is None:
-    #         wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(library, self.buildinfo))
-    #         challenge = wvdecrypt.create_challenge()
-    #         if len(wv_sessions) > config.MAX_SESSIONS:
-    #             # remove the oldest session
-    #             wv_sessions.pop(next(iter(wv_sessions)))
-    #         self.session_id = wvdecrypt.session.hex()
-    #         wv_sessions[self.session_id] = wvdecrypt
+    def vinetrimmer(self, library: Library):
+        if self.response is None:
+            wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(library, self.buildinfo))
+            challenge = wvdecrypt.create_challenge()
+            if len(wv_sessions) > config.MAX_SESSIONS:
+                # remove the oldest session
+                wv_sessions.pop(next(iter(wv_sessions)))
+            self.session_id = wvdecrypt.session.hex()
+            wv_sessions[self.session_id] = wvdecrypt
 
-    #         res = base64.b64encode(challenge).decode()
-    #         return {"challenge": res, "session_id": self.session_id}
-    #     else:
-    #         if self.session_id not in wv_sessions:
-    #             raise BadRequest("Session not found, did you generate a challenge first?")
-    #         wvdecrypt = wv_sessions[self.session_id]
-    #         wvdecrypt.decrypt_license(self.response)
-    #         for _, y in enumerate(wvdecrypt.get_content_key()):
-    #             (kid, _) = y.split(":")
-    #             self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, y))
-    #         keys = self._cache_keys(vt=True)
-    #         # close the session
-    #         wvdecrypt.close_session()
-    #         return {"keys": keys, "session_id": self.session_id}
+            res = base64.b64encode(challenge).decode()
+            return {"challenge": res, "session_id": self.session_id}
+        else:
+            if self.session_id not in wv_sessions:
+                raise BadRequest("Session not found, did you generate a challenge first?")
+            wvdecrypt = wv_sessions[self.session_id]
+            wvdecrypt.decrypt_license(self.response)
+            for _, y in enumerate(wvdecrypt.get_content_key()):
+                (kid, _) = y.split(":")
+                self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, y))
+            keys = self._cache_keys(vt=True)
+            # close the session
+            wvdecrypt.close_session()
+            return {"keys": keys, "session_id": self.session_id}
 
     def _cache_keys(self, vt=False):
-        # self.library.cache_keys(self.content_keys)
+        self.library.cache_keys(self.content_keys)
 
         # return a list of dicts containing kid and key, this is what vinetrimmer expects
         if vt:

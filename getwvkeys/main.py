@@ -365,53 +365,51 @@ def api():
         return render_template("api.html", current_user=current_user, website_version=sha)
 
 
-# @app.route("/vinetrimmer", methods=["POST"])
-# def vinetrimmer():
-#     event_data = request.get_json()
-#     # validate the request body
-#     if not validators.vinetrimmer_validator(event_data):
-#         return jsonify({"status_code": 400, "message": "Malformed Body"})
+@app.route("/vinetrimmer", methods=["POST"])
+def vinetrimmer():
+    event_data = request.get_json()
+    # validate the request body
+    if not validators.vinetrimmer_validator(event_data):
+        return jsonify({"status_code": 400, "message": "Malformed Body"})
 
-#     # get the data
-#     (method, params, token) = (event_data["method"], event_data["params"], event_data["token"])
-#     user = FlaskUser.get_user_by_api_key(db, token)
-#     if not user:
-#         return jsonify({"status_code": 401, "message": "Invalid API Key"})
+    # get the data
+    (method, params, token) = (event_data["method"], event_data["params"], event_data["token"])
+    user = FlaskUser.get_user_by_api_key(db, token)
+    if not user:
+        return jsonify({"status_code": 401, "message": "Invalid API Key"})
 
-#     if not user.flags.has(UserFlags.VINETRIMMER):
-#         return jsonify({"status_code": 403, "message": "Missing Access"})
+    if not user.flags.has(UserFlags.VINETRIMMER):
+        return jsonify({"status_code": 403, "message": "Missing Access"})
 
-#     if method == "GetKeysX":
-#         # Validate params required for method
-#         if not validators.key_exchange_validator(params):
-#             return jsonify({"status_code": 400, "message": "Malformed Params"})
-#         return jsonify({"status_code": 501, "message": "Method Not Implemented"})
-#     elif method == "GetKeys":
-#         # Validate params required for method
-#         if not validators.keys_validator(params):
-#             return jsonify({"status_code": 400, "message": "Malformed Params"})
-#         (cdmkeyresponse, session_id) = (params["cdmkeyresponse"], params["session_id"])
-#         magic = libraries.Pywidevine(
-#             library, user.id, license_response=cdmkeyresponse, session_id=session_id, buildinfo=None
-#         )
-#         res = magic.vinetrimmer(library)
-#         return jsonify({"status_code": 200, "message": res})
-#     elif method == "GetChallenge":
-#         # Validate params required for method
-#         if not validators.challenge_validator(params):
-#             return jsonify({"status_code": 400, "message": "Malformed Params"})
-#         (init, cert, raw, licensetype, device) = (
-#             params["init"],
-#             params["cert"],
-#             params["raw"],
-#             params["licensetype"],
-#             params["device"],
-#         )
-#         magic = libraries.Pywidevine(library, user.id, pssh=init, buildinfo=device, server_certificate=cert)
-#         res = magic.vinetrimmer(library)
-#         return jsonify({"status_code": 200, "message": res})
+    if method == "GetKeysX":
+        # Validate params required for method
+        if not validators.key_exchange_validator(params):
+            return jsonify({"status_code": 400, "message": "Malformed Params"})
+        return jsonify({"status_code": 501, "message": "Method Not Implemented"})
+    elif method == "GetKeys":
+        # Validate params required for method
+        if not validators.keys_validator(params):
+            return jsonify({"status_code": 400, "message": "Malformed Params"})
+        (cdmkeyresponse, session_id) = (params["cdmkeyresponse"], params["session_id"])
+        magic = libraries.Pywidevine(library, user.id, response=cdmkeyresponse, session_id=session_id, buildinfo=None)
+        res = magic.vinetrimmer(library)
+        return jsonify({"status_code": 200, "message": res})
+    elif method == "GetChallenge":
+        # Validate params required for method
+        if not validators.challenge_validator(params):
+            return jsonify({"status_code": 400, "message": "Malformed Params"})
+        (init, cert, raw, licensetype, device) = (
+            params["init"],
+            params["cert"],
+            params["raw"],
+            params["licensetype"],
+            params["device"],
+        )
+        magic = libraries.Pywidevine(library, user.id, pssh=init, buildinfo=device, server_certificate=cert)
+        res = magic.vinetrimmer(library)
+        return jsonify({"status_code": 200, "message": res})
 
-#     return jsonify({"status_code": 400, "message": "Invalid Method"})
+    return jsonify({"status_code": 400, "message": "Invalid Method"})
 
 
 @app.route("/vault", methods=["GET"])
@@ -444,7 +442,7 @@ def vault():
     else:
         keys = [{"key": f"{kid}:{key}", "license_url": f"https://{service}/"}]
         library.add_keys(keys=keys, user_id=current_user.id)
-        return jsonify({"message": "added in database.", "inserted": True, "status_code": 200})
+        return jsonify({"message": "Added", "inserted": True, "status_code": 200})
 
 
 # auth endpoints
