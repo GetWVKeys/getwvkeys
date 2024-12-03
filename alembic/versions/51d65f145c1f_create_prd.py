@@ -43,10 +43,13 @@ def upgrade() -> None:
     )
     op.create_table(
         "user_prd",
-        sa.Column("user_id", sa.String(length=19), nullable=False),
-        sa.Column("device_hash", sa.String(length=255), nullable=False),
+        sa.Column("user_id", sa.String(length=19, collation="utf8mb4_general_ci"), nullable=False),
+        sa.Column("device_hash", sa.String(length=255, collation="utf8mb4_general_ci"), nullable=False),
         sa.ForeignKeyConstraint(["device_hash"], ["prds.hash"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
+        mysql_engine="InnoDB",
+        mysql_charset="utf8mb4",
+        mysql_collate="utf8mb4_general_ci",
     )
     # ### end Alembic commands ###
 
