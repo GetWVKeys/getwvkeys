@@ -27,9 +27,15 @@ def upgrade() -> None:
         sa.Column("hash", sa.String(length=255), nullable=False),
         sa.Column("prd", sa.Text(), nullable=False),
         sa.Column("uploaded_by", sa.String(length=19), nullable=False),
-        sa.ForeignKeyConstraint(["uploaded_by"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("hash"),
+        sa.ForeignKeyConstraint(
+            ["uploaded_by"],
+            ["users.id"],
+        ),
+        mysql_engine="InnoDB",
+        mysql_charset="utf8mb4",
+        mysql_collate="utf8mb4_general_ci",
     )
     op.create_table(
         "user_prd",
