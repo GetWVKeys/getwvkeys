@@ -43,7 +43,7 @@ def upgrade() -> None:
     )
     op.create_table(
         "user_prd",
-        sa.Column("user_id", sa.String(length=255), nullable=False),
+        sa.Column("user_id", sa.String(length=19), nullable=False),
         sa.Column("device_hash", sa.String(length=255), nullable=False),
         sa.ForeignKeyConstraint(["device_hash"], ["prds.hash"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
