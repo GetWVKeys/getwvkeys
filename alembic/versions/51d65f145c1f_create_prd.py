@@ -26,7 +26,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("hash", sa.String(length=255), nullable=False),
         sa.Column("prd", sa.Text(), nullable=False),
-        sa.Column("uploaded_by", sa.String(length=255), nullable=False),
+        sa.Column("uploaded_by", sa.String(length=19), nullable=False),
         sa.ForeignKeyConstraint(
             ["uploaded_by"],
             ["users.id"],
