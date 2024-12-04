@@ -321,6 +321,8 @@ def api():
             is_web,
             is_curl,
             is_pr,
+            response,
+            session_id,
         ) = (
             event_data.get("proxy", ""),
             event_data.get("license_url"),
@@ -334,6 +336,8 @@ def api():
             event_data.get("is_web", False),
             event_data.get("is_curl", False),
             event_data.get("is_pr", False),
+            event_data.get("response"),
+            event_data.get("session_id"),
         )
         if not pssh or not license_url:
             raise BadRequest("Missing Fields")
@@ -359,6 +363,8 @@ def api():
             disable_privacy=disable_privacy,
             downgrade=downgrade,
             is_web=is_web,
+            response=response,
+            session_id=session_id,
         )
         return magic.run(is_curl)
     else:
