@@ -217,7 +217,7 @@ class Library:
             user.prds.append(device)
             self.db.session.commit()
         else:
-            raise Exception("PRD already uploaded, please use the existing hash found on the profile page.")
+            raise BadRequest("PRD already uploaded, please use the existing hash found on the profile page.")
 
         return device.hash
 
