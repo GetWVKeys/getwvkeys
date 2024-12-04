@@ -639,7 +639,7 @@ class Moved(HTTPException):
 # routes that are removed
 @app.route("/pssh")
 def pssh():
-    raise Moved("This route is no longer available, please use /pywidevine instead")
+    raise Moved("This route is no longer available, please use /api instead")
 
 
 # routes that have been moved

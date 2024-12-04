@@ -67,7 +67,7 @@ class GetWVKeys:
         self.buildinfo = buildinfo
 
         self.baseurl = "https://getwvkeys.cc" if API_URL == "__getwvkeys_api_url__" else API_URL
-        self.api_url = self.baseurl + "/pywidevine"
+        self.api_url = self.baseurl + "/api"
         self.headers = _headers
 
     def generate_request(self):
