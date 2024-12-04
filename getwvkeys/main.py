@@ -320,7 +320,6 @@ def api():
             downgrade,
             is_web,
             is_curl,
-            is_pr,
             response,
             session_id,
         ) = (
@@ -335,7 +334,6 @@ def api():
             event_data.get("downgrade"),
             event_data.get("is_web", False),
             event_data.get("is_curl", False),
-            event_data.get("is_pr", False),
             event_data.get("response"),
             event_data.get("session_id"),
         )
@@ -343,10 +341,7 @@ def api():
             raise BadRequest("Missing Fields")
 
         if not buildinfo:
-            if is_pr:
-                buildinfo = libraries.get_random_prd()
-            else:
-                buildinfo = libraries.get_random_cdm()
+            buildinfo = libraries.get_random_cdm()
 
         blacklist_check(buildinfo, license_url)
 
