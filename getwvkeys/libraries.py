@@ -21,6 +21,7 @@ import json
 import logging
 import secrets
 import time
+import uuid
 import xml.etree.ElementTree as ET
 from urllib.parse import urlsplit
 
@@ -390,6 +391,8 @@ class Pywidevine(BaseService):
             result = self.library.search(self.pssh)
             if result and len(result) > 0:
                 cached = self.library.search_res_to_dict(self.kid, result)
+                if not curl and self.is_web:
+                    return render_template("cache.html", results=cached)
                 r = jsonify(cached)
                 r.headers.add_header("X-Cache", "HIT")
                 return r, 302
@@ -582,9 +585,11 @@ class Playready(BaseService):
         self.downgrade = downgrade
         self.is_web = is_web
 
-        # if pssh:
-        #     kids = [x.read_attributes()[0] for x in self.pssh.wrm_headers]
-        #     self.kid = base64.b64decode(kids[0][0].value).hex()
+        if pssh:
+            kids = [x.read_attributes()[0] for x in self.pssh.wrm_headers]
+            kid = kids[0][0].value
+            decoded_kid = base64.b64decode(kid)
+            self.kid = str(uuid.UUID(bytes_le=decoded_kid))
 
     @staticmethod
     def post_data(license_url, headers, data, proxy):
@@ -649,17 +654,16 @@ class Playready(BaseService):
             raise Exception("Unknown method")
 
     def run(self, curl=False):
-        # TODO:
         # Search for cached keys first
-        # if not self.force:
-        #     result = self.library.search(kid)
-        #     if result and len(result) > 0:
-        #         cached = self.library.search_res_to_dict(kid, result)
-        #         if not curl:
-        #             return render_template("cache.html", results=cached)
-        #         r = jsonify(cached)
-        #         r.headers.add_header("X-Cache", "HIT")
-        #         return r, 302
+        if not self.force and self.kid:
+            result = self.library.search(self.kid)
+            if result and len(result) > 0:
+                cached = self.library.search_res_to_dict(self.kid, result)
+                if not curl and self.is_web:
+                    return render_template("cache.html", results=cached)
+                r = jsonify(cached)
+                r.headers.add_header("X-Cache", "HIT")
+                return r, 302
 
         if self.license_response is None:
             # Headers
