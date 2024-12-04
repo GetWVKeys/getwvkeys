@@ -660,12 +660,12 @@ def downloadfile_old(file):
 
 @app.route("/wv", methods=["GET", "POST"])
 def wv():
-    return redirect("/api", 301)
+    return redirect("/api", 307)
 
 
 @app.route("/pywidevine", methods=["GET", "POST"])
 def pywidevine():
-    return redirect("/api", 301)
+    return redirect("/api", 307)
 
 
 def main():
