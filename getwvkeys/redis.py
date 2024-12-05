@@ -21,6 +21,7 @@ import redis
 
 from getwvkeys import config, libraries
 from getwvkeys.models.Shared import db
+from getwvkeys.user import FlaskUser
 from getwvkeys.utils import OPCode
 
 
@@ -57,7 +58,7 @@ class Redis:
                     return
                 with self.app.app_context():
                     try:
-                        libraries.User.disable_user(db, user_id)
+                        FlaskUser.disable_user(db, user_id)
                         self.publish_response(reply_to)
                     except Exception as e:
                         self.publish_error(reply_to, "Error disablng user {}: {}".format(user_id, e))
@@ -68,7 +69,7 @@ class Redis:
                     return
                 with self.app.app_context():
                     try:
-                        libraries.User.disable_users(db, user_ids)
+                        FlaskUser.disable_users(db, user_ids)
                         self.publish_response(
                             reply_to,
                         )
@@ -81,7 +82,7 @@ class Redis:
                     return
                 with self.app.app_context():
                     try:
-                        libraries.User.enable_user(db, user_id)
+                        FlaskUser.enable_user(db, user_id)
                         self.publish_response(
                             reply_to,
                         )
@@ -92,7 +93,7 @@ class Redis:
                     self.publish_response(reply_to, self.library.get_keycount())
             elif op == OPCode.USER_COUNT.value:
                 with self.app.app_context():
-                    self.publish_response(reply_to, libraries.User.get_user_count())
+                    self.publish_response(reply_to, FlaskUser.get_user_count())
             elif op == OPCode.SEARCH.value:
                 query = d.get("query")
                 if not query:
@@ -114,7 +115,7 @@ class Redis:
                     return
                 with self.app.app_context():
                     try:
-                        user = libraries.User.get(db, user_id)
+                        user = FlaskUser.get(db, user_id)
                         if not user:
                             self.publish_error(reply_to, "User not found")
                             return
@@ -133,7 +134,7 @@ class Redis:
             elif op == OPCode.RESET_API_KEY.value:
                 user_id = d.get("user_id")
                 with self.app.app_context():
-                    user = libraries.User.get(db, user_id)
+                    user = FlaskUser.get(db, user_id)
                     if not user:
                         self.publish_error(reply_to, "User not found")
                         return
