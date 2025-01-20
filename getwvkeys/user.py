@@ -81,7 +81,7 @@ class FlaskUser(UserMixin):
             raise BadRequest("Unknown flag action")
 
         self.db.session.commit()
-        return User(self.db, self.user_model)
+        return FlaskUser(self.db, self.user_model)
 
     def reset_api_key(self):
         api_key = secrets.token_hex(32)

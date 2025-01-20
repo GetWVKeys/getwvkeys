@@ -16,6 +16,7 @@
 """
 
 import json
+import logging
 
 import redis
 
@@ -23,6 +24,8 @@ from getwvkeys import config, libraries
 from getwvkeys.models.Shared import db
 from getwvkeys.user import FlaskUser
 from getwvkeys.utils import OPCode
+
+logger = logging.getLogger("getwvkeys")
 
 
 class Redis:
@@ -127,6 +130,7 @@ class Redis:
                             reply_to,
                         )
                     except Exception as e:
+                        logger.exception("Error updating permissions for {}: {}".format(user_id, e))
                         self.publish_error(reply_to, "Error updating permissions for {}: {}".format(user_id, e))
             elif op == OPCode.QUARANTINE.value:
                 # TODO: Implement
