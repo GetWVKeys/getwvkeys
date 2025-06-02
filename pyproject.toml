@@ -28,7 +28,7 @@ toml = "^0.10.2"
 sqlalchemy = ">=2.0.16"
 alembic = "^1.13.1"
 mariadb = { version = "^1.1.10", optional = true }
-mysql-connector-python = { version = "^8.4.0", optional = true }
+mysql-connector-python = { version = "^9.1.0", optional = true }
 pywidevine = "^1.8.0"
 waitress = "^3.0.0"
 click = "^8.1.7"
