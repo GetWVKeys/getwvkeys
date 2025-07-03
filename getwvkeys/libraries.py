@@ -35,15 +35,13 @@ from pyplayready.exceptions import (
     InvalidInitData,
     InvalidLicense,
     InvalidSession,
-    PyPlayreadyException,
     TooManySessions,
 )
-from pyplayready.pssh import PSSH as PlayreadyPSSH
+from pyplayready.system.pssh import PSSH as PlayreadyPSSH
 from requests.exceptions import ProxyError
 from sqlalchemy import func
 from werkzeug.exceptions import (
     BadRequest,
-    Forbidden,
     InternalServerError,
     NotFound,
     NotImplemented,
@@ -57,10 +55,7 @@ from getwvkeys.models.PRD import PRD
 from getwvkeys.models.User import User as UserModel
 from getwvkeys.pywidevine.cdm import deviceconfig
 from getwvkeys.utils import (
-    Bitfield,
     CachedKey,
-    FlagAction,
-    UserFlags,
     extract_kid_from_pssh,
 )
 
