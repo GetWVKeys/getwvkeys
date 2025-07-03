@@ -849,14 +849,5 @@ class WvDecrypt:
 
         return content_keys
 
-    def get_signing_key(self):
-        for key in self.cdm.get_keys(self.session):
-            if key.type == "SIGNING":
-                kid = key.kid.hex()
-                key = key.key.hex()
-
-                signing_key = "{}:{}".format(kid, key)
-                return signing_key
-
     def close_session(self):
         self.cdm.close_session(self.session)
