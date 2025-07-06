@@ -37,17 +37,17 @@
             </div>
             <hr class="section-divider" />
             <div class="form-item flex-column cdms-container">
-                <span><u>Your Widevine CDMs</u></span>
+                <span><u>Your Widevine Devices</u></span>
                 <div class="form-item-items">
-                    {% if cdms|length == 0 %}
+                    {% if wvds|length == 0 %}
                     <span>So empty</span>
                     {% else %}
-                    <ul id="cdms" name="cdms">
-                        {% for cdm in cdms %}
+                    <ul id="wvds" name="wvds">
+                        {% for wvd in wvds %}
                         <li class="cdm-list-item">
                             <div class="form-item cdm-item flex-row">
-                                <p>{{cdm.code}}</p>
-                                <button class="delete-button" onclick="deleteCdm('{{cdm.id}}')">
+                                <p>{{wvd.hash}}</p>
+                                <button class="delete-button" onclick="deleteWvd('{{wvd.id}}')">
                                     <i class="fas fa-times"></i>
                                 </button>
                             </div>
@@ -59,7 +59,7 @@
             </div>
 
             <div class="form-item flex-column cdms-container">
-                <span><u>Your Playready Devices</u></span>
+                <span><u>Your PlayReady Devices</u></span>
                 <div class="form-item-items">
                     {% if prds|length == 0 %}
                     <span>So empty</span>

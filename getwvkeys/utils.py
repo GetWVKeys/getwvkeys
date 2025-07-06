@@ -1,21 +1,20 @@
 """
- This file is part of the GetWVKeys project (https://github.com/GetWVKeys/getwvkeys)
- Copyright (C) 2022-2024 Notaghost, Puyodead1 and GetWVKeys contributors 
- 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Affero General Public License as published
- by the Free Software Foundation, version 3 of the License.
+This file is part of the GetWVKeys project (https://github.com/GetWVKeys/getwvkeys)
+Copyright (C) 2022-2024 Notaghost, Puyodead1 and GetWVKeys contributors
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU Affero General Public License for more details.
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, version 3 of the License.
 
- You should have received a copy of the GNU Affero General Public License
- along with this program.  If not, see <https://www.gnu.org/licenses/>.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import base64
 import logging
 import logging.handlers
 import re
@@ -24,9 +23,9 @@ from typing import Union
 
 from cerberus import Validator
 from coloredlogs import ColoredFormatter
+from pywidevine import PSSH as WidevinePSSH
 
 from getwvkeys import config
-from getwvkeys.pssh_utils import parse_pssh
 
 
 class OPCode(Enum):
@@ -62,10 +61,14 @@ def construct_logger():
 
     # setup handlers
     # create a colored formatter for the console
-    console_formatter = ColoredFormatter(config.LOG_FORMAT, datefmt=config.LOG_DATE_FORMAT)
+    console_formatter = ColoredFormatter(
+        config.LOG_FORMAT, datefmt=config.LOG_DATE_FORMAT
+    )
 
     # create a regular non-colored formatter for the log file
-    file_formatter = logging.Formatter(config.LOG_FORMAT, datefmt=config.LOG_DATE_FORMAT)
+    file_formatter = logging.Formatter(
+        config.LOG_FORMAT, datefmt=config.LOG_DATE_FORMAT
+    )
 
     # create a handler for console logging
     stream = logging.StreamHandler()
@@ -88,14 +91,20 @@ def construct_logger():
 
 
 class CacheBase(object):
-    def __init__(self, added_at: int, added_by: Union[str, None], license_url: Union[str, None]):
+    def __init__(
+        self, added_at: int, added_by: Union[str, None], license_url: Union[str, None]
+    ):
         self.added_at = added_at
         self.added_by = added_by
         self.license_url = license_url
 
     @staticmethod
     def from_dict(d: dict):
-        (added_at, added_by, license_url) = (d["added_at"], d.get("added_by"), d.get("license_url"))
+        (added_at, added_by, license_url) = (
+            d["added_at"],
+            d.get("added_by"),
+            d.get("license_url"),
+        )
         return CacheBase(added_at, added_by, license_url)
 
 
@@ -104,49 +113,45 @@ class CachedKey(CacheBase):
     Represents cached key information that contains a single key
     """
 
-    def __init__(self, kid: str, added_at: int, added_by: Union[str, None], license_url: Union[str, None], key: str):
+    def __init__(
+        self,
+        kid: str,
+        added_at: int,
+        added_by: Union[str, None],
+        license_url: Union[str, None],
+        key: str,
+    ):
         super().__init__(added_at, added_by, license_url)
         self.kid = kid
         self.key = key
 
     @staticmethod
     def from_dict(d: dict):
-        (kid, added_at, license_url, key) = (d["kid"], d["added_at"], d.get("license_url", None), d["key"])
+        (kid, added_at, license_url, key) = (
+            d["kid"],
+            d["added_at"],
+            d.get("license_url", None),
+            d["key"],
+        )
         return CachedKey(kid, added_at, license_url, key)
 
     def to_json(self):
-        return {"kid": self.kid, "added_at": self.added_at, "license_url": self.license_url, "key": self.key}
-
-
-def extract_kid_from_pssh(pssh: str):
-    logger = logging.getLogger("getwvkeys")
-    try:
-        parsed_pssh = parse_pssh(pssh)
-        if len(parsed_pssh.key_ids) == 1:
-            return parsed_pssh.key_ids[0].hex()
-        elif len(parsed_pssh.key_ids) > 1:
-            logger.warning("Multiple key ids found in pssh! {}".format(pssh))
-            return parsed_pssh.key_ids[0].hex()
-        elif len(parsed_pssh.key_ids) == 0:
-            if len(parsed_pssh.data.key_ids) == 0 and parsed_pssh.data.content_id:
-                return base64.b64encode(bytes.fromhex(parsed_pssh.data.content_id)).hex()
-            elif len(parsed_pssh.data.key_ids) == 1:
-                return parsed_pssh.data.key_ids[0]
-            elif len(parsed_pssh.data.key_ids) > 1:
-                logger.warning("Multiple key ids found in pssh! {}".format(pssh))
-                return parsed_pssh.data.key_ids[0]
-            else:
-                raise Exception("No KID or Content ID was found in the PSSH.")
-        else:
-            raise Exception("No KID or Content ID was found in the PSSH.")
-    except Exception as e:
-        raise e
+        return {
+            "kid": self.kid,
+            "added_at": self.added_at,
+            "license_url": self.license_url,
+            "key": self.key,
+        }
 
 
 class Validators:
     def __init__(self) -> None:
         self.vinetrimmer_schema = {
-            "method": {"required": True, "type": "string", "allowed": ["GetKeysX", "GetKeys", "GetChallenge"]},
+            "method": {
+                "required": True,
+                "type": "string",
+                "allowed": ["GetKeysX", "GetKeys", "GetChallenge"],
+            },
             "params": {"required": False, "type": "dict"},
             "token": {"required": True, "type": "string"},
         }
@@ -164,7 +169,11 @@ class Validators:
             "init": {"required": True, "type": "string"},
             "cert": {"required": True, "type": "string"},
             "raw": {"required": True, "type": "boolean"},
-            "licensetype": {"required": True, "type": "string", "allowed": ["OFFLINE", "STREAMING"]},
+            "licensetype": {
+                "required": True,
+                "type": "string",
+                "allowed": ["OFFLINE", "STREAMING"],
+            },
             "device": {"required": True, "type": "string"},
         }
         self.vinetrimmer_validator = Validator(self.vinetrimmer_schema)
@@ -225,3 +234,18 @@ class Blacklist:
             if entry.matches(url):
                 return True
         return False
+
+
+def extract_widevine_kid(pssh: WidevinePSSH) -> str:
+    """
+    Extracts the KID from the Widevine PSSH object.
+    """
+    if not pssh or not pssh.key_ids or len(pssh.key_ids) == 0:
+        raise ValueError("No key ids found in the PSSH object.")
+
+    if len(pssh.key_ids) == 1:
+        return pssh.key_ids[0].hex
+    elif len(pssh.key_ids) > 1:
+        return pssh.key_ids[0].hex
+    else:
+        raise ValueError("Unexpected number of key ids in the PSSH object.")

@@ -15,12 +15,17 @@
   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  -->
 
-{% extends "base.html" %} {% block title %}Upload Complete{% endblock %} {% block content %}
-<h1 class="section-title">UPDATED</h1>
-<br />
-<p style="text-align: center">You can use this code with Build Info to change the CDM now.</p>
-<br />
-<h1 class="section-title">{{buildinfo}}</h1>
-<br />
-<img src="https://i.imgur.com/aIpIbJj.png" alt="Italian Trulli" />
+{% extends "base.html" %} {% block title %}Device Updated{% endblock %} {% block content %}
+<section class="upload-complete">
+    <h1 class="section-title">UPDATED</h1>
+    <br />
+    <p style="text-align: center">You can use this code with the device option to change the {{device_name}} now.</p>
+    <br />
+    <h1 class="section-title">{{device_hash}}</h1>
+    <br />
+    <img
+        src="https://i.imgur.com/8iWQc8B.png"
+        style="max-width: 70vw; background-color: hsla(0, 0%, 100%, 0.05); padding: 8px; border-radius: 8px"
+    />
+</section>
 {% endblock %}

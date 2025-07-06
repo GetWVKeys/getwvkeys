@@ -23,7 +23,7 @@
     <div class="questions-container">
         <details class="question">
             <summary>What is this website?</summary>
-            <div><p>Workaround to get widevine content keys</p></div>
+            <div><p>Workaround to get Widevine and PlayReady content keys</p></div>
         </details>
         <details class="question">
             <summary>What is PSSH?</summary>
@@ -32,7 +32,10 @@
         <details class="question">
             <summary>Is it L1?</summary>
             <div>
-                <p>No it is Generic L3 CDM system ID:[removed] to be precise</p>
+                <p>
+                    All provided Widevine devices are L3. There many be occasions where we add a L1, in such cases, this
+                    will be announced in the Discord server.
+                </p>
             </div>
         </details>
         <details class="question">
@@ -70,13 +73,17 @@
             </div>
         </details>
         <details class="question">
-            <summary>Can it support x site? How can i request to add a new site?</summary>
+            <summary>Can it support X site?</summary>
             <div>
-                <p>I do not take requests thank you.</p>
+                <p>
+                    It should support any site that uses Widevine/PlayReady, however we do have a list of sites we do
+                    not allow our provided devices to be used with. If the site uses custom/non-standard requests with
+                    the license server, you will need to implement this yourself, ex: modifying the getwvkeys script.
+                </p>
             </div>
         </details>
         <details class="question">
-            <summary>How can i get PSSH from ism manifest with ProtectionHeader?</summary>
+            <summary>How can I get PSSH from ISM manifest with ProtectionHeader?</summary>
             <div>
                 <p>https://forum.videohelp.com/threads/404024-Get-PSSH-from-ism-manifest-with-ProtectionHeader</p>
             </div>

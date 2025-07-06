@@ -1,31 +1,38 @@
 """
- This file is part of the GetWVKeys project (https://github.com/GetWVKeys/getwvkeys)
- Copyright (C) 2022-2024 Notaghost, Puyodead1 and GetWVKeys contributors 
- 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Affero General Public License as published
- by the Free Software Foundation, version 3 of the License.
+This file is part of the GetWVKeys project (https://github.com/GetWVKeys/getwvkeys)
+Copyright (C) 2022-2024 Notaghost, Puyodead1 and GetWVKeys contributors
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU Affero General Public License for more details.
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, version 3 of the License.
 
- You should have received a copy of the GNU Affero General Public License
- along with this program.  If not, see <https://www.gnu.org/licenses/>.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import argparse
 import base64
 import json
 import sys
+from enum import Enum
 
 import requests
 
+"""
+Script Version: 5.3
+- Renamed buildinfo to device_hash
+- Added option to switch between api endpoints using --drm-type
+"""
+
 # Version of the API the script is for. This should be changed when the API is updated.
-API_VERSION = "5"
+API_VERSION = "5.1"
 # Version of the individual script
-SCRIPT_VERSION = "5.2"
+SCRIPT_VERSION = "5.3"
 # Dynamic injection of the API url
 API_URL = "__getwvkeys_api_url__"
 
@@ -46,15 +53,24 @@ def post_request(url, headers, challenge, verbose):
 
 
 # Do Not Change Anything in this class
+class DRMType(Enum):
+    WIDEVINE = "widevine"
+    PLAYREADY = "playready"
+
+    def __str__(self):
+        return self.value
+
+
 class GetWVKeys:
     def __init__(
         self,
         url: str,
         pssh: str,
         auth: str,
+        drm_type: DRMType,
         verbose: bool = False,
         force: bool = False,
-        buildinfo: str = "",
+        device_hash: str = "",
         _headers: dict[str, str] = headers,
         **kwargs,
     ) -> None:
@@ -64,25 +80,41 @@ class GetWVKeys:
         self.auth = auth
         self.verbose = verbose
         self.force = force
-        self.buildinfo = buildinfo
+        self.device_hash = device_hash
+        self.drm_type = drm_type
 
-        self.baseurl = "https://getwvkeys.cc" if API_URL == "__getwvkeys_api_url__" else API_URL
-        self.api_url = self.baseurl + "/api"
+        self.baseurl = (
+            "https://getwvkeys.cc" if API_URL == "__getwvkeys_api_url__" else API_URL
+        )
+        self.api_url = "{}/{}".format(self.baseurl, self.drm_type.value)
         self.headers = _headers
 
     def generate_request(self):
         if self.verbose:
             print("[+] Generating License Request ")
-        data = {"pssh": self.pssh, "buildInfo": self.buildinfo, "force": self.force, "license_url": self.url}
+        data = {
+            "pssh": self.pssh,
+            "device_hash": self.device_hash,
+            "force": self.force,
+            "license_url": self.url,
+        }
         header = {"X-API-Key": self.auth, "Content-Type": "application/json"}
         r = requests.post(self.api_url, json=data, headers=header)
         if not r.ok:
             if "error" in r.text:
                 # parse the response as a json error
                 error = json.loads(r.text)
-                print("[-] Failed to generate license request: [{}] {}".format(error.get("code"), error.get("message")))
+                print(
+                    "[-] Failed to generate license request: [{}] {}".format(
+                        error.get("code"), error.get("message")
+                    )
+                )
                 exit(1)
-            print("[-] Failed to generate license request: [{}] {}".format(r.status_code, r.text))
+            print(
+                "[-] Failed to generate license request: [{}] {}".format(
+                    r.status_code, r.text
+                )
+            )
             exit(1)
 
         data = r.json()
@@ -108,7 +140,7 @@ class GetWVKeys:
             "response": license_response,
             "license_url": self.url,
             "headers": self.headers,
-            "buildInfo": self.buildinfo,
+            "device_hash": self.device_hash,
             "force": self.force,
             "session_id": self.session_id,
         }
@@ -118,9 +150,15 @@ class GetWVKeys:
             if "error" in r.text:
                 # parse the response as a json error
                 error = json.loads(r.text)
-                print("[-] Failed to decrypt license: [{}] {}".format(error.get("code"), error.get("message")))
+                print(
+                    "[-] Failed to decrypt license: [{}] {}".format(
+                        error.get("code"), error.get("message")
+                    )
+                )
                 exit(1)
-            print("[-] Failed to decrypt license: [{}] {}".format(r.status_code, r.text))
+            print(
+                "[-] Failed to decrypt license: [{}] {}".format(r.status_code, r.text)
+            )
             exit(1)
         return r.json()
 
@@ -138,7 +176,9 @@ class GetWVKeys:
                 return license_request["keys"]
         if self.verbose:
             print("[+] Sending License URL Request")
-        license_response = post_request(self.url, self.headers, license_request["challenge"], self.verbose)
+        license_response = post_request(
+            self.url, self.headers, license_request["challenge"], self.verbose
+        )
         decrypt_response = self.decrypter(base64.b64encode(license_response).decode())
         keys = decrypt_response["keys"]
         session_id = decrypt_response["session_id"]
@@ -179,7 +219,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--auth", "-api_key", help="GetWVKeys API Key"
     )  # auth is deprecated, use api_key instead. auth will be removed in the next major version
-    parser.add_argument("--verbose", "-v", help="increase output verbosity", action="store_true")
+    parser.add_argument(
+        "--verbose", "-v", help="increase output verbosity", action="store_true"
+    )
     parser.add_argument(
         "--force",
         "-f",
@@ -187,11 +229,25 @@ if __name__ == "__main__":
         default=False,
         action="store_true",
     )
-    parser.add_argument("--buildinfo", "-b", default="", help="Buildinfo", required=False)
-    parser.add_argument("--version", "-V", help="Print version and exit", action="store_true")
+    parser.add_argument(
+        "--device", "-d", default="", help="Device Hash", required=False
+    )
+    parser.add_argument(
+        "--version", "-V", help="Print version and exit", action="store_true"
+    )
+    parser.add_argument(
+        "--drm-type",
+        "-t",
+        type=DRMType,
+        choices=list(DRMType),
+        default=DRMType.WIDEVINE,
+        help="DRM type to use (widevine or playready). Default is widevine",
+    )
 
     args = parser.parse_args()
-    args.auth = getwvkeys_api_key if getwvkeys_api_key != "__getwvkeys_api_key__" else args.auth
+    args.auth = (
+        getwvkeys_api_key if getwvkeys_api_key != "__getwvkeys_api_key__" else args.auth
+    )
     args.headers = headers
 
     if args.version:
@@ -211,7 +267,7 @@ if __name__ == "__main__":
     if len(sys.argv) == 1:
         parser.print_help()
         print()
-        args.buildinfo = ""
+        args.device_hash = ""
         args.verbose = False
 
     try:

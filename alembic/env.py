@@ -5,11 +5,15 @@ import toml
 from sqlalchemy import engine_from_config, pool
 
 from alembic import context
-from getwvkeys.models import CDM, PRD, APIKey, Base, Key, Shared, User, UserPRD
+from getwvkeys.models import PRD, WVD, APIKey, Base, Key, Shared, User, UserPRD, UserWVD
 
 IS_DEVELOPMENT = bool(os.environ.get("DEVELOPMENT", False))
 IS_STAGING = bool(os.environ.get("STAGING", False))
-CONFIG = toml.load("config.dev.toml" if IS_DEVELOPMENT else "config.staging.toml" if IS_STAGING else "config.toml")
+CONFIG = toml.load(
+    "config.dev.toml"
+    if IS_DEVELOPMENT
+    else "config.staging.toml" if IS_STAGING else "config.toml"
+)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

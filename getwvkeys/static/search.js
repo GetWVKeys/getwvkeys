@@ -35,6 +35,8 @@ async function keycount() {
             method: "GET",
             headers: {
                 "X-API-Key": apiKey,
+                Origin: window.location.origin,
+                Referer: window.location.href,
             },
         });
         return await response.text();
@@ -45,7 +47,7 @@ async function keycount() {
 
 async function server_request() {
     async function server_request_data() {
-        document.getElementById("demo").innerHTML = "Searching the database";
+        document.getElementById("status").innerHTML = "Searching the database";
 
         const apiKey = getCookie("api_key");
         const response = await fetch("/search", {
@@ -53,13 +55,15 @@ async function server_request() {
             headers: {
                 "Content-Type": "application/x-www-form-urlencoded",
                 "X-API-Key": apiKey,
+                Origin: window.location.origin,
+                Referer: window.location.href,
             },
             body: document.getElementById("pssh").value,
         });
         return await response.json();
     }
     const response = await server_request_data();
-    setInnerHTML(document.getElementById("demo"), response);
+    setInnerHTML(document.getElementById("status"), response);
 
     formButton.disabled = false;
     formButton.value = "Send";

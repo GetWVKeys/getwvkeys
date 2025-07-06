@@ -1,0 +1,115 @@
+<!-- 
+  This file is part of the GetWVKeys project (https://github.com/GetWVKeys/getwvkeys)
+  Copyright (C) 2022-2024 Notaghost, Puyodead1 and GetWVKeys contributors 
+  
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published
+  by the Free Software Foundation, version 3 of the License.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ -->
+
+{% extends "base.html" %} {% block title %}Widevine{% endblock %} {% block content %}
+<section class="wdvn-request">
+    <header>
+        <h1 class="section-title">Send Widevine DRM Request</h1>
+    </header>
+    <div class="form-container">
+        <form>
+            <div class="form-item">
+                <span>PSSH:</span>
+                <div class="form-item-items">
+                    <input
+                        data-lpignore="true"
+                        type="text"
+                        id="pssh"
+                        name="pssh"
+                        value="AAAAp3Bzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAAIcSEFF0U4YtQlb9i61PWEIgBNcSEPCTfpp3yFXwptQ4ZMXZ82USEE1LDKJawVjwucGYPFF+4rUSEJAqBRprNlaurBkm/A9dkjISECZHD0KW1F0Eqbq7RC4WmAAaDXdpZGV2aW5lX3Rlc3QiFnNoYWthX2NlYzViZmY1ZGM0MGRkYzlI49yVmwY="
+                    />
+                </div>
+            </div>
+            <div class="form-item">
+                <span>License URL:</span>
+                <div class="form-item-items">
+                    <input
+                        data-lpignore="true"
+                        type="text"
+                        id="license"
+                        name="licenseUrl"
+                        value="https://cwip-shaka-proxy.appspot.com/no_auth"
+                    />
+                </div>
+            </div>
+            <div class="form-item">
+                <span>Headers:</span>
+                <div class="form-item-items">
+                    <textarea data-lpignore="true" rows="4" cols="64" id="headers" name="headers">
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:106.0) Gecko/20100101 Firefox/106.0</textarea
+                    >
+                    <label for="headers">Headers that are sent to the license server.</label>
+                </div>
+            </div>
+            <div class="form-item">
+                <span>Device:</span>
+                <div class="form-item-items">
+                    <input data-lpignore="true" type="text" id="device_hash" name="device_hash" value="" />
+                    <label for="device_hash">Device Hash to use. Leave blank unless you know what you're doing.</label>
+                </div>
+            </div>
+            <div class="form-item">
+                <span>Proxy:</span>
+                <div class="form-item-items">
+                    <input data-lpignore="true" type="text" id="proxy" name="proxy" value="" />
+                    <label for="proxy">Proxy string, ex: http://user:password@myproxy.net</label>
+                </div>
+            </div>
+            <div class="form-item">
+                <span>Force:</span>
+                <div class="form-item-items">
+                    <input type="checkbox" id="force" name="force" />
+                    <label for="force">Bypass cache</label>
+                </div>
+            </div>
+            <input type="submit" value="Send" />
+        </form>
+    </div>
+    <div class="info-container">
+        <div class="keycount-wrapper">
+            <span>Total key count: </span>
+            <span id="keycount">Loading... </span>
+        </div>
+        <div class="result-container" id="status">
+            <pre>Send a request to see the result.</pre>
+        </div>
+    </div>
+    <div class="donation-container">
+        <table>
+            <tbody>
+                <tr>
+                    <th>Coin</th>
+                    <th>Address</th>
+                    <th>Network</th>
+                </tr>
+
+                <tr>
+                    <td>BTC</td>
+                    <td>bc1qa9eqddsn8zdhcfu48s705mlf8elh8avr4w03md</td>
+                    <td>Bitcoin</td>
+                </tr>
+
+                <tr>
+                    <td>ETH</td>
+                    <td>0xCdfAADad4987A1EeC23D9203c8404890B380daa4</td>
+                    <td>Ethereum</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
