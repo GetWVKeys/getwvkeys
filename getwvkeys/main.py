@@ -24,6 +24,7 @@ from functools import update_wrapper, wraps
 from io import BytesIO
 from pathlib import Path
 from sqlite3 import DatabaseError
+from typing import Union
 
 import requests
 from dunamai import Version
@@ -63,7 +64,7 @@ from getwvkeys import config, libraries
 from getwvkeys.models.Shared import db
 from getwvkeys.redis import Redis
 from getwvkeys.user import FlaskUser
-from getwvkeys.utils import Blacklist, UserFlags, Validators, construct_logger
+from getwvkeys.utils import Blacklist, DRMType, UserFlags, Validators, construct_logger
 
 app = Flask(__name__.split(".")[0], root_path=str(Path(__file__).parent))
 app.config["SQLALCHEMY_DATABASE_URI"] = config.SQLALCHEMY_DATABASE_URI
@@ -371,30 +372,36 @@ def upload_prd():
         )
 
 
-@app.route("/widevine", methods=["GET", "POST"])
+@app.route("/api", methods=["GET", "POST"])
 @authentication_required()
-def widevine():
-    if request.method == "POST":
+def api():
+    if request.method == "GET":
+        return render_template(
+            "api.html", current_user=current_user, website_version=website_version
+        )
+    elif request.method == "POST":
         event_data = request.get_json()
         (
-            proxy,
             license_url,
             pssh,
+            proxy,
             headers,
             device_hash,
             force,
-            server_certificate,
+            downgrade,
+            certificate,
             is_web,
             is_curl,
             response,
             session_id,
         ) = (
-            event_data.get("proxy", ""),
             event_data.get("license_url"),
             event_data.get("pssh"),
+            event_data.get("proxy", ""),
             event_data.get("headers", ""),
             event_data.get("device_hash"),
             event_data.get("force", False),
+            event_data.get("downgrade"),
             event_data.get("certificate"),
             event_data.get("is_web", False),
             event_data.get("is_curl", False),
@@ -404,97 +411,65 @@ def widevine():
         if not pssh or not license_url:
             raise BadRequest("Missing Fields")
 
-        if not device_hash:
-            device_hash = libraries.get_random_wvd()
-
         blacklist_check(device_hash, license_url)
 
-        service = libraries.Widevine(
-            library=library,
-            proxy=proxy,
-            license_url=license_url,
-            pssh=pssh,
-            headers=headers,
-            device_hash=device_hash,
-            force=force,
-            user_id=current_user.id,
-            server_certificate=server_certificate,
-            is_web=is_web,
-            response=response,
-            session_id=session_id,
-        )
-        return service.run(is_curl)
-    else:
-        return render_template(
-            "widevine.html", current_user=current_user, website_version=website_version
-        )
+        drm_type: DRMType = DRMType.INVALID
+        service = None
 
+        if device_hash is None or device_hash == "":
+            # try to determine the drm type from the pssh
+            drm_type = library.get_pssh_drm_type(pssh)
+            logger.debug(f"[DEBUG] Detected DRM type from PSSH: {drm_type}")
 
-@app.route("/playready", methods=["POST", "GET"])
-@authentication_required()
-def playready():
-    if request.method == "POST":
-        event_data = request.get_json()
-        (
-            proxy,
-            license_url,
-            pssh,
-            headers,
-            device_hash,
-            force,
-            downgrade,
-            is_web,
-            is_curl,
-            response,
-            session_id,
-        ) = (
-            event_data.get("proxy", ""),
-            event_data.get("license_url"),
-            event_data.get("pssh"),
-            event_data.get("headers", ""),
-            event_data.get("device_hash"),
-            event_data.get("force", False),
-            event_data.get("downgrade"),
-            event_data.get("is_web", False),
-            event_data.get("is_curl", False),
-            event_data.get("response"),
-            event_data.get("session_id"),
-        )
-        if not pssh or not license_url:
-            raise BadRequest("Missing Fields")
+            # get a random device hash
+            if drm_type.is_playready():
+                device_hash = libraries.get_random_prd()
+            elif drm_type.is_widevine():
+                device_hash = libraries.get_random_wvd()
+        else:
+            # use the device hash to determine the drm system
+            drm_type = library.get_device_drm_type(device_hash)
+            logger.debug(f"[DEBUG] Detected DRM type from device hash: {drm_type}")
 
-        if not device_hash:
-            device_hash = libraries.get_random_wvd()
+        if drm_type.is_widevine():
+            service = libraries.Widevine(
+                library=library,
+                proxy=proxy,
+                license_url=license_url,
+                pssh=pssh,
+                headers=headers,
+                device_hash=device_hash,
+                force=force,
+                user_id=current_user.id,
+                server_certificate=certificate,
+                is_web=is_web,
+                response=response,
+                session_id=session_id,
+                is_curl=is_curl,
+            )
+        elif drm_type.is_playready():
+            service = libraries.PlayReady(
+                library=library,
+                proxy=proxy,
+                license_url=license_url,
+                pssh=pssh,
+                headers=headers,
+                device_hash=device_hash,
+                force=force,
+                user_id=current_user.id,
+                downgrade=downgrade,
+                is_web=is_web,
+                response=response,
+                session_id=session_id,
+                is_curl=is_curl,
+            )
+        else:
+            raise BadRequest("Unable to determine DRM type from PSSH or device hash")
 
-        blacklist_check(device_hash, license_url)
+        if not service:
+            raise BadRequest("Unable to determine DRM type from PSSH or device hash")
 
-        service = libraries.PlayReady(
-            library=library,
-            proxy=proxy,
-            license_url=license_url,
-            pssh=pssh,
-            headers=headers,
-            device_hash=device_hash,
-            force=force,
-            user_id=current_user.id,
-            downgrade=downgrade,
-            is_web=is_web,
-            response=response,
-            session_id=session_id,
-        )
-        return service.run(is_curl)
-    else:
-        return render_template(
-            "playready.html", current_user=current_user, website_version=website_version
-        )
-
-
-@app.route("/api", methods=["GET"])
-@authentication_required()
-def api():
-    return render_template(
-        "api.html", current_user=current_user, website_version=website_version
-    )
+        return service.run()
 
 
 # @app.route("/vinetrimmer", methods=["POST"])

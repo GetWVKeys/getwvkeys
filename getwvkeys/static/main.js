@@ -15,6 +15,18 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+const widevine_demo_data = {
+    license_url: "https://cwip-shaka-proxy.appspot.com/no_auth",
+    pssh: "AAAAp3Bzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAAIcSEFF0U4YtQlb9i61PWEIgBNcSEPCTfpp3yFXwptQ4ZMXZ82USEE1LDKJawVjwucGYPFF+4rUSEJAqBRprNlaurBkm/A9dkjISECZHD0KW1F0Eqbq7RC4WmAAaDXdpZGV2aW5lX3Rlc3QiFnNoYWthX2NlYzViZmY1ZGM0MGRkYzlI49yVmwY=",
+    headers: "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:106.0) Gecko/20100101 Firefox/106.0",
+};
+
+const playready_demo_data = {
+    license_url: "https://test.playready.microsoft.com/service/rightsmanager.asmx?cfg=(persist:false,sl:2000)",
+    pssh: "AAADfHBzc2gAAAAAmgTweZhAQoarkuZb4IhflQAAA1xcAwAAAQABAFIDPABXAFIATQBIAEUAQQBEAEUAUgAgAHgAbQBsAG4AcwA9ACIAaAB0AHQAcAA6AC8ALwBzAGMAaABlAG0AYQBzAC4AbQBpAGMAcgBvAHMAbwBmAHQALgBjAG8AbQAvAEQAUgBNAC8AMgAwADAANwAvADAAMwAvAFAAbABhAHkAUgBlAGEAZAB5AEgAZQBhAGQAZQByACIAIAB2AGUAcgBzAGkAbwBuAD0AIgA0AC4AMAAuADAALgAwACIAPgA8AEQAQQBUAEEAPgA8AFAAUgBPAFQARQBDAFQASQBOAEYATwA+ADwASwBFAFkATABFAE4APgAxADYAPAAvAEsARQBZAEwARQBOAD4APABBAEwARwBJAEQAPgBBAEUAUwBDAFQAUgA8AC8AQQBMAEcASQBEAD4APAAvAFAAUgBPAFQARQBDAFQASQBOAEYATwA+ADwASwBJAEQAPgA0AFIAcABsAGIAKwBUAGIATgBFAFMAOAB0AEcAawBOAEYAVwBUAEUASABBAD0APQA8AC8ASwBJAEQAPgA8AEMASABFAEMASwBTAFUATQA+AEsATABqADMAUQB6AFEAUAAvAE4AQQA9ADwALwBDAEgARQBDAEsAUwBVAE0APgA8AEwAQQBfAFUAUgBMAD4AaAB0AHQAcABzADoALwAvAHAAcgBvAGYAZgBpAGMAaQBhAGwAcwBpAHQAZQAuAGsAZQB5AGQAZQBsAGkAdgBlAHIAeQAuAG0AZQBkAGkAYQBzAGUAcgB2AGkAYwBlAHMALgB3AGkAbgBkAG8AdwBzAC4AbgBlAHQALwBQAGwAYQB5AFIAZQBhAGQAeQAvADwALwBMAEEAXwBVAFIATAA+ADwAQwBVAFMAVABPAE0AQQBUAFQAUgBJAEIAVQBUAEUAUwA+ADwASQBJAFMAXwBEAFIATQBfAFYARQBSAFMASQBPAE4APgA4AC4AMQAuADIAMwAwADQALgAzADEAPAAvAEkASQBTAF8ARABSAE0AXwBWAEUAUgBTAEkATwBOAD4APAAvAEMAVQBTAFQATwBNAEEAVABUAFIASQBCAFUAVABFAFMAPgA8AC8ARABBAFQAQQA+ADwALwBXAFIATQBIAEUAQQBEAEUAUgA+AA==",
+    headers: "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:106.0) Gecko/20100101 Firefox/106.0",
+};
+
 function handleFormSubmit(event) {
     event.preventDefault();
     formButton.disabled = true;
@@ -56,7 +68,7 @@ async function server_request() {
             is_web: true,
         };
         const apiKey = getCookie("api_key");
-        const response = await fetch(window.location.href, {
+        const response = await fetch("/api", {
             method: "POST",
             headers: {
                 Accept: "application/json, text/plain, */*",
@@ -149,7 +161,38 @@ function deletePrd(id) {
 const keycountElement = document.getElementById("keycount");
 const mainForm = document.querySelector(".form-container>form");
 const formButton = mainForm.querySelector('input[type="submit"]');
+const drmSwitch = document.getElementById("drm-switch");
+const psshInput = mainForm.querySelector('input[id="pssh"]');
+const urlInput = mainForm.querySelector('input[id="license"]');
+const headersInput = mainForm.querySelector('textarea[name="headers"]');
+const downgradeItem = document.querySelector(".downgrade-item");
+const title = document.querySelector(".section-title");
 
+if (drmSwitch) {
+    const run = () => {
+        const isChecked = drmSwitch.checked;
+
+        if (isChecked) {
+            // PlayReady selected
+            psshInput.value = playready_demo_data.pssh;
+            urlInput.value = playready_demo_data.license_url;
+            headersInput.value = playready_demo_data.headers;
+            title.innerText = "Get PlayReady Keys";
+            if (downgradeItem) downgradeItem.style.display = "flex";
+        } else {
+            // widevine selected
+            psshInput.value = widevine_demo_data.pssh;
+            urlInput.value = widevine_demo_data.license_url;
+            headersInput.value = widevine_demo_data.headers;
+            title.innerText = "Get Widevine Keys";
+            if (downgradeItem) downgradeItem.style.display = "none";
+        }
+    };
+    // set initial state to unchecked
+    drmSwitch.checked = false; // Default to Widevine
+    run(); // refreshing can cause desync
+    drmSwitch.addEventListener("change", run);
+}
 if (keycountElement) keycount();
 else console.warn("Keycount Element not found, skipping keycount fetch");
 

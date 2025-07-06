@@ -29,7 +29,7 @@
         </section>
 
         <section>
-            <h2>POST /widevine</h2>
+            <h2>POST /api</h2>
             <section>
                 <h3>Request Body</h3>
                 <pre><code>{
@@ -39,10 +39,12 @@
   "device_hash": "string",                  // OPTIONAL. Device hash to use
   "headers": "string",                      // OPTIONAL. Additional headers in key:value
   "force": true | false,                    // OPTIONAL. Bypass server cache
-  "certificate": "string",                  // OPTIONAL. Service certificate
+  "certificate": "string",                  // OPTIONAL. Service certificate - Widevine only
+  "downgrade": true | false,                // OPTIONAL. PlayReady only
   "is_curl": true | false,                  // OPTIONAL. If true, server performs the license request directly
   "response": "string",                     // OPTIONAL*. License server response (for second step)
-  "session_id": "string"                    // OPTIONAL*. Session ID from challenge generation
+  "session_id": "string",                    // OPTIONAL*. Session ID from challenge generation
+  "is_curl": true | false,                  // OPTIONAL. If true, server performs the license request directly and return JSON
 }</code></pre>
             </section>
 
@@ -90,60 +92,6 @@
 }</code></pre>
                 <p><strong>Note:</strong> The <code>key</code> field is always in the format <code>kid:key</code>.</p>
             </section>
-        </section>
-
-        <section>
-            <h2>/playready Endpoint</h2>
-            <p>POST /playready</p>
-
-            <h4>Request Body</h4>
-            <pre><code>{
-  "license_url": "string",                  // REQUIRED. PlayReady license server URL
-  "pssh": "base64-encoded string",          // REQUIRED. PSSH data
-  "proxy": "string",                        // OPTIONAL. Proxy in username:password@host:port
-  "device_hash": "string",                  // OPTIONAL. Device hash to use
-  "headers": "string",                      // OPTIONAL. Additional headers in key:value
-  "force": true | false,                    // OPTIONAL. Bypass server cache
-  "downgrade": true | false,                // OPTIONAL.
-  "is_curl": true | false,                  // OPTIONAL. If true, server performs the license request directly
-  "response": "string",                     // OPTIONAL*. License server response (for second step)
-  "session_id": "string"                    // OPTIONAL*. Session ID from challenge generation
-}</code></pre>
-
-            <h4>Behavior</h4>
-            <ul>
-                <li>
-                    <strong>When <code>is_curl</code> is false or omitted</strong>: Server generates a challenge for you
-                    to send to the license server (ex: cases where the license server uses a non-standard request body).
-                </li>
-                <li>
-                    <strong>When <code>is_curl</code> is true</strong>: Server performs the license request itself and
-                    returns keys.
-                </li>
-                <li>
-                    <strong>To decrypt license responses</strong>: Send the base64 license in
-                    <code>response</code> along with <code>session_id</code>, and all other original parameters.
-                </li>
-            </ul>
-
-            <h4>Response (when is_curl is false)</h4>
-            <pre><code>{
-  "challenge": "string",
-  "session_id": "string"
-}</code></pre>
-
-            <h4>Response (key result)</h4>
-            <pre><code>{
-  "keys": [
-    {
-      "added_at": 1733171162,
-      "key": "517453862d4256fd8bad4f58422004d7:5b4b848eac0855d79165d05f3cf16d56",
-      "license_url": "https://cwip-shaka-proxy.appspot.com"
-    }
-  ],
-  "kid": "517453862d4256fd8bad4f58422004d7"
-}</code></pre>
-            <p><strong>Note:</strong> The <code>key</code> field is always in the format <code>kid:key</code>.</p>
         </section>
     </div>
 </section>
