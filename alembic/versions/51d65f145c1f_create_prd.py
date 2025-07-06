@@ -24,9 +24,17 @@ def upgrade() -> None:
     op.create_table(
         "prds",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column("hash", sa.String(length=255), nullable=False),
+        sa.Column(
+            "hash",
+            sa.String(length=255, collation="utf8mb4_general_ci"),
+            nullable=False,
+        ),
         sa.Column("prd", sa.Text(), nullable=False),
-        sa.Column("uploaded_by", sa.String(length=255), nullable=False),
+        sa.Column(
+            "uploaded_by",
+            sa.String(length=255, collation="utf8mb4_general_ci"),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(
             ["uploaded_by"],
             ["users.id"],
@@ -36,8 +44,16 @@ def upgrade() -> None:
     )
     op.create_table(
         "user_prd",
-        sa.Column("user_id", sa.String(length=255), nullable=False),
-        sa.Column("device_hash", sa.String(length=255), nullable=False),
+        sa.Column(
+            "user_id",
+            sa.String(length=255, collation="utf8mb4_general_ci"),
+            nullable=False,
+        ),
+        sa.Column(
+            "device_hash",
+            sa.String(length=255, collation="utf8mb4_general_ci"),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(["device_hash"], ["prds.hash"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
     )

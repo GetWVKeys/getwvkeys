@@ -14,3 +14,24 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+from sqlalchemy import Column, ForeignKey, String, Table
+
+from getwvkeys.models.Base import Base
+
+user_wvd_association = Table(
+    "user_wvd",
+    Base.metadata,
+    Column(
+        "user_id",
+        String(255, collation="utf8mb4_general_ci"),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column(
+        "device_hash",
+        String(255, collation="utf8mb4_general_ci"),
+        ForeignKey("wvds.hash", ondelete="CASCADE"),
+        nullable=False,
+    ),
+)

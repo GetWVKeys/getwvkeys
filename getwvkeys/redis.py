@@ -1,18 +1,18 @@
 """
- This file is part of the GetWVKeys project (https://github.com/GetWVKeys/getwvkeys)
- Copyright (C) 2022-2024 Notaghost, Puyodead1 and GetWVKeys contributors 
- 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Affero General Public License as published
- by the Free Software Foundation, version 3 of the License.
+This file is part of the GetWVKeys project (https://github.com/GetWVKeys/getwvkeys)
+Copyright (C) 2022-2024 Notaghost, Puyodead1 and GetWVKeys contributors
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU Affero General Public License for more details.
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, version 3 of the License.
 
- You should have received a copy of the GNU Affero General Public License
- along with this program.  If not, see <https://www.gnu.org/licenses/>.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
@@ -32,7 +32,9 @@ class Redis:
     def __init__(self, app, library: libraries.Library) -> None:
         self.app = app
         self.library = library
-        self.redis = redis.Redis.from_url(config.REDIS_URI, decode_responses=True, encoding="utf8")
+        self.redis = redis.Redis.from_url(
+            config.REDIS_URI, decode_responses=True, encoding="utf8"
+        )
         self.p = self.redis.pubsub(ignore_subscribe_messages=True)
         self.p.subscribe(**{"api": self.redis_message_handler})
         self.redis_thread = self.p.run_in_thread(daemon=True)
@@ -64,7 +66,9 @@ class Redis:
                         FlaskUser.disable_user(db, user_id)
                         self.publish_response(reply_to)
                     except Exception as e:
-                        self.publish_error(reply_to, "Error disablng user {}: {}".format(user_id, e))
+                        self.publish_error(
+                            reply_to, "Error disablng user {}: {}".format(user_id, e)
+                        )
             elif op == OPCode.DISABLE_USER_BULK.value:
                 user_ids = d.get("user_ids")
                 if not user_ids:
@@ -77,7 +81,9 @@ class Redis:
                             reply_to,
                         )
                     except Exception as e:
-                        self.publish_error(reply_to, "Error disablng users: {}".format(e))
+                        self.publish_error(
+                            reply_to, "Error disablng users: {}".format(e)
+                        )
             elif op == OPCode.ENABLE_USER.value:
                 user_id = d.get("user_id")
                 if not user_id:
@@ -90,7 +96,9 @@ class Redis:
                             reply_to,
                         )
                     except Exception as e:
-                        self.publish_error(reply_to, "Error enabling user {}: {}".format(user_id, e))
+                        self.publish_error(
+                            reply_to, "Error enabling user {}: {}".format(user_id, e)
+                        )
             elif op == OPCode.KEY_COUNT.value:
                 with self.app.app_context():
                     self.publish_response(reply_to, self.library.get_keycount())
@@ -114,7 +122,9 @@ class Redis:
                 permissions = d.get("permissions")
                 permission_action = d.get("permission_action")
                 if not user_id or not permissions:
-                    self.publish_error(reply_to, "No user_id or permissions found in message")
+                    self.publish_error(
+                        reply_to, "No user_id or permissions found in message"
+                    )
                     return
                 with self.app.app_context():
                     try:
@@ -130,8 +140,13 @@ class Redis:
                             reply_to,
                         )
                     except Exception as e:
-                        logger.exception("Error updating permissions for {}: {}".format(user_id, e))
-                        self.publish_error(reply_to, "Error updating permissions for {}: {}".format(user_id, e))
+                        logger.exception(
+                            "Error updating permissions for {}: {}".format(user_id, e)
+                        )
+                        self.publish_error(
+                            reply_to,
+                            "Error updating permissions for {}: {}".format(user_id, e),
+                        )
             elif op == OPCode.QUARANTINE.value:
                 # TODO: Implement
                 self.publish_error(reply_to, "Not implemented")
@@ -144,9 +159,17 @@ class Redis:
                         return
                     try:
                         user.reset_api_key()
-                        self.publish_response(reply_to, "API Key has been reset for user {}".format(user.username))
+                        self.publish_response(
+                            reply_to,
+                            "API Key has been reset for user {}".format(user.username),
+                        )
                     except Exception as e:
-                        self.publish_error(reply_to, "Error resetting API Key for {}: {}".format(user.username, str(e)))
+                        self.publish_error(
+                            reply_to,
+                            "Error resetting API Key for {}: {}".format(
+                                user.username, str(e)
+                            ),
+                        )
             else:
                 self.publish_error(reply_to, "Unknown OPCode {}".format(op))
         except json.JSONDecodeError:

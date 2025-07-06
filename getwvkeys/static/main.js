@@ -44,31 +44,33 @@ function getCookie(name) {
 }
 
 async function server_request() {
-    async function server_request_data() {
-        document.getElementById("demo").innerHTML = "Sending Request Through Server";
+    async function server_request_data(endpoint) {
+        document.getElementById("status").innerHTML = "Sending Request Through Server";
         const dicted = {
             license_url: document.getElementById("license").value,
             headers: document.getElementById("headers").value,
             pssh: document.getElementById("pssh").value,
-            buildInfo: document.getElementById("buildInfo").value,
+            device_hash: document.getElementById("device_hash").value,
             proxy: document.getElementById("proxy").value,
             force: document.getElementById("force").checked,
             is_web: true,
         };
         const apiKey = getCookie("api_key");
-        const response = await fetch("/api", {
+        const response = await fetch(window.location.href, {
             method: "POST",
             headers: {
                 Accept: "application/json, text/plain, */*",
                 "Content-Type": "application/json",
                 "X-API-Key": apiKey,
+                Origin: window.location.origin,
+                Referer: window.location.href,
             },
             body: JSON.stringify(dicted),
         });
         return await response.text();
     }
     const response = await server_request_data();
-    const elem = document.getElementById("demo");
+    const elem = document.getElementById("status");
     setInnerHTML(elem, response);
 
     formButton.disabled = false;
@@ -90,20 +92,22 @@ function parseUnixTimestamp(timestamp) {
     return date.toLocaleString();
 }
 
-function deleteCdm(id) {
-    const doDelete = confirm("Are you sure you want to delete this CDM?");
+function deleteWvd(id) {
+    const doDelete = confirm("Are you sure you want to delete this WVD?");
     if (!doDelete) return;
     const apiKey = getCookie("api_key");
-    fetch(`/me/cdms/${id}`, {
+    fetch(`/me/wvds/${id}`, {
         method: "DELETE",
         headers: {
             Accept: "application/json, text/plain, */*",
             "Content-Type": "application/json",
             "X-API-Key": apiKey,
+            Origin: window.location.origin,
+            Referer: window.location.href,
         },
     })
         .catch((e) => {
-            alert(`Error deleting CDM: ${e}`);
+            alert(`Error deleting WVD: ${e}`);
         })
         .then(async (r) => {
             const text = await r.json();
@@ -125,6 +129,8 @@ function deletePrd(id) {
             Accept: "application/json, text/plain, */*",
             "Content-Type": "application/json",
             "X-API-Key": apiKey,
+            Origin: window.location.origin,
+            Referer: window.location.href,
         },
     })
         .catch((e) => {
@@ -143,29 +149,6 @@ function deletePrd(id) {
 const keycountElement = document.getElementById("keycount");
 const mainForm = document.querySelector(".form-container>form");
 const formButton = mainForm.querySelector('input[type="submit"]');
-const psshInput = mainForm.querySelector('input[id="pssh"]');
-const urlInput = mainForm.querySelector('input[id="license"]');
-const headersInput = mainForm.querySelector('textarea[name="headers"]');
-const downgradeItem = document.querySelector(".downgrade-item");
-
-const queryString = window.location.search;
-const urlParams = new URLSearchParams(queryString);
-const drm = urlParams.get("drm");
-
-if (psshInput && urlInput && headersInput && downgradeItem) {
-    if (!drm || drm.toLowerCase() === "playready") {
-        // default to PR
-        downgradeItem.style.display = "flex";
-    } else if (drm.toLowerCase() === "widevine") {
-        // add widevine examples
-        psshInput.defaultValue =
-            "AAAAp3Bzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAAIcSEFF0U4YtQlb9i61PWEIgBNcSEPCTfpp3yFXwptQ4ZMXZ82USEE1LDKJawVjwucGYPFF+4rUSEJAqBRprNlaurBkm/A9dkjISECZHD0KW1F0Eqbq7RC4WmAAaDXdpZGV2aW5lX3Rlc3QiFnNoYWthX2NlYzViZmY1ZGM0MGRkYzlI49yVmwY=";
-        urlInput.defaultValue = "https://cwip-shaka-proxy.appspot.com/no_auth";
-        headersInput.defaultValue =
-            "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:106.0) Gecko/20100101 Firefox/106.0";
-        downgradeItem.style.display = "none";
-    }
-}
 
 if (keycountElement) keycount();
 else console.warn("Keycount Element not found, skipping keycount fetch");

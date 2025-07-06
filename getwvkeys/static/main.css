@@ -173,6 +173,10 @@ input[type="password"] {
     background-color: #242629;
     width: 100%;
 }
+input[type="file"] {
+    position: relative;
+    left: 30px;
+}
 
 textarea {
     border-radius: 4px;
@@ -258,10 +262,32 @@ input[type="submit"]:focus {
     word-break: break-all;
     margin: 64px 16px 0 8px;
 }
-.api-request {
+.api {
     margin: 0 auto 0 auto;
     max-width: 1440px;
 }
+
+.api #sections {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+}
+
+#sections > section {
+    padding: 24px;
+    background-color: hsla(0, 0%, 100%, 0.07);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+}
+
+#sections > section > section {
+    background-color: hsla(0, 0%, 100%, 0.04);
+    border-radius: 8px;
+    padding: 24px;
+}
+
 .request-item > h2 {
     color: #fffffe;
 }
@@ -317,20 +343,29 @@ summary > * {
     gap: 64px;
 }
 .upload-container > form {
-    margin-top: 64px;
     display: flex;
     flex-direction: column;
+    margin-top: 24px;
+    background-color: hsla(0, 0%, 100%, 0.05);
+    padding: 24px;
+    border-radius: 8px;
 }
 .upload-form-item:not(:first-child) {
     margin-top: 36px;
 }
 .upload-form-item {
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
+    align-items: center;
 }
-.upload-form-item > input {
+.upload-form-item > label {
+    font-size: 1.125rem;
+    color: #fffffe;
+    margin-bottom: 8px;
+}
+/* .upload-form-item > input {
     margin-left: 16px;
-}
+} */
 
 footer {
     background-color: #242629;
@@ -599,8 +634,29 @@ button[type="enable"]:focus {
 }
 
 pre {
+    background-color: hsla(0, 0%, 100%, 0.04);
+    color: #fffffe;
+    padding: 8px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-family: monospace;
+    font-size: 1rem;
+    margin-top: 16px;
     white-space: pre-wrap;
-    margin-left: 30px;
+}
+
+pre code {
+    color: #fffffe;
+    border-radius: 4px;
+    font-family: monospace;
+}
+
+/* code blocks NOT inside a pre */
+code:not(pre code) {
+    background-color: hsla(0, 0%, 100%, 0.08);
+    padding: 1px 4px;
+    font-size: 1rem;
+    border-radius: 4px;
 }
 
 .delete-button {
@@ -632,4 +688,83 @@ pre {
 .keycount-wrapper {
     display: flex;
     justify-content: center;
+}
+
+.index-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 3rem 1rem;
+    text-align: center;
+}
+
+header {
+    margin-bottom: 2rem;
+}
+
+.index-page .subtitle {
+    font-size: 1.2rem;
+    color: #666;
+}
+
+.button-container {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    max-width: 800px;
+}
+
+.big-button {
+    display: inline-block;
+    background-color: hsla(0, 0%, 100%, 0.4);
+    color: white;
+    text-decoration: none;
+    padding: 1.5rem 2rem;
+    border-radius: 8px;
+    font-size: 1.2rem;
+    text-align: center;
+    transition: background-color 0.2s ease;
+    min-width: 200px;
+}
+
+.big-button:hover {
+    background-color: hsla(0, 0%, 100%, 0.5);
+}
+
+.upload header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.upload header p {
+    max-width: 50vw;
+    font-size: 0.8rem;
+    color: hsla(0, 0%, 100%, 0.7);
+    margin-top: 0.5rem;
+}
+
+.api section p {
+    color: hsla(0, 0%, 100%, 0.7);
+    font-size: 0.9rem;
+}
+
+.api ul {
+    margin-top: 8px;
+    list-style: circle;
+    padding-left: 20px;
+}
+
+.api strong {
+    color: hsla(0, 0%, 100%, 0.9);
+}
+
+.upload-complete {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
 }

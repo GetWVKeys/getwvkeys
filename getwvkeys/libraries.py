@@ -1,18 +1,18 @@
 """
- This file is part of the GetWVKeys project (https://github.com/GetWVKeys/getwvkeys)
- Copyright (C) 2022-2024 Notaghost, Puyodead1 and GetWVKeys contributors 
- 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Affero General Public License as published
- by the Free Software Foundation, version 3 of the License.
+This file is part of the GetWVKeys project (https://github.com/GetWVKeys/getwvkeys)
+Copyright (C) 2022-2024 Notaghost, Puyodead1 and GetWVKeys contributors
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU Affero General Public License for more details.
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, version 3 of the License.
 
- You should have received a copy of the GNU Affero General Public License
- along with this program.  If not, see <https://www.gnu.org/licenses/>.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import base64
@@ -29,15 +29,22 @@ import requests
 import yaml
 from flask import jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
-from pyplayready.cdm import Cdm as PlayreadyCdm
-from pyplayready.device import Device as PlayreadyDevice
-from pyplayready.exceptions import (
-    InvalidInitData,
-    InvalidLicense,
-    InvalidSession,
-    TooManySessions,
-)
-from pyplayready.system.pssh import PSSH as PlayreadyPSSH
+from pyplayready import PSSH as PlayreadyPSSH
+from pyplayready import Cdm as PlayreadyCdm
+from pyplayready import Device as PlayreadyDevice
+from pyplayready.exceptions import InvalidInitData as PlayreadyInvalidInitData
+from pyplayready.exceptions import InvalidLicense as PlayreadyInvalidLicense
+from pyplayready.exceptions import InvalidPssh as PlayreadyInvalidPssh
+from pyplayready.exceptions import InvalidSession as PlayreadyInvalidSession
+from pyplayready.exceptions import TooManySessions as PlayreadyTooManySessions
+from pywidevine import PSSH as WidevinePSSH
+from pywidevine import Cdm as WidevineCdm
+from pywidevine import Device as WidevineDevice
+from pywidevine.exceptions import InvalidInitData as WidevineInvalidInitData
+from pywidevine.exceptions import InvalidLicenseMessage as WidevineInvalidLicenseMessage
+from pywidevine.exceptions import InvalidSession as WidevineInvalidSession
+from pywidevine.exceptions import SignatureMismatch as WidevineSignatureMismatch
+from pywidevine.exceptions import TooManySessions as WidevineTooManySessions
 from requests.exceptions import ProxyError
 from sqlalchemy import func
 from werkzeug.exceptions import (
@@ -49,15 +56,11 @@ from werkzeug.exceptions import (
 
 from getwvkeys import config
 from getwvkeys.models.APIKey import APIKey as APIKeyModel
-from getwvkeys.models.CDM import CDM as CDMModel
 from getwvkeys.models.Key import Key as KeyModel
 from getwvkeys.models.PRD import PRD
 from getwvkeys.models.User import User as UserModel
-from getwvkeys.pywidevine.cdm import deviceconfig
-from getwvkeys.utils import (
-    CachedKey,
-    extract_kid_from_pssh,
-)
+from getwvkeys.models.WVD import WVD
+from getwvkeys.utils import CachedKey, extract_widevine_kid
 
 logger = logging.getLogger("getwvkeys")
 
@@ -75,14 +78,14 @@ common_privacy_cert = (
     "7gLwDS6NWYYQSqzE3Udf2W7pzk4ybyG4PHBYV3s4cyzdq8amvtE/sNSdOKReuHpfQ="
 )
 
-wv_sessions = dict()
+wv_sessions: dict[str, WidevineCdm] = dict()
 pr_sessions: dict[str, PlayreadyCdm] = dict()
 
 
-def get_random_cdm():
-    if len(config.DEFAULT_CDMS) == 0:
-        raise Exception("No CDMS configured")
-    return secrets.choice(config.DEFAULT_CDMS)
+def get_random_wvd():
+    if len(config.DEFAULT_WVDS) == 0:
+        raise Exception("No WVDs configured")
+    return secrets.choice(config.DEFAULT_WVDS)
 
 
 def get_random_prd():
@@ -91,12 +94,27 @@ def get_random_prd():
     return secrets.choice(config.DEFAULT_PRDS)
 
 
-def is_custom_buildinfo(buildinfo):
-    return next((True for entry in config.EXTERNAL_API_BUILD_INFOS if entry["buildinfo"] == buildinfo), False)
+# def is_custom_buildinfo(buildinfo):
+#     return next(
+#         (
+#             True
+#             for entry in config.EXTERNAL_API_BUILD_INFOS
+#             if entry["buildinfo"] == buildinfo
+#         ),
+#         False,
+#     )
 
 
 def is_user_prd(device: str):
-    return next((False for entry in config.DEFAULT_PRDS if entry["code"] == device), False)
+    return next(
+        (False for entry in config.DEFAULT_PRDS if entry["code"] == device), False
+    )
+
+
+def is_user_wvd(device: str):
+    return next(
+        (False for entry in config.DEFAULT_WVDS if entry["code"] == device), False
+    )
 
 
 class Library:
@@ -110,17 +128,18 @@ class Library:
             self.cache_key(cached_key)
 
     def cache_key(self, cached_key: CachedKey):
-        # add key to the cache only if kid and key_ are not already in the cache
-        if not KeyModel.query.filter_by(kid=cached_key.kid, key_=cached_key.key).first():
-            k = KeyModel(
-                kid=cached_key.kid,
-                added_at=cached_key.added_at,
-                added_by=cached_key.added_by,
-                license_url=cached_key.license_url,
-                key_=cached_key.key,
-            )
-            self.db.session.add(k)
-            self.db.session.commit()
+        # do not add existing kid and key_ pairs
+        if KeyModel.query.filter_by(kid=cached_key.kid, key_=cached_key.key).first():
+            return
+        k = KeyModel(
+            kid=cached_key.kid,
+            added_at=cached_key.added_at,
+            added_by=cached_key.added_by,
+            license_url=cached_key.license_url,
+            key_=cached_key.key,
+        )
+        self.db.session.merge(k)
+        self.db.session.commit()
 
     def get_keycount(self) -> int:
         return self.db.session.query(func.count(KeyModel.kid)).scalar()
@@ -129,11 +148,22 @@ class Library:
     def search(self, query: str) -> list:
         if query.startswith("AAAA"):
             # Try to parse the query as a PSSH and extract a KID
+            # try to parse as a playready pssh
             try:
-                query = extract_kid_from_pssh(query)
-            except Exception as e:
-                logger.exception(e)
-                raise e
+                pssh = PlayreadyPSSH(query)
+                kids = [x.read_attributes()[0] for x in self.pssh.wrm_headers]
+                kid = kids[0][0].value
+                decoded_kid = base64.b64decode(kid)
+                query = str(uuid.UUID(bytes_le=decoded_kid))
+            except PlayreadyInvalidPssh:
+                # try to parse as widevine pssh
+                try:
+                    pssh = WidevinePSSH(query)
+                    query = extract_widevine_kid(pssh)
+                except Exception as e:
+                    logger.exception(e)
+                    raise BadRequest(f"Invalid PSSH: {e}")
+
         if "-" in query:
             query = query.replace("-", "")
         return KeyModel.query.filter_by(kid=query).all()
@@ -158,31 +188,36 @@ class Library:
             )
         return results
 
-    def cdm_selector(self, code: str) -> dict:
-        cdm = CDMModel.query.filter_by(code=code).first()
-        if not cdm:
-            raise NotFound("CDM not found")
-        return cdm.to_json()
+    # def cdm_selector(self, code: str) -> dict:
+    #     cdm = CDMModel.query.filter_by(code=code).first()
+    #     if not cdm:
+    #         raise NotFound("CDM not found")
+    #     return cdm.to_json()
 
-    def update_cdm(self, client_id_blob, device_private_key, uploaded_by) -> str:
-        from getwvkeys.pywidevine.cdm.formats import wv_proto2_pb2
+    # def update_cdm(self, client_id_blob, device_private_key, uploaded_by) -> str:
+    #     from getwvkeys.pywidevine.cdm.formats import wv_proto2_pb2
 
-        def get_blob_id(blob):
-            blob_ = base64.b64decode(blob)
-            ci = wv_proto2_pb2.ClientIdentification()
-            ci.ParseFromString(blob_)
-            return str(ci.ClientInfo[5]).split("Value: ")[1].replace("\n", "").replace('"', "")
+    #     def get_blob_id(blob):
+    #         blob_ = base64.b64decode(blob)
+    #         ci = wv_proto2_pb2.ClientIdentification()
+    #         ci.ParseFromString(blob_)
+    #         return (
+    #             str(ci.ClientInfo[5])
+    #             .split("Value: ")[1]
+    #             .replace("\n", "")
+    #             .replace('"', "")
+    #         )
 
-        code = get_blob_id(client_id_blob)
-        cdm = CDMModel(
-            client_id_blob_filename=client_id_blob,
-            device_private_key=device_private_key,
-            code=code,
-            uploaded_by=uploaded_by,
-        )
-        self.db.session.add(cdm)
-        self.db.session.commit()
-        return code
+    #     code = get_blob_id(client_id_blob)
+    #     cdm = CDMModel(
+    #         client_id_blob_filename=client_id_blob,
+    #         device_private_key=device_private_key,
+    #         code=code,
+    #         uploaded_by=uploaded_by,
+    #     )
+    #     self.db.session.add(cdm)
+    #     self.db.session.commit()
+    #     return code
 
     def upload_prd(self, prd_data: str, user_id: str) -> str:
         user = UserModel.query.filter_by(id=user_id).first()
@@ -191,7 +226,7 @@ class Library:
 
         # used to check if the prd is valid
         try:
-            prd = PlayreadyDevice.loads(prd_data)
+            PlayreadyDevice.loads(prd_data)
         except Exception as e:
             logger.exception(e)
             raise BadRequest(f"Invalid PRD")
@@ -213,7 +248,44 @@ class Library:
             user.prds.append(device)
             self.db.session.commit()
         else:
-            raise BadRequest("PRD already uploaded, please use the existing hash found on the profile page.")
+            raise BadRequest(
+                "PRD already uploaded, please use the existing hash found on the profile page."
+            )
+
+        return device.hash
+
+    def upload_wvd(self, wvd_data: str, user_id: str) -> str:
+        user = UserModel.query.filter_by(id=user_id).first()
+        if not user:
+            raise NotFound("User not found")
+
+        # used to check if the wvd is valid
+        try:
+            WidevineDevice.loads(wvd_data)
+        except Exception as e:
+            logger.exception(e)
+            raise BadRequest(f"Invalid WVD")
+
+        wvd_raw = base64.b64decode(wvd_data)
+
+        # calculate the hash of the wvd
+        wvd_hash = hashlib.sha256(wvd_raw).hexdigest()
+
+        # get device
+        device = WVD.query.filter_by(hash=wvd_hash).first()
+        if not device:
+            device = WVD(uploaded_by=user.id, wvd=wvd_data, hash=wvd_hash)
+            self.db.session.add(device)
+            user.wvds.append(device)
+            self.db.session.commit()
+        elif device not in user.wvds:
+            # add device to user if its not already there
+            user.wvds.append(device)
+            self.db.session.commit()
+        else:
+            raise BadRequest(
+                "WVD already uploaded, please use the existing hash found on the profile page."
+            )
 
         return device.hash
 
@@ -230,10 +302,16 @@ class Library:
             cached_keys.append(CachedKey(kid, added_at, user_id, licese_url, key))
 
         self.cache_keys(cached_keys)
-        return jsonify({"error": False, "message": "Added {} keys".format(len(keys))}), 201
+        return (
+            jsonify({"error": False, "message": "Added {} keys".format(len(keys))}),
+            201,
+        )
 
     def get_prd_by_hash(self, hash: str):
         return PRD.query.filter_by(hash=hash).first()
+
+    def get_wvd_by_hash(self, hash: str):
+        return WVD.query.filter_by(hash=hash).first()
 
 
 class BaseService:
@@ -259,289 +337,28 @@ class MainService:
     @staticmethod
     def main(**kwargs):
         library = kwargs.pop("library")
-        buildinfo = kwargs.pop("buildinfo")
+        device_hash = kwargs.pop("device_hash")
 
-        d = library.get_prd_by_hash(buildinfo)
+        d = library.get_prd_by_hash(device_hash)
         if d:
-            print("Detected a Playready device")
+            print("Detected a PlayReady device")
             to_pop = [
                 "server_certificate",
                 "disable_privacy",
             ]
             for key in to_pop:
                 kwargs.pop(key, None)
-            return Playready(library=library, device_hash=buildinfo, **kwargs)
+            return PlayReady(library=library, device_hash=device_hash, **kwargs)
 
         to_pop = [
             "downgrade",
         ]
         for key in to_pop:
             kwargs.pop(key, None)
-        return Pywidevine(library=library, buildinfo=buildinfo, **kwargs)
+        return Widevine(library=library, device_hash=device_hash, **kwargs)
 
 
-class Pywidevine(BaseService):
-    def __init__(
-        self,
-        library: Library,
-        user_id,
-        buildinfo,
-        # TODO: we really shouldn't do this, but vinetrimmer doesn't send license urls without modifications
-        license_url="VINETRIMMER",
-        pssh=None,
-        proxy={},
-        headers={},
-        force=False,
-        response=None,
-        challenge=False,
-        server_certificate=None,
-        session_id=None,
-        disable_privacy=False,
-        is_web=False,
-    ):
-        super().__init__(library)
-        self.library = library
-        self.license_url = license_url
-        self.pssh = pssh
-        self.kid = None
-        self.headers = headers
-        self.buildinfo = buildinfo
-        self.force = force
-        self.time = int(time.time())
-        self.content_keys: list[CachedKey] = list()
-        self.challenge = challenge
-        self.response = response
-        self.user_id = user_id
-        self.server_certificate = server_certificate
-        self.proxy = proxy
-        if self.proxy and isinstance(self.proxy, str):
-            self.proxy = {"http": self.proxy, "https": self.proxy}
-        self.store_request = {}
-        self.session_id = session_id
-        self.is_web = is_web
-
-        # extract KID from pssh
-        if self.pssh:
-            try:
-                self.kid = extract_kid_from_pssh(self.pssh)
-            except Exception as e:
-                logger.exception(e)
-                raise BadRequest(f"Failed to extract KID from PSSH: {e}")
-
-    @staticmethod
-    def post_data(license_url, headers, data, proxy):
-        try:
-            r = requests.post(url=license_url, data=data, headers=headers, proxies=proxy, timeout=10, verify=False)
-            if r.status_code != 200:
-                raise BadRequest(f"Failed to get license: {r.status_code} {r.reason}")
-
-            return base64.b64encode(r.content).decode()
-        except ProxyError as e:
-            raise BadRequest(f"Proxy error: {e.args[0].reason}")
-        except ConnectionError as e:
-            raise BadRequest(f"Connection error: {e.args[0].reason}")
-
-    def external_license(self, method, params, web=False):
-        entry = next((entry for entry in config.EXTERNAL_API_BUILD_INFOS if entry["buildinfo"] == self.buildinfo), None)
-        if not entry:
-            raise BadRequest("Invalid buildinfo")
-        api = entry["url"]
-        payload = {"method": method, "params": params, "token": entry["token"]}
-        r = requests.post(api, headers=self.headers, json=payload, proxies=self.proxy)
-        if r.status_code != 200:
-            if "message" in r.text:
-                raise Exception(f"Error: {r.json()['message']}")
-            raise Exception(f"Unknown Error: [{r.status_code}] {r.text}")
-        if method == "GetChallenge":
-            d = r.json()
-            if entry["version"] == 2:
-                challenge = d["message"]["challenge"]
-                self.session_id = d["message"]["session_id"]
-            else:
-                challenge = d["challenge"]
-                self.session_id = d["session_id"]
-            if not web:
-                return jsonify({"challenge": challenge, "session_id": self.session_id})
-            return challenge
-        elif method == "GetKeys":
-            d = r.json()
-            if entry["version"] == 2:
-                keys = d["message"]["keys"]
-            else:
-                keys = d["keys"]
-            for x in keys:
-                kid = x["kid"]
-                key = x["key"]
-                self.content_keys.append(
-                    CachedKey(kid, self.time, self.user_id, self.license_url, "{}:{}".format(kid, key))
-                )
-        elif method == "GetKeysX":
-            raise NotImplemented()
-        else:
-            raise Exception("Unknown method")
-
-    def run(self, curl=False):
-        # Search for cached keys first
-        if not self.force:
-            result = self.library.search(self.pssh)
-            if result and len(result) > 0:
-                cached = self.library.search_res_to_dict(self.kid, result)
-                if not curl and self.is_web:
-                    return render_template("cache.html", results=cached)
-                r = jsonify(cached)
-                r.headers.add_header("X-Cache", "HIT")
-                return r, 302
-
-        if self.response is None:
-            # Headers
-            # TODO: better parsing
-            try:
-                self.headers = json.loads(self.headers)
-            except (Exception,):
-                self.headers = self.yamldomagic(self.headers)
-
-            # if is_custom_buildinfo(self.buildinfo):
-            #     if not self.server_certificate:
-            #         try:
-            #             self.server_certificate = self.post_data(
-            #                 self.license_url, self.headers, base64.b64decode("CAQ="), self.proxy
-            #             )
-            #         except Exception as e:
-            #             raise BadRequest(
-            #                 f"Failed to retrieve server certificate: {e}. Please provide a server certificate manually."
-            #             )
-            #     params = {
-            #         "init": self.pssh,
-            #         "cert": self.server_certificate,
-            #         "raw": False,
-            #         "licensetype": "STREAMING",
-            #         "device": "api",
-            #     }
-            #     return self.external_license("GetChallenge", params)
-
-            # challenge generation
-            wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(self.library, self.buildinfo))
-
-            # set server certificate if provided
-            if self.server_certificate:
-                wvdecrypt.set_server_certificate(self.server_certificate)
-
-            # get the challenge
-            challenge = wvdecrypt.create_challenge()
-
-            if curl or self.is_web:
-                try:
-                    license_response = self.post_data(self.license_url, self.headers, challenge, self.proxy)
-
-                    wvdecrypt.decrypt_license(license_response)
-                    for _, y in enumerate(wvdecrypt.get_content_key()):
-                        (kid, _) = y.split(":")
-                        self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, y))
-
-                    # caching
-                    data = self._cache_keys()
-
-                    wvdecrypt.close_session()
-
-                    if curl:
-                        return jsonify(data)
-
-                    return render_template("success.html", page_title="Success", results=data)
-                except Exception as e:
-                    raise BadRequest(f"Failed to get license: {e}")
-            else:
-                if len(wv_sessions) > config.MAX_SESSIONS:
-                    # remove the oldest session
-                    wv_sessions.pop(next(iter(wv_sessions)))
-
-                # store the session
-                self.session_id = wvdecrypt.session.hex()
-                wv_sessions[self.session_id] = wvdecrypt
-                return jsonify({"challenge": base64.b64encode(challenge).decode(), "session_id": self.session_id})
-        else:
-            # if is_custom_buildinfo(self.buildinfo):
-            #     params = {"cdmkeyresponse": self.response, "session_id": self.session_id}
-            #     self.external_license("GetKeys", params=params)
-            #     output = self._cache_keys()
-            #     return jsonify(output)
-
-            # get the session
-            wvdecrypt: WvDecrypt = wv_sessions.get(self.session_id)
-            if not wvdecrypt:
-                raise BadRequest("Session not found, did you generate a challenge first?")
-
-            # decrypt the license
-            wvdecrypt.decrypt_license(self.response)
-
-            for _, y in enumerate(wvdecrypt.get_content_key()):
-                (kid, _) = y.split(":")
-                self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, y))
-
-            # caching
-            output = self._cache_keys()
-
-            # close the session
-            wvdecrypt.close_session()
-
-            return jsonify(output)
-
-    def vinetrimmer(self, library: Library):
-        if self.response is None:
-            wvdecrypt = WvDecrypt(self.pssh, deviceconfig.DeviceConfig(library, self.buildinfo))
-            challenge = wvdecrypt.create_challenge()
-            if len(wv_sessions) > config.MAX_SESSIONS:
-                # remove the oldest session
-                wv_sessions.pop(next(iter(wv_sessions)))
-            self.session_id = wvdecrypt.session.hex()
-            wv_sessions[self.session_id] = wvdecrypt
-
-            res = base64.b64encode(challenge).decode()
-            return {"challenge": res, "session_id": self.session_id}
-        else:
-            if self.session_id not in wv_sessions:
-                raise BadRequest("Session not found, did you generate a challenge first?")
-            wvdecrypt = wv_sessions[self.session_id]
-            wvdecrypt.decrypt_license(self.response)
-            for _, y in enumerate(wvdecrypt.get_content_key()):
-                (kid, _) = y.split(":")
-                self.content_keys.append(CachedKey(kid, self.time, self.user_id, self.license_url, y))
-            keys = self._cache_keys(vt=True)
-            # close the session
-            wvdecrypt.close_session()
-            return {"keys": keys, "session_id": self.session_id}
-
-    def _cache_keys(self, vt=False):
-        self.library.cache_keys(self.content_keys)
-
-        # return a list of dicts containing kid and key, this is what vinetrimmer expects
-        if vt:
-            results = list()
-            for entry in self.content_keys:
-                k = entry.key.split(":")
-                results.append(
-                    {
-                        "kid": k[0],
-                        "key": k[1],
-                    }
-                )
-            return results
-
-        results = {
-            "kid": self.kid,
-            "license_url": self.license_url,
-            "added_at": self.time,
-            "keys": list(),
-            "session_id": self.session_id,
-        }
-        for key in self.content_keys:
-            # s = urlsplit(self.license_url)
-            # license_url = "{}//{}".format(s.scheme, s.netloc)
-            results["keys"].append(key.key)
-
-        return results
-
-
-class Playready(BaseService):
+class PlayReady(BaseService):
     def __init__(
         self,
         library: Library,
@@ -609,44 +426,57 @@ class Playready(BaseService):
         except ConnectionError as e:
             raise BadRequest(f"Connection error: {e.args[0].reason}")
 
-    def external_license(self, method, params, web=False):
-        entry = next((entry for entry in config.EXTERNAL_API_BUILD_INFOS if entry["buildinfo"] == self.buildinfo), None)
-        if not entry:
-            raise BadRequest("Invalid buildinfo")
-        api = entry["url"]
-        payload = {"method": method, "params": params, "token": entry["token"]}
-        r = requests.post(api, headers=self.headers, json=payload, proxies=self.proxy)
-        if r.status_code != 200:
-            if "message" in r.text:
-                raise Exception(f"Error: {r.json()['message']}")
-            raise Exception(f"Unknown Error: [{r.status_code}] {r.text}")
-        if method == "GetChallenge":
-            d = r.json()
-            if entry["version"] == 2:
-                challenge = d["message"]["challenge"]
-                self.session_id = d["message"]["session_id"]
-            else:
-                challenge = d["challenge"]
-                self.session_id = d["session_id"]
-            if not web:
-                return jsonify({"challenge": challenge, "session_id": self.session_id})
-            return challenge
-        elif method == "GetKeys":
-            d = r.json()
-            if entry["version"] == 2:
-                keys = d["message"]["keys"]
-            else:
-                keys = d["keys"]
-            for x in keys:
-                kid = x["kid"]
-                key = x["key"]
-                self.content_keys.append(
-                    CachedKey(kid, self.time, self.user_id, self.license_url, "{}:{}".format(kid, key))
-                )
-        elif method == "GetKeysX":
-            raise NotImplemented()
-        else:
-            raise Exception("Unknown method")
+    # def external_license(self, method, params, web=False):
+    #     entry = next(
+    #         (
+    #             entry
+    #             for entry in config.EXTERNAL_API_BUILD_INFOS
+    #             if entry["buildinfo"] == self.buildinfo
+    #         ),
+    #         None,
+    #     )
+    #     if not entry:
+    #         raise BadRequest("Invalid buildinfo")
+    #     api = entry["url"]
+    #     payload = {"method": method, "params": params, "token": entry["token"]}
+    #     r = requests.post(api, headers=self.headers, json=payload, proxies=self.proxy)
+    #     if r.status_code != 200:
+    #         if "message" in r.text:
+    #             raise Exception(f"Error: {r.json()['message']}")
+    #         raise Exception(f"Unknown Error: [{r.status_code}] {r.text}")
+    #     if method == "GetChallenge":
+    #         d = r.json()
+    #         if entry["version"] == 2:
+    #             challenge = d["message"]["challenge"]
+    #             self.session_id = d["message"]["session_id"]
+    #         else:
+    #             challenge = d["challenge"]
+    #             self.session_id = d["session_id"]
+    #         if not web:
+    #             return jsonify({"challenge": challenge, "session_id": self.session_id})
+    #         return challenge
+    #     elif method == "GetKeys":
+    #         d = r.json()
+    #         if entry["version"] == 2:
+    #             keys = d["message"]["keys"]
+    #         else:
+    #             keys = d["keys"]
+    #         for x in keys:
+    #             kid = x["kid"]
+    #             key = x["key"]
+    #             self.content_keys.append(
+    #                 CachedKey(
+    #                     kid,
+    #                     self.time,
+    #                     self.user_id,
+    #                     self.license_url,
+    #                     "{}:{}".format(kid, key),
+    #                 )
+    #             )
+    #     elif method == "GetKeysX":
+    #         raise NotImplemented()
+    #     else:
+    #         raise Exception("Unknown method")
 
     def run(self, curl=False):
         # Search for cached keys first
@@ -711,44 +541,57 @@ class Playready(BaseService):
             try:
                 self.session_id = cdm.open().hex()
                 pr_sessions[self.session_id] = cdm
-            except TooManySessions as e:
-                raise InternalServerError("Too many open sessions, please try again in a few minutes")
+            except PlayreadyTooManySessions as e:
+                raise InternalServerError(
+                    "[PlayReady] Too many open sessions, please try again in a few minutes"
+                )
 
             try:
                 wrm_headers = self.pssh.get_wrm_headers(self.downgrade)
                 license_request = cdm.get_license_challenge(
                     session_id=bytes.fromhex(self.session_id), wrm_header=wrm_headers
                 )
-            except InvalidInitData as e:
+            except PlayreadyInvalidInitData as e:
                 logger.exception(e)
-                raise BadRequest("Invalid init data")
+                raise BadRequest("[PlayReady] Invalid init data")
             except Exception as e:
                 logger.exception(e)
-                raise BadRequest("Playready exception: " + str(e))
+                raise BadRequest("[PlayReady] Exception: " + str(e))
 
             if curl or self.is_web:
                 try:
-                    license_response = self.post_data(self.license_url, self.headers, license_request, self.proxy)
-                    cdm.parse_license(session_id=bytes.fromhex(self.session_id), licence=license_response)
-                except InvalidSession as e:
+                    license_response = self.post_data(
+                        self.license_url, self.headers, license_request, self.proxy
+                    )
+                    cdm.parse_license(
+                        session_id=bytes.fromhex(self.session_id),
+                        licence=license_response,
+                    )
+                except PlayreadyInvalidSession as e:
                     logger.exception(e)
-                    raise BadRequest("Invalid session")
-                except InvalidLicense as e:
+                    raise BadRequest("[PlayReady] Invalid session")
+                except PlayreadyInvalidLicense as e:
                     logger.exception(e)
-                    raise BadRequest("Invalid License")
+                    raise BadRequest("[PlayReady] Invalid License")
                 except Exception as e:
                     logger.exception(e)
-                    raise BadRequest("Playready exception: " + str(e))
+                    raise BadRequest("[PlayReady] Exception: " + str(e))
 
                 try:
                     keys = cdm.get_keys(session_id=bytes.fromhex(self.session_id))
                 except ValueError as e:
                     logger.exception(e)
-                    raise BadRequest("Failed to get keys")
+                    raise BadRequest("[PlayReady] Failed to get keys")
 
                 for key in keys:
                     self.content_keys.append(
-                        CachedKey(key.key_id.hex, self.time, self.user_id, self.license_url, key.key.hex())
+                        CachedKey(
+                            key.key_id.hex,
+                            self.time,
+                            self.user_id,
+                            self.license_url,
+                            key.key.hex(),
+                        )
                     )
 
                 # caching
@@ -760,39 +603,54 @@ class Playready(BaseService):
                 if curl:
                     return jsonify(data)
 
-                return render_template("success.html", page_title="Success", results=data)
+                return render_template(
+                    "success.html", page_title="Success", results=data
+                )
             else:
-                return jsonify({"challenge": license_request, "session_id": self.session_id})
+                return jsonify(
+                    {"challenge": license_request, "session_id": self.session_id}
+                )
         else:
             # get session
             cdm = pr_sessions.get(self.session_id)
             if not cdm:
-                raise BadRequest("Session not found, did you generate a challenge first?")
+                raise BadRequest(
+                    "[PlayReady] Session not found, did you generate a challenge first?"
+                )
 
             try:
-                cdm.parse_license(session_id=bytes.fromhex(self.session_id), licence=self.license_response)
-            except InvalidLicense as e:
+                cdm.parse_license(
+                    session_id=bytes.fromhex(self.session_id),
+                    licence=self.license_response,
+                )
+            except PlayreadyInvalidLicense as e:
                 logger.exception(e)
-                raise BadRequest("Invalid license")
-            except InvalidSession as e:
+                raise BadRequest("[PlayReady] Invalid license")
+            except PlayreadyInvalidSession as e:
                 logger.exception(e)
-                raise BadRequest("Invalid session")
+                raise BadRequest("[PlayReady] Invalid session")
             except Exception as e:
                 logger.exception(e)
-                raise BadRequest("Playready exception: " + str(e))
+                raise BadRequest("[PlayReady] Exception: " + str(e))
 
             try:
                 keys = cdm.get_keys(session_id=bytes.fromhex(self.session_id))
-            except InvalidSession as e:
+            except PlayreadyInvalidSession as e:
                 logger.exception(e)
-                raise BadRequest("Invalid session")
+                raise BadRequest("[PlayReady] Invalid session")
             except ValueError as e:
                 logger.exception(e)
-                raise BadRequest("Failed to get keys")
+                raise BadRequest("[PlayReady] Failed to get keys")
 
             for key in keys:
                 self.content_keys.append(
-                    CachedKey(key.key_id.hex, self.time, self.user_id, self.license_url, key.key.hex())
+                    CachedKey(
+                        key.key_id.hex,
+                        self.time,
+                        self.user_id,
+                        self.license_url,
+                        key.key.hex(),
+                    )
                 )
 
             # caching
@@ -820,34 +678,306 @@ class Playready(BaseService):
         return results
 
 
-class WvDecrypt:
-    def __init__(self, pssh_b64, device):
-        from getwvkeys.pywidevine.cdm import cdm
+class Widevine(BaseService):
+    def __init__(
+        self,
+        library: Library,
+        user_id,
+        device_hash,
+        # TODO: we really shouldn't do this, but vinetrimmer doesn't send license urls without modifications
+        license_url="VINETRIMMER",
+        pssh=None,
+        proxy={},
+        headers={},
+        force=False,
+        response=None,
+        challenge=False,
+        server_certificate=None,
+        session_id=None,
+        is_web=False,
+    ):
+        super().__init__(library)
+        self.library = library
+        self.license_url = license_url
+        self.pssh: WidevinePSSH = WidevinePSSH(pssh)
+        self.kid = None
+        self.headers = headers
+        self.device = device_hash
+        self.force = force
+        self.time = int(time.time())
+        self.content_keys: list[CachedKey] = list()
+        self.license_request = challenge
+        self.license_response = response
+        self.user_id = user_id
+        self.server_certificate = server_certificate
+        self.proxy = proxy
+        if self.proxy and isinstance(self.proxy, str):
+            self.proxy = {"http": self.proxy, "https": self.proxy}
+        self.store_request = {}
+        self.session_id = session_id
+        self.is_web = is_web
 
-        self.cdm = cdm.Cdm()
-        self.session = self.cdm.open_session(pssh_b64, device)
+        if pssh:
+            try:
+                self.kid = extract_widevine_kid(self.pssh)
+            except Exception as e:
+                logger.exception(e)
+                raise BadRequest(f"Failed to extract KID from PSSH: {e}")
 
-    def create_challenge(self):
-        challenge = self.cdm.get_license_request(self.session)
-        return challenge
+    @staticmethod
+    def post_data(license_url, headers, data, proxy):
+        try:
+            r = requests.post(
+                url=license_url,
+                data=data,
+                headers=headers,
+                proxies=proxy,
+                timeout=10,
+            )
+            if r.status_code != 200:
+                raise BadRequest(f"Failed to get license: {r.status_code} {r.reason}")
 
-    def decrypt_license(self, license_b64):
-        if self.cdm.provide_license(self.session, license_b64) == 1:
-            raise ValueError
+            try:
+                return base64.b64encode(r.content).decode()
+            except Exception:
+                raise BadRequest(f"Invalid response: {r.text}")
+        except ProxyError as e:
+            raise BadRequest(f"Proxy error: {e.args[0].reason}")
+        except ConnectionError as e:
+            raise BadRequest(f"Connection error: {e.args[0].reason}")
 
-    def set_server_certificate(self, certificate_b64):
-        if self.cdm.set_service_certificate(self.session, certificate_b64) == 1:
-            raise ValueError
+    # def external_license(self, method, params, web=False):
+    #     entry = next(
+    #         (
+    #             entry
+    #             for entry in config.EXTERNAL_API_BUILD_INFOS
+    #             if entry["buildinfo"] == self.buildinfo
+    #         ),
+    #         None,
+    #     )
+    #     if not entry:
+    #         raise BadRequest("Invalid buildinfo")
+    #     api = entry["url"]
+    #     payload = {"method": method, "params": params, "token": entry["token"]}
+    #     r = requests.post(api, headers=self.headers, json=payload, proxies=self.proxy)
+    #     if r.status_code != 200:
+    #         if "message" in r.text:
+    #             raise Exception(f"Error: {r.json()['message']}")
+    #         raise Exception(f"Unknown Error: [{r.status_code}] {r.text}")
+    #     if method == "GetChallenge":
+    #         d = r.json()
+    #         if entry["version"] == 2:
+    #             challenge = d["message"]["challenge"]
+    #             self.session_id = d["message"]["session_id"]
+    #         else:
+    #             challenge = d["challenge"]
+    #             self.session_id = d["session_id"]
+    #         if not web:
+    #             return jsonify({"challenge": challenge, "session_id": self.session_id})
+    #         return challenge
+    #     elif method == "GetKeys":
+    #         d = r.json()
+    #         if entry["version"] == 2:
+    #             keys = d["message"]["keys"]
+    #         else:
+    #             keys = d["keys"]
+    #         for x in keys:
+    #             kid = x["kid"]
+    #             key = x["key"]
+    #             self.content_keys.append(
+    #                 CachedKey(
+    #                     kid,
+    #                     self.time,
+    #                     self.user_id,
+    #                     self.license_url,
+    #                     "{}:{}".format(kid, key),
+    #                 )
+    #             )
+    #     elif method == "GetKeysX":
+    #         raise NotImplemented()
+    #     else:
+    #         raise Exception("Unknown method")
 
-    def get_content_key(self):
-        content_keys = []
-        for key in self.cdm.get_keys(self.session):
-            if key.type == "CONTENT":
-                kid = key.kid.hex()
-                key = key.key.hex()
-                content_keys.append("{}:{}".format(kid, key))
+    def run(self, curl=False):
+        # Search for cached keys first
+        if not self.force and self.kid:
+            result = self.library.search(self.kid)
+            if result and len(result) > 0:
+                cached = self.library.search_res_to_dict(self.kid, result)
+                if not curl and self.is_web:
+                    return render_template("cache.html", results=cached)
+                r = jsonify(cached)
+                r.headers.add_header("X-Cache", "HIT")
+                return r, 302
 
-        return content_keys
+        if self.license_response is None:
+            # Headers
+            # TODO: better parsing
+            try:
+                self.headers = json.loads(self.headers)
+            except (Exception,):
+                self.headers = self.yamldomagic(self.headers)
 
-    def close_session(self):
-        self.cdm.close_session(self.session)
+            device = self.library.get_wvd_by_hash(self.device)
+            if not device:
+                raise NotFound("WVD not found")
+
+            cdm = wv_sessions.get(self.session_id)
+            if not cdm:
+                device = WidevineDevice.loads(device.wvd)
+                cdm = WidevineCdm.from_device(device)
+
+            try:
+                self.session_id = cdm.open().hex()
+                wv_sessions[self.session_id] = cdm
+            except WidevineTooManySessions as e:
+                raise InternalServerError(
+                    "[Widevine] Too many open sessions, please try again in a few minutes"
+                )
+
+            if self.server_certificate:
+                try:
+                    cdm.set_service_certificate(
+                        self.session_id, self.server_certificate
+                    )
+                except WidevineInvalidSession as e:
+                    logger.exception(e)
+                    raise BadRequest("[Widevine] Invalid Session")
+                except WidevineSignatureMismatch as e:
+                    logger.exception(e)
+                    raise BadRequest("[Widevine] Server Certificate Signature Mismatch")
+                except Exception as e:
+                    logger.exception(e)
+                    raise BadRequest(f"[Widevine] Exception: {e}")
+
+            try:
+                license_request = cdm.get_license_challenge(
+                    session_id=bytes.fromhex(self.session_id),
+                    pssh=self.pssh,
+                    privacy_mode=True,
+                )
+            except WidevineInvalidInitData as e:
+                logger.exception(e)
+                raise BadRequest("[Widevine] Invalid init data")
+            except Exception as e:
+                logger.exception(e)
+                raise BadRequest("[Widevine] Exception: " + str(e))
+
+            if curl or self.is_web:
+                try:
+                    license_response = self.post_data(
+                        self.license_url, self.headers, license_request, self.proxy
+                    )
+                    cdm.parse_license(
+                        session_id=bytes.fromhex(self.session_id),
+                        license_message=license_response,
+                    )
+                except WidevineInvalidSession as e:
+                    logger.exception(e)
+                    raise BadRequest("[Widevine] Invalid Session")
+                except WidevineInvalidLicenseMessage as e:
+                    logger.exception(e)
+                    raise BadRequest("[Widevine] Invalid License Message")
+                except Exception as e:
+                    logger.exception(e)
+                    raise BadRequest("[Widevine] Exception: " + str(e))
+
+                try:
+                    keys = cdm.get_keys(session_id=bytes.fromhex(self.session_id))
+                except ValueError as e:
+                    logger.exception(e)
+                    raise BadRequest("[PlayReady] Failed to get keys")
+
+                for key in keys:
+                    self.content_keys.append(
+                        CachedKey(
+                            key.kid.hex,
+                            self.time,
+                            self.user_id,
+                            self.license_url,
+                            key.key.hex(),
+                        )
+                    )
+
+                # caching
+                data = self._cache_keys()
+
+                # close the session
+                cdm.close(session_id=bytes.fromhex(self.session_id))
+
+                if curl:
+                    return jsonify(data)
+
+                return render_template(
+                    "success.html", page_title="Success", results=data
+                )
+            else:
+                return jsonify(
+                    {"challenge": license_request, "session_id": self.session_id}
+                )
+        else:
+            # get session
+            cdm = wv_sessions.get(self.session_id)
+            if not cdm:
+                raise BadRequest(
+                    "Session not found, did you generate a challenge first?"
+                )
+
+            try:
+                cdm.parse_license(
+                    session_id=bytes.fromhex(self.session_id),
+                    license_message=self.license_response,
+                )
+            except WidevineInvalidLicenseMessage as e:
+                logger.exception(e)
+                raise BadRequest("[Widevine] Invalid License Message")
+            except WidevineInvalidSession as e:
+                logger.exception(e)
+                raise BadRequest("[Widevine] Invalid Session")
+            except Exception as e:
+                logger.exception(e)
+                raise BadRequest("[Widevine] Exception: " + str(e))
+
+            try:
+                keys = cdm.get_keys(session_id=bytes.fromhex(self.session_id))
+            except WidevineInvalidSession as e:
+                logger.exception(e)
+                raise BadRequest("[Widevine] Invalid Session")
+            except ValueError as e:
+                logger.exception(e)
+                raise BadRequest("[PlayReady] Failed to get keys")
+
+            for key in keys:
+                self.content_keys.append(
+                    CachedKey(
+                        key.key_id.hex,
+                        self.time,
+                        self.user_id,
+                        self.license_url,
+                        key.key.hex(),
+                    )
+                )
+
+            # caching
+            output = self._cache_keys()
+
+            # close the session
+            cdm.close(session_id=bytes.fromhex(self.session_id))
+
+            return jsonify(output)
+
+    def _cache_keys(self):
+        self.library.cache_keys(self.content_keys)
+
+        results = {
+            "license_url": self.license_url,
+            "added_at": self.time,
+            "keys": list(),
+            "session_id": self.session_id,
+        }
+        for key in self.content_keys:
+            # s = urlsplit(self.license_url)
+            # license_url = "{}//{}".format(s.scheme, s.netloc)
+            results["keys"].append(f"{key.kid}:{key.key}")
+
+        return results

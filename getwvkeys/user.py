@@ -11,9 +11,9 @@ from werkzeug.exceptions import BadRequest, Forbidden, NotFound
 
 from getwvkeys import config
 from getwvkeys.models.APIKey import APIKey as APIKey
-from getwvkeys.models.CDM import CDM
 from getwvkeys.models.PRD import PRD
 from getwvkeys.models.User import User
+from getwvkeys.models.WVD import WVD
 from getwvkeys.utils import Bitfield, FlagAction, UserFlags
 
 logger = logging.getLogger("getwvkeys")
@@ -32,18 +32,21 @@ class FlaskUser(UserMixin):
         self.flags = Bitfield(user.flags)
         self.user_model = user
 
-    def get_user_cdms(self):
-        cdms = CDM.query.filter_by(uploaded_by=self.id).all()
-        return [
-            {"id": x.id, "code": x.code, "session_id_type": x.session_id_type, "security_level": x.security_level}
-            for x in cdms
-        ]
+    def get_user_wvds(self):
+        return [{"id": x.id, "hash": x.hash} for x in self.user_model.wvds]
 
     def get_user_prds(self):
         return [{"id": x.id, "hash": x.hash} for x in self.user_model.prds]
 
     def patch(self, data):
-        disallowed_keys = ["id", "username", "discriminator", "avatar", "public_flags", "api_key"]
+        disallowed_keys = [
+            "id",
+            "username",
+            "discriminator",
+            "avatar",
+            "public_flags",
+            "api_key",
+        ]
 
         for key, value in data.items():
             # Skip attributes that cant be changed
@@ -95,15 +98,41 @@ class FlaskUser(UserMixin):
 
         self.db.session.commit()
 
-    def delete_cdm(self, id):
-        cdm = CDM.query.filter_by(id=id).first()
-        if cdm is None:
-            raise NotFound("CDM not found")
-        # check if uploaded_by is null, or if its not the users cdm
-        if not cdm.uploaded_by or (cdm.uploaded_by and cdm.uploaded_by != self.id):
-            raise Forbidden("Missing Access")
-        self.db.session.delete(cdm)
-        self.db.session.commit()
+    def delete_wvd(self, id):
+        session = self.db.session
+
+        wvd = WVD.query.filter_by(id=id).first()
+        if wvd is None:
+            raise NotFound("WVD not found")
+
+        # Check if the device is associated with the user
+        if wvd and self.user_model.wvds:
+            association_query = text(
+                "DELETE FROM user_wvd WHERE user_id = :user_id AND device_hash = :device_hash"
+            )
+            session.execute(
+                association_query,
+                {"user_id": self.user_model.id, "device_hash": wvd.hash},
+            )
+            session.commit()
+
+            # Check if the device is still associated with any other users
+            count_query = text(
+                "SELECT COUNT(*) FROM user_wvd WHERE device_hash = :device_hash"
+            )
+            device_users_count = session.execute(
+                count_query, {"device_hash": wvd.hash}
+            ).scalar()
+
+            if device_users_count == 0:
+                # If no other users are associated, delete the wvd
+                session.delete(wvd)
+                session.commit()
+                return "WVD deleted"
+            else:
+                return "WVD unlinked"
+        else:
+            raise NotFound("You do not have this WVD associated with your profile")
 
     def delete_prd(self, id):
         session = self.db.session
@@ -114,13 +143,22 @@ class FlaskUser(UserMixin):
 
         # Check if the device is associated with the user
         if prd and self.user_model.prds:
-            association_query = text("DELETE FROM user_prd WHERE user_id = :user_id AND device_hash = :device_hash")
-            session.execute(association_query, {"user_id": self.user_model.id, "device_hash": prd.hash})
+            association_query = text(
+                "DELETE FROM user_prd WHERE user_id = :user_id AND device_hash = :device_hash"
+            )
+            session.execute(
+                association_query,
+                {"user_id": self.user_model.id, "device_hash": prd.hash},
+            )
             session.commit()
 
             # Check if the device is still associated with any other users
-            count_query = text("SELECT COUNT(*) FROM user_prd WHERE device_hash = :device_hash")
-            device_users_count = session.execute(count_query, {"device_hash": prd.hash}).scalar()
+            count_query = text(
+                "SELECT COUNT(*) FROM user_prd WHERE device_hash = :device_hash"
+            )
+            device_users_count = session.execute(
+                count_query, {"device_hash": prd.hash}
+            ).scalar()
 
             if device_users_count == 0:
                 # If no other users are associated, delete the prd
@@ -195,7 +233,9 @@ class FlaskUser(UserMixin):
     def is_api_key_bot(api_key):
         """checks if the api key is from the bot"""
         bot_key = base64.b64encode(
-            "{}:{}".format(config.OAUTH2_CLIENT_ID, config.OAUTH2_CLIENT_SECRET).encode()
+            "{}:{}".format(
+                config.OAUTH2_CLIENT_ID, config.OAUTH2_CLIENT_SECRET
+            ).encode()
         ).decode("utf8")
         return api_key == bot_key
 
@@ -241,7 +281,11 @@ class FlaskUser(UserMixin):
 
     @staticmethod
     def disable_users(db: SQLAlchemy, user_ids: list):
-        print("Request to disable {} users: {}".format(len(user_ids), ", ".join([str(x) for x in user_ids])))
+        print(
+            "Request to disable {} users: {}".format(
+                len(user_ids), ", ".join([str(x) for x in user_ids])
+            )
+        )
         if len(user_ids) == 0:
             raise BadRequest("No data to update or update is not allowed")
 

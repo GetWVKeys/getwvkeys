@@ -15,28 +15,26 @@
   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  -->
 
-{% extends "base.html" %} {% block title %}Upload CDM{% endblock %} {% block content %}
+{% extends "base.html" %} {% block title %}Upload {{device_name|upper}}{% endblock %} {% block content %}
 <section class="upload">
     <header>
-        <h1 class="section-title">Upload your own CDM and use it with API and requests</h1>
+        <h1 class="section-title">Upload {{device_name|upper}}</h1>
+        <p>Here you can upload your own private {{device_name|upper}} to use for your requests.</p>
+        <p>Devices you upload cannot be used by anyone else unless you share the hash with them.</p>
     </header>
     <div class="upload-container">
-        <form action="/upload" method="POST" enctype="multipart/form-data">
+        <form action="/upload/{{device_name|lower}}" method="POST" enctype="multipart/form-data">
             <div class="upload-form-item">
-                <label for="blob">device_client_id_blob:</label>
-                <input type="file" name="blob" id="blob" />
-            </div>
-            <div class="upload-form-item">
-                <label for="key">device_private_key:</label>
-                <input type="file" name="key" id="key" />
+                <input
+                    type="file"
+                    name="{{device_name|lower}}"
+                    id="{{device_name|lower}}"
+                    accept=".{{device_name|lower}}"
+                />
             </div>
             <input type="submit" value="Submit" />
             <input type="hidden" name="X-API-Key" value="{{ current_user.api_key }}" />
         </form>
-
-        <div>
-            <a class="link" href="/upload/prd">Upload a PRD instead</a>
-        </div>
     </div>
 </section>
 {% endblock %}

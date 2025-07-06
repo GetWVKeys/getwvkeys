@@ -1,18 +1,18 @@
 """
- This file is part of the GetWVKeys project (https://github.com/GetWVKeys/getwvkeys)
- Copyright (C) 2022-2024 Notaghost, Puyodead1 and GetWVKeys contributors 
- 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Affero General Public License as published
- by the Free Software Foundation, version 3 of the License.
+This file is part of the GetWVKeys project (https://github.com/GetWVKeys/getwvkeys)
+Copyright (C) 2022-2024 Notaghost, Puyodead1 and GetWVKeys contributors
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU Affero General Public License for more details.
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, version 3 of the License.
 
- You should have received a copy of the GNU Affero General Public License
- along with this program.  If not, see <https://www.gnu.org/licenses/>.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import logging
@@ -26,7 +26,11 @@ logger = logging.getLogger(__name__)
 
 IS_DEVELOPMENT = bool(os.environ.get("DEVELOPMENT", False))
 IS_STAGING = bool(os.environ.get("STAGING", False))
-CONFIG_FILE = "config.dev.toml" if IS_DEVELOPMENT else "config.staging.toml" if IS_STAGING else "config.toml"
+CONFIG_FILE = (
+    "config.dev.toml"
+    if IS_DEVELOPMENT
+    else "config.staging.toml" if IS_STAGING else "config.toml"
+)
 CONFIG = toml.load(CONFIG_FILE)
 
 SECRET_KEY = CONFIG["general"]["secret_key"]  # Flask secret key
@@ -50,8 +54,12 @@ API_URL = CONFIG.get("api", {}).get("base_url", "https://getwvkeys.cc")
 
 MAX_SESSIONS = CONFIG["general"].get("max_sessions", 60)
 PROXY = {}
-DEFAULT_CDMS = CONFIG["general"].get("default_cdms", [])  # list of build infos to use in key rotation
-DEFAULT_PRDS = CONFIG["general"].get("default_prds", [])  # list of PRDs used in key rotation
+DEFAULT_WVDS = CONFIG["general"].get(
+    "default_wvds", []
+)  # list of build infos to use in key rotation
+DEFAULT_PRDS = CONFIG["general"].get(
+    "default_prds", []
+)  # list of PRDs used in key rotation
 APPENDERS = []  # passwords for dumping keys, deprecated in favor of flags
 GUILD_ID = CONFIG["general"]["guild_id"]  # Discord Guild ID
 VERIFIED_ROLE_ID = CONFIG["general"]["verified_role_id"]  # Discord Verified role ID
@@ -63,9 +71,12 @@ LOG_FORMAT = CONFIG["general"].get(
     "[%(asctime)s] [%(name)s] [%(funcName)s:%(lineno)d] %(levelname)s: %(message)s",
 )
 LOG_DATE_FORMAT = CONFIG["general"].get("log_date_format", "%I:%M:%S")
-WVK_LOG_FILE_PATH = pathlib.Path(os.getcwd(), "logs", f"GWVK_{time.strftime('%Y-%m-%d')}.log")
+WVK_LOG_FILE_PATH = pathlib.Path(
+    os.getcwd(), "logs", f"GWVK_{time.strftime('%Y-%m-%d')}.log"
+)
 URL_BLACKLIST = CONFIG.get("url_blacklist", [])
 EXTERNAL_API_BUILD_INFOS = CONFIG.get("external_build_info", [])
-# List of CDMs that should use the blacklist, these are considered to be GetWVKeys System CDMs.
-SYSTEM_CDMS = CONFIG["general"].get("system_cdms", [])
+# List of WVDs that should use the blacklist, these are considered to be GetWVKeys System WVDs.
+SYSTEM_WVDS = CONFIG["general"].get("system_wvds", [])
+# List of PRDs that should use the blacklist, these are considered to be GetWVKeys System PRDs.
 SYSTEM_PRDS = CONFIG["general"].get("system_prds", [])

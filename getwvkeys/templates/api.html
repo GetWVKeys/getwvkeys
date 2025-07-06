@@ -15,84 +15,136 @@
   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  -->
 
-{% extends "base.html" %} {% block title %}API Request{% endblock %} {% block content %}
-<section class="api-request">
+{% extends "base.html" %} {% block title %}API Documentation{% endblock %} {% block content %}
+<section class="api">
     <header>
-        <h1 class="section-title">Send API Request</h1>
+        <h1 class="section-title">GetWVKeys API Documentation</h1>
     </header>
-    <div class="requests-container">
-        <div class="request-item">
-            <h2>Curl</h2>
-            <pre>
-        <code>
-          curl -L -X POST "https://getwvkeys.cc/api" \
-          -H "X-API-Key: {{current_user.api_key if current_user.api_key else "YOUR API KEY HERE" }}" \
-          -H "Content-Type: application/json" \
-          -d "{
-              \"license_url\": \"https://cwip-shaka-proxy.appspot.com/no_auth\",
-              \"pssh\": \"AAAAp3Bzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAAIcSEFF0U4YtQlb9i61PWEIgBNcSEPCTfpp3yFXwptQ4ZMXZ82USEE1LDKJawVjwucGYPFF+4rUSEJAqBRprNlaurBkm/A9dkjISECZHD0KW1F0Eqbq7RC4WmAAaDXdpZGV2aW5lX3Rlc3QiFnNoYWthX2NlYzViZmY1ZGM0MGRkYzlI49yVmwY=\",
-              \"cache\": false,
-              \"is_curl\": true,
-          }"
-        </code>
-      </pre>
-        </div>
-        <div class="request-item">
-            <h2>Python</h2>
-            <pre>
-        <code>
-          import requests
 
-          api_url = "https://getwvkeys.cc/api"
-          license_url = "https://cwip-shaka-proxy.appspot.com/no_auth"
-          pssh = "AAAAp3Bzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAAIcSEFF0U4YtQlb9i61PWEIgBNcSEPCTfpp3yFXwptQ4ZMXZ82USEE1LDKJawVjwucGYPFF+4rUSEJAqBRprNlaurBkm/A9dkjISECZHD0KW1F0Eqbq7RC4WmAAaDXdpZGV2aW5lX3Rlc3QiFnNoYWthX2NlYzViZmY1ZGM0MGRkYzlI49yVmwY="
-          headers = {
-              "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (Ktesttemp, like Gecko) Chrome/90.0.4430.85 Safari/537.36",
-              "Content-Type": "application/json",
-              "X-API-Key": '{{ current_user.api_key if current_user.api_key else "YOUR API KEY HERE" }}',
-          }
-          payload = {
-              "license_url": license_url,
-              "pssh": pssh,
-          }
-          r = requests.post(api_url, headers=headers, json=payload).text
-          print(r)
-        </code>
-      </pre>
-        </div>
-        <div class="request-item">
-            <h2>JSON Payload</h2>
-            <pre>
-        <code>
-          {
-            "license_url": "https://cwip-shaka-proxy.appspot.com/no_auth",
-            "pssh": "AAAAp3Bzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAAIcSEFF0U4YtQlb9i61PWEIgBNcSEPCTfpp3yFXwptQ4ZMXZ82USEE1LDKJawVjwucGYPFF+4rUSEJAqBRprNlaurBkm/A9dkjISECZHD0KW1F0Eqbq7RC4WmAAaDXdpZGV2aW5lX3Rlc3QiFnNoYWthX2NlYzViZmY1ZGM0MGRkYzlI49yVmwY=",
-            "proxy": "",
-            "buildinfo": "",
-            "cache": true
-          }
-        </code>
-      </pre>
-        </div>
-        <div class="request-item">
-            <h2>JSON Response</h2>
-            <pre>
-        <code>
-          {
-            "added_at": 1656267215,
-            "keys": [
-                "902a051a6b3656aeac1926fc0f5d9232:7a13acb8d7cf12fdfaecea19c96edc4e",
-                "4d4b0ca25ac158f0b9c1983c517ee2b5:41954cca5a98b00ad05db8bbf2330fee",
-                "f0937e9a77c855f0a6d43864c5d9f365:d041141f4e556079a89c685a6ca50f4a",
-                "517453862d4256fd8bad4f58422004d7:5b4b848eac0855d79165d05f3cf16d56",
-                "26470f4296d45d04a9babb442e169800:a38e1ade8a367b7f6fd0427126902c19"
-            ],
-            "kid": "517453862d4256fd8bad4f58422004d7",
-            "license_url": "https://cwip-shaka-proxy.appspot.com/no_auth"
-        }
-        </code>
-      </pre>
-        </div>
+    <div id="sections">
+        <section>
+            <h2>Authentication</h2>
+            <p>All requests must include an API key header:</p>
+            <pre><code>X-API-Key: {{ current_user.api_key if current_user.api_key else "YOUR API KEY HERE" }}</code></pre>
+        </section>
+
+        <section>
+            <h2>POST /widevine</h2>
+            <section>
+                <h3>Request Body</h3>
+                <pre><code>{
+  "license_url": "string",                  // REQUIRED. Widevine license server URL
+  "pssh": "base64-encoded string",          // REQUIRED. PSSH data
+  "proxy": "string",                        // OPTIONAL. Proxy in username:password@host:port
+  "device_hash": "string",                  // OPTIONAL. Device hash to use
+  "headers": "string",                      // OPTIONAL. Additional headers in key:value
+  "force": true | false,                    // OPTIONAL. Bypass server cache
+  "certificate": "string",                  // OPTIONAL. Service certificate
+  "is_curl": true | false,                  // OPTIONAL. If true, server performs the license request directly
+  "response": "string",                     // OPTIONAL*. License server response (for second step)
+  "session_id": "string"                    // OPTIONAL*. Session ID from challenge generation
+}</code></pre>
+            </section>
+
+            <section>
+                <h3>Behavior</h3>
+                <span>The request behaves differently depending on the parameters:</span>
+                <ul>
+                    <li>
+                        <strong>When <code>is_curl</code> is false or omitted</strong>: Server generates a challenge for
+                        you to send to the license server (ex: cases where the license server uses a non-standard
+                        request body).
+                    </li>
+                    <li>
+                        <strong>When <code>is_curl</code> is true</strong>: Server performs the license request itself
+                        and returns keys.
+                    </li>
+                    <li>
+                        <strong>To decrypt license responses</strong>: Send the base64 license in
+                        <code>response</code> along with <code>session_id</code>, and all other original parameters.
+                    </li>
+                </ul>
+            </section>
+
+            <section>
+                <h4>Response (when is_curl is false)</h4>
+                <p>Server returns a generated challenge:</p>
+                <pre><code>{
+  "challenge": "string",
+  "session_id": "string"
+}</code></pre>
+            </section>
+
+            <section>
+                <h4>Response (key result)</h4>
+                <p>Returned when is_curl is true, or when posting back the license server response:</p>
+                <pre><code>{
+  "keys": [
+    {
+      "added_at": 1733171162,
+      "key": "517453862d4256fd8bad4f58422004d7:5b4b848eac0855d79165d05f3cf16d56",
+      "license_url": "https://cwip-shaka-proxy.appspot.com"
+    }
+  ],
+  "kid": "517453862d4256fd8bad4f58422004d7"
+}</code></pre>
+                <p><strong>Note:</strong> The <code>key</code> field is always in the format <code>kid:key</code>.</p>
+            </section>
+        </section>
+
+        <section>
+            <h2>/playready Endpoint</h2>
+            <p>POST /playready</p>
+
+            <h4>Request Body</h4>
+            <pre><code>{
+  "license_url": "string",                  // REQUIRED. PlayReady license server URL
+  "pssh": "base64-encoded string",          // REQUIRED. PSSH data
+  "proxy": "string",                        // OPTIONAL. Proxy in username:password@host:port
+  "device_hash": "string",                  // OPTIONAL. Device hash to use
+  "headers": "string",                      // OPTIONAL. Additional headers in key:value
+  "force": true | false,                    // OPTIONAL. Bypass server cache
+  "downgrade": true | false,                // OPTIONAL.
+  "is_curl": true | false,                  // OPTIONAL. If true, server performs the license request directly
+  "response": "string",                     // OPTIONAL*. License server response (for second step)
+  "session_id": "string"                    // OPTIONAL*. Session ID from challenge generation
+}</code></pre>
+
+            <h4>Behavior</h4>
+            <ul>
+                <li>
+                    <strong>When <code>is_curl</code> is false or omitted</strong>: Server generates a challenge for you
+                    to send to the license server (ex: cases where the license server uses a non-standard request body).
+                </li>
+                <li>
+                    <strong>When <code>is_curl</code> is true</strong>: Server performs the license request itself and
+                    returns keys.
+                </li>
+                <li>
+                    <strong>To decrypt license responses</strong>: Send the base64 license in
+                    <code>response</code> along with <code>session_id</code>, and all other original parameters.
+                </li>
+            </ul>
+
+            <h4>Response (when is_curl is false)</h4>
+            <pre><code>{
+  "challenge": "string",
+  "session_id": "string"
+}</code></pre>
+
+            <h4>Response (key result)</h4>
+            <pre><code>{
+  "keys": [
+    {
+      "added_at": 1733171162,
+      "key": "517453862d4256fd8bad4f58422004d7:5b4b848eac0855d79165d05f3cf16d56",
+      "license_url": "https://cwip-shaka-proxy.appspot.com"
+    }
+  ],
+  "kid": "517453862d4256fd8bad4f58422004d7"
+}</code></pre>
+            <p><strong>Note:</strong> The <code>key</code> field is always in the format <code>kid:key</code>.</p>
+        </section>
     </div>
 </section>
 {% endblock %}
