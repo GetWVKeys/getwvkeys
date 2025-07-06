@@ -119,14 +119,14 @@ main {
 .form-container {
     display: flex;
     margin: 64px 36px 0 36px;
+    justify-content: center;
 }
 .form-container > form {
     display: flex;
     flex-grow: 1;
     flex-direction: column;
-    margin-left: auto;
-    margin-right: auto;
     max-width: 1080px;
+    gap: 16px;
 }
 
 .form-item {
@@ -137,7 +137,7 @@ main {
 .form-item-items {
     display: flex;
     flex-direction: column;
-    margin-left: 24px;
+    /* margin-left: 24px; */
     flex: 1;
     width: 100%;
 }
@@ -146,10 +146,10 @@ main {
     color: gray;
     font-size: 0.875rem;
 }
-
+/* 
 .form-item:not(:first-child) {
     margin-top: 16px;
-}
+} */
 
 .form-item > span {
     min-width: 120px;
@@ -205,8 +205,6 @@ input[type="submit"] {
     border: 0;
     margin-top: 24px;
     padding: 12px 48px;
-    margin-left: auto;
-    margin-right: auto;
     transition: transform 0.2s ease-in;
 }
 input[type="submit"]:disabled {
@@ -690,6 +688,11 @@ code:not(pre code) {
     justify-content: center;
 }
 
+.keycount-wrapper > span {
+    color: hsla(0, 0%, 100%, 0.9);
+    font-size: 1rem;
+}
+
 .index-page {
     display: flex;
     flex-direction: column;
@@ -714,23 +717,6 @@ header {
     justify-content: center;
     width: 100%;
     max-width: 800px;
-}
-
-.big-button {
-    display: inline-block;
-    background-color: hsla(0, 0%, 100%, 0.4);
-    color: white;
-    text-decoration: none;
-    padding: 1.5rem 2rem;
-    border-radius: 8px;
-    font-size: 1.2rem;
-    text-align: center;
-    transition: background-color 0.2s ease;
-    min-width: 200px;
-}
-
-.big-button:hover {
-    background-color: hsla(0, 0%, 100%, 0.5);
 }
 
 .upload header {
@@ -767,4 +753,74 @@ header {
     flex-direction: column;
     align-items: center;
     gap: 16px;
+}
+
+/* The switch - the box around the slider */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+}
+
+/* Hide default HTML checkbox */
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+/* The slider */
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: hsl(136, 52.7%, 43.1%);
+    -webkit-transition: 0.4s;
+    transition: 0.4s;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    -webkit-transition: 0.4s;
+    transition: 0.4s;
+}
+
+input:checked + .slider {
+    background-color: hsl(207, 100%, 42.2%);
+}
+
+input:checked + .slider:before {
+    -webkit-transform: translateX(26px);
+    -ms-transform: translateX(26px);
+    transform: translateX(26px);
+}
+
+/* Rounded sliders */
+.slider.round {
+    border-radius: 34px;
+}
+
+.slider.round:before {
+    border-radius: 50%;
+}
+
+.form-interactives {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+.downgrade-item {
+    display: none;
 }

@@ -249,3 +249,25 @@ def extract_widevine_kid(pssh: WidevinePSSH) -> str:
         return pssh.key_ids[0].hex
     else:
         raise ValueError("Unexpected number of key ids in the PSSH object.")
+
+
+class DRMType(Enum):
+    WIDEVINE = "widevine"
+    PLAYREADY = "playready"
+    INVALID = "invalid"
+
+    @staticmethod
+    def from_string(drm_type: str) -> "DRMType":
+        try:
+            return DRMType[drm_type.strip().upper()]
+        except (KeyError, AttributeError):
+            return DRMType.INVALID
+
+    def is_playready(self) -> bool:
+        return self == DRMType.PLAYREADY
+
+    def is_widevine(self) -> bool:
+        return self == DRMType.WIDEVINE
+
+    def is_invalid(self) -> bool:
+        return self == DRMType.INVALID

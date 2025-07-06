@@ -19,14 +19,12 @@ import argparse
 import base64
 import json
 import sys
-from enum import Enum
 
 import requests
 
 """
 Script Version: 5.3
 - Renamed buildinfo to device_hash
-- Added option to switch between api endpoints using --drm-type
 """
 
 # Version of the API the script is for. This should be changed when the API is updated.
@@ -53,21 +51,12 @@ def post_request(url, headers, challenge, verbose):
 
 
 # Do Not Change Anything in this class
-class DRMType(Enum):
-    WIDEVINE = "widevine"
-    PLAYREADY = "playready"
-
-    def __str__(self):
-        return self.value
-
-
 class GetWVKeys:
     def __init__(
         self,
         url: str,
         pssh: str,
         auth: str,
-        drm_type: DRMType,
         verbose: bool = False,
         force: bool = False,
         device_hash: str = "",
@@ -81,12 +70,11 @@ class GetWVKeys:
         self.verbose = verbose
         self.force = force
         self.device_hash = device_hash
-        self.drm_type = drm_type
 
         self.baseurl = (
             "https://getwvkeys.cc" if API_URL == "__getwvkeys_api_url__" else API_URL
         )
-        self.api_url = "{}/{}".format(self.baseurl, self.drm_type.value)
+        self.api_url = "{}/api".format(self.baseurl)
         self.headers = _headers
 
     def generate_request(self):
@@ -234,14 +222,6 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--version", "-V", help="Print version and exit", action="store_true"
-    )
-    parser.add_argument(
-        "--drm-type",
-        "-t",
-        type=DRMType,
-        choices=list(DRMType),
-        default=DRMType.WIDEVINE,
-        help="DRM type to use (widevine or playready). Default is widevine",
     )
 
     args = parser.parse_args()

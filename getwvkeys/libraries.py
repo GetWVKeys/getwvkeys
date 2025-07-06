@@ -23,6 +23,7 @@ import secrets
 import time
 import uuid
 import xml.etree.ElementTree as ET
+from typing import Union
 from urllib.parse import urlsplit
 
 import requests
@@ -47,12 +48,7 @@ from pywidevine.exceptions import SignatureMismatch as WidevineSignatureMismatch
 from pywidevine.exceptions import TooManySessions as WidevineTooManySessions
 from requests.exceptions import ProxyError
 from sqlalchemy import func
-from werkzeug.exceptions import (
-    BadRequest,
-    InternalServerError,
-    NotFound,
-    NotImplemented,
-)
+from werkzeug.exceptions import BadRequest, InternalServerError
 
 from getwvkeys import config
 from getwvkeys.models.APIKey import APIKey as APIKeyModel
@@ -60,7 +56,7 @@ from getwvkeys.models.Key import Key as KeyModel
 from getwvkeys.models.PRD import PRD
 from getwvkeys.models.User import User as UserModel
 from getwvkeys.models.WVD import WVD
-from getwvkeys.utils import CachedKey, extract_widevine_kid
+from getwvkeys.utils import CachedKey, DRMType, extract_widevine_kid
 
 logger = logging.getLogger("getwvkeys")
 
@@ -219,10 +215,56 @@ class Library:
     #     self.db.session.commit()
     #     return code
 
+    def get_device_by_hash(self, device_hash: str):
+        print(device_hash)
+        # try to get prd or wvd by hash
+        device = PRD.query.filter_by(hash=device_hash).first()
+        if device:
+            return device
+
+        device = WVD.query.filter_by(hash=device_hash).first()
+        if device:
+            return device
+
+        raise BadRequest("Device not found")
+
+    def get_device_drm_type(self, device_hash: str) -> DRMType:
+        """
+        Returns the type of device by its hash.
+        """
+        device: Union[PRD, WVD] = self.get_device_by_hash(device_hash)
+        if not device:
+            return DRMType.INVALID
+
+        if isinstance(device, PRD):
+            return DRMType.PLAYREADY
+        elif isinstance(device, WVD):
+            return DRMType.WIDEVINE
+        else:
+            return DRMType.INVALID
+
+    def get_pssh_drm_type(self, pssh: Union[str, bytes]) -> DRMType:
+        """
+        Returns the type of DRM system based on the PSSH.
+        """
+        try:
+            PlayreadyPSSH(pssh)
+            return DRMType.PLAYREADY
+        except (PlayreadyInvalidPssh, PlayreadyInvalidInitData):
+            pass
+
+        try:
+            WidevinePSSH(pssh)
+            return DRMType.WIDEVINE
+        except Exception as e:
+            pass
+
+        return DRMType.INVALID
+
     def upload_prd(self, prd_data: str, user_id: str) -> str:
         user = UserModel.query.filter_by(id=user_id).first()
         if not user:
-            raise NotFound("User not found")
+            raise BadRequest("User not found")
 
         # used to check if the prd is valid
         try:
@@ -257,7 +299,7 @@ class Library:
     def upload_wvd(self, wvd_data: str, user_id: str) -> str:
         user = UserModel.query.filter_by(id=user_id).first()
         if not user:
-            raise NotFound("User not found")
+            raise BadRequest("User not found")
 
         # used to check if the wvd is valid
         try:
@@ -375,6 +417,7 @@ class PlayReady(BaseService):
         session_id=None,
         downgrade=False,
         is_web=False,
+        is_curl=False,
     ):
         super().__init__(library)
         self.library = library
@@ -396,6 +439,7 @@ class PlayReady(BaseService):
         self.session_id = session_id
         self.downgrade = downgrade
         self.is_web = is_web
+        self.curl = is_curl
 
         if pssh:
             kids = [x.read_attributes()[0] for x in self.pssh.wrm_headers]
@@ -478,13 +522,13 @@ class PlayReady(BaseService):
     #     else:
     #         raise Exception("Unknown method")
 
-    def run(self, curl=False):
+    def run(self):
         # Search for cached keys first
         if not self.force and self.kid:
             result = self.library.search(self.kid)
             if result and len(result) > 0:
                 cached = self.library.search_res_to_dict(self.kid, result)
-                if not curl and self.is_web:
+                if not self.curl and self.is_web:
                     return render_template("cache.html", results=cached)
                 r = jsonify(cached)
                 r.headers.add_header("X-Cache", "HIT")
@@ -531,7 +575,7 @@ class PlayReady(BaseService):
 
             device = self.library.get_prd_by_hash(self.device)
             if not device:
-                raise NotFound("PRD not found")
+                raise BadRequest("PRD not found")
 
             cdm = pr_sessions.get(self.session_id)
             if not cdm:
@@ -558,7 +602,7 @@ class PlayReady(BaseService):
                 logger.exception(e)
                 raise BadRequest("[PlayReady] Exception: " + str(e))
 
-            if curl or self.is_web:
+            if self.curl or self.is_web:
                 try:
                     license_response = self.post_data(
                         self.license_url, self.headers, license_request, self.proxy
@@ -600,7 +644,7 @@ class PlayReady(BaseService):
                 # close the session
                 cdm.close(session_id=bytes.fromhex(self.session_id))
 
-                if curl:
+                if self.curl:
                     return jsonify(data)
 
                 return render_template(
@@ -695,6 +739,7 @@ class Widevine(BaseService):
         server_certificate=None,
         session_id=None,
         is_web=False,
+        is_curl=False,
     ):
         super().__init__(library)
         self.library = library
@@ -716,6 +761,7 @@ class Widevine(BaseService):
         self.store_request = {}
         self.session_id = session_id
         self.is_web = is_web
+        self.curl = is_curl
 
         if pssh:
             try:
@@ -798,13 +844,13 @@ class Widevine(BaseService):
     #     else:
     #         raise Exception("Unknown method")
 
-    def run(self, curl=False):
+    def run(self):
         # Search for cached keys first
         if not self.force and self.kid:
             result = self.library.search(self.kid)
             if result and len(result) > 0:
                 cached = self.library.search_res_to_dict(self.kid, result)
-                if not curl and self.is_web:
+                if not self.curl and self.is_web:
                     return render_template("cache.html", results=cached)
                 r = jsonify(cached)
                 r.headers.add_header("X-Cache", "HIT")
@@ -820,7 +866,7 @@ class Widevine(BaseService):
 
             device = self.library.get_wvd_by_hash(self.device)
             if not device:
-                raise NotFound("WVD not found")
+                raise BadRequest("WVD not found")
 
             cdm = wv_sessions.get(self.session_id)
             if not cdm:
@@ -863,7 +909,7 @@ class Widevine(BaseService):
                 logger.exception(e)
                 raise BadRequest("[Widevine] Exception: " + str(e))
 
-            if curl or self.is_web:
+            if self.curl or self.is_web:
                 try:
                     license_response = self.post_data(
                         self.license_url, self.headers, license_request, self.proxy
@@ -905,7 +951,7 @@ class Widevine(BaseService):
                 # close the session
                 cdm.close(session_id=bytes.fromhex(self.session_id))
 
-                if curl:
+                if self.curl:
                     return jsonify(data)
 
                 return render_template(
