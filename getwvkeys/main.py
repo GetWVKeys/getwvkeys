@@ -218,7 +218,7 @@ def log_request_info(response):
     except Exception:
         duration = None
 
-    if not request.path.startswith("/static") or not request.path in ["/favicon.ico"]:
+    if not request.path.startswith("/static") and not request.path in ["/favicon.ico"]:
         log_entry = TrafficLog(
             user_id=current_user.id if current_user.is_authenticated else None,
             path=request.path,
