@@ -42,7 +42,7 @@ async function keycount() {
         return await response.text();
     }
     const key_count_value = await key_count();
-    document.getElementById("keycount").innerText = key_count_value;
+    document.getElementById("keycount").innerText = `~${Number(key_count_value).toLocaleString()}`;
 }
 
 async function server_request() {

@@ -309,7 +309,7 @@ def download_wv_script(file):
 @app.route("/count")
 @cache.cached(timeout=300)
 def count():
-    return str(library.get_keycount())
+    return str(library.get_keycount_approx())
 
 
 @app.route("/favicon.ico")
