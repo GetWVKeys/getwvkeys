@@ -20,17 +20,18 @@ import json
 import os
 import pathlib
 import time
+from datetime import datetime, timezone
 from functools import update_wrapper, wraps
 from io import BytesIO
 from pathlib import Path
 from sqlite3 import DatabaseError
-from typing import Union
 
 import requests
 from dunamai import Version
 from flask import (
     Flask,
     Request,
+    g,
     jsonify,
     make_response,
     redirect,
@@ -62,6 +63,7 @@ from getwvkeys import config, libraries
 
 # these need to be kept
 from getwvkeys.models.Shared import db
+from getwvkeys.models.TrafficLog import TrafficLog
 from getwvkeys.redis import Redis
 from getwvkeys.user import FlaskUser
 from getwvkeys.utils import Blacklist, DRMType, UserFlags, Validators, construct_logger
@@ -204,8 +206,32 @@ def load_user(user_id):
     return FlaskUser.get(db, user_id)
 
 
+@app.before_request
+def start_timer():
+    g.start_time = time.time()
+
+
 @app.after_request
 def log_request_info(response):
+    try:
+        duration = int((time.time() - g.start_time) * 1000)
+    except Exception:
+        duration = None
+
+    if not request.path.startswith("/static") or request.path in ["/favicon.ico"]:
+        log_entry = TrafficLog(
+            user_id=current_user.id if current_user.is_authenticated else None,
+            path=request.path,
+            timestamp=datetime.now(timezone.utc),
+            ip=request.headers.get("X-Forwarded-For", request.remote_addr),
+            user_agent=request.headers.get("User-Agent"),
+            status_code=response.status_code,
+            duration_ms=duration,
+        )
+
+        db.session.add(log_entry)
+        db.session.commit()
+
     user_id = current_user.id if current_user.is_authenticated else "N/A"
     l = f'{request.remote_addr} - - [{log_date_time_string()}] "{request.method} {request.path}" {response.status_code} - {user_id}'
 
