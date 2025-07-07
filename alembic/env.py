@@ -5,7 +5,18 @@ import toml
 from sqlalchemy import engine_from_config, pool
 
 from alembic import context
-from getwvkeys.models import PRD, WVD, APIKey, Base, Key, Shared, User, UserPRD, UserWVD
+from getwvkeys.models import (
+    PRD,
+    WVD,
+    APIKey,
+    Base,
+    Key,
+    Shared,
+    TrafficLog,
+    User,
+    UserPRD,
+    UserWVD,
+)
 
 IS_DEVELOPMENT = bool(os.environ.get("DEVELOPMENT", False))
 IS_STAGING = bool(os.environ.get("STAGING", False))

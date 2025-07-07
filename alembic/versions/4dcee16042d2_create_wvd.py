@@ -224,11 +224,11 @@ def upgrade() -> None:
                 f"Failed to convert device {code} to WVD: {e}\nPK: {private_key}\nCID: {client_id}"
             )
             # remove the device from the database
-            # op.get_bind().execute(
-            #     sa.text("DELETE FROM cdms WHERE code = :code"), {"code": code}
-            # )
+            op.get_bind().execute(
+                sa.text("DELETE FROM cdms WHERE code = :code"), {"code": code}
+            )
 
-    # op.drop_table("cdms")
+    op.drop_table("cdms")
 
     # ### end Alembic commands ###
 
