@@ -47,7 +47,7 @@ from pywidevine.exceptions import InvalidSession as WidevineInvalidSession
 from pywidevine.exceptions import SignatureMismatch as WidevineSignatureMismatch
 from pywidevine.exceptions import TooManySessions as WidevineTooManySessions
 from requests.exceptions import ProxyError
-from sqlalchemy import func
+from sqlalchemy import func, text
 from werkzeug.exceptions import BadRequest, InternalServerError
 
 from getwvkeys import config
@@ -137,9 +137,22 @@ class Library:
         self.db.session.merge(k)
         self.db.session.commit()
 
-    def get_keycount(self) -> int:
-        return self.db.session.query(func.count(KeyModel.kid)).scalar()
-        # return KeyModel().query.count()
+    def get_keycount_approx(self):
+        sql = text(
+            """
+            SELECT table_rows 
+            FROM information_schema.tables
+            WHERE table_schema = :schema AND table_name = :table
+        """
+        )
+        result = self.db.session.execute(
+            sql,
+            {
+                "schema": self.db.engine.url.database,
+                "table": KeyModel.__tablename__,
+            },
+        ).scalar()
+        return result or 0
 
     def search(self, query: str) -> list:
         if query.startswith("AAAA"):

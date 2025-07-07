@@ -47,7 +47,7 @@ async function keycount() {
         return await response.text();
     }
     const key_count_value = await key_count();
-    keycountElement.innerText = key_count_value;
+    keycountElement.innerText = `~${Number(key_count_value).toLocaleString()}`;
 }
 
 function getCookie(name) {
