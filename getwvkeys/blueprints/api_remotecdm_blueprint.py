@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flask_login import current_user
+from pywidevine import __version__ as pywidevine_version
 
 from getwvkeys import config
 from getwvkeys.decorators import (
@@ -11,6 +12,14 @@ from getwvkeys.decorators import (
 from getwvkeys.shared import library
 
 blueprint = Blueprint("api_remotecdm", __name__)
+
+
+# pywidevine remotecdm implementation is kind of retarded, pretty sure cloudflare is going to overwrite this though
+@blueprint.after_request
+def add_server_header(response):
+    response.headers["Server"] = f"pywidevine serve v{pywidevine_version}"
+
+    return response
 
 
 @blueprint.route("/")
