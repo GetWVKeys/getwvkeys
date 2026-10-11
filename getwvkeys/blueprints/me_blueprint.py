@@ -8,7 +8,7 @@ from getwvkeys.shared import website_version
 blueprint = Blueprint("me", __name__)
 
 
-@blueprint.route("/")
+@blueprint.route("")
 @authentication_required()
 def user_profile():
     user_wvds = current_user.get_user_wvds()

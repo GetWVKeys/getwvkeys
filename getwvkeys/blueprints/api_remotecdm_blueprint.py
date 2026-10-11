@@ -22,7 +22,7 @@ def add_server_header(response):
     return response
 
 
-@blueprint.route("/")
+@blueprint.route("")
 @optional_auth()
 def remote_cdm_ping():
     return jsonify({"status": 200, "message": "pong"})

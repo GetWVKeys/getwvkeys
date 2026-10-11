@@ -92,6 +92,13 @@ class Redis:
         executor.submit(self.handle_message, msg)
 
     def handle_message(self, msg):
+        # exceptions raised in an executor are stored on the discarded future, so log them here instead
+        try:
+            self._handle_message(msg)
+        except Exception:
+            logger.exception("Unhandled error processing IPC message")
+
+    def _handle_message(self, msg):
         try:
             data = json.loads(msg.get("data"))
         except (json.JSONDecodeError, TypeError):

@@ -63,6 +63,7 @@ from werkzeug.utils import secure_filename
 from alembic import command
 from alembic.config import Config
 from getwvkeys import config
+from getwvkeys.blueprints.admin_blueprint import blueprint as admin_blueprint
 from getwvkeys.blueprints.api_import_blueprint import blueprint as api_import_blueprint
 from getwvkeys.blueprints.api_remotecdm_blueprint import (
     blueprint as api_remotecdm_blueprint,
@@ -965,12 +966,13 @@ def user_delete_cdm(id):
     return redirect("/me/wvds/{}".format(id), 307)
 
 
-@app.route("/me/wvds", methods=["GET"])
+@app.route("/me/cdms", methods=["GET"])
 @authentication_required()
 def user_get_cdms():
     return redirect("/me/wvds", 307)
 
 
+app.register_blueprint(admin_blueprint, url_prefix="/admin")
 app.register_blueprint(api_import_blueprint, url_prefix="/api/import")
 app.register_blueprint(api_remotecdm_blueprint, url_prefix="/api/remotecdm")
 app.register_blueprint(me_blueprint, url_prefix="/me")
