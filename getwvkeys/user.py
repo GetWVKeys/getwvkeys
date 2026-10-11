@@ -105,15 +105,15 @@ class FlaskUser(UserMixin):
         return FlaskUser(self.db, self.user_model)
 
     def reset_api_key(self):
+        old_api_key = self.user_model.api_key
         api_key = secrets.token_hex(32)
+
+        # check if we already have the old key recorded in the history, if not (ex: accounts created before implementation), add it
+        if not APIKey.query.filter_by(user_id=self.user_model.id, api_key=old_api_key).first():
+            self.db.session.add(APIKey(user_id=self.user_model.id, api_key=old_api_key))
+
+        self.db.session.add(APIKey(user_id=self.user_model.id, api_key=api_key))
         self.user_model.api_key = api_key
-
-        # check if we already have the key recorded in the history, if not (ex: accounts created before implementation), add it
-        a = APIKey.query.filter_by(user_id=self.user_model.id, api_key=api_key)
-        if not a:
-            history_entry = APIKey(user_id=self.user_model.id, api_key=api_key)
-            self.db.session.add(history_entry)
-
         self.db.session.commit()
 
     def delete_wvd(self, id):
@@ -298,15 +298,19 @@ class FlaskUser(UserMixin):
 
     @staticmethod
     def disable_users(db: SQLAlchemy, user_ids: list):
-        print("Request to disable {} users: {}".format(len(user_ids), ", ".join([str(x) for x in user_ids])))
+        """Disable all registered users in user_ids, returns the number of users that were found"""
+        logger.info("Request to disable {} users".format(len(user_ids)))
         if len(user_ids) == 0:
             raise BadRequest("No data to update or update is not allowed")
 
-        for user_id in user_ids:
-            try:
-                User.disable_user(db, user_id)
-            except NotFound:
-                continue
+        # ids that don't belong to a registered user are skipped
+        users = User.query.filter(User.id.in_([str(x) for x in user_ids])).all()
+        for user in users:
+            flags = Bitfield(user.flags)
+            flags.add(UserFlags.SUSPENDED)
+            user.flags = flags.bits
+        db.session.commit()
+        return len(users)
 
     @staticmethod
     def enable_user(db: SQLAlchemy, user_id):

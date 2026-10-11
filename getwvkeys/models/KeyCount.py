@@ -28,7 +28,7 @@ class KeyCount(Base):
 
     id = Column(Integer, primary_key=True, nullable=False, unique=True, autoincrement=True)
     count_value = Column(Integer, nullable=False, default=0)
-    last_updated = Column(Integer, nullable=False, default=int(time.time()))
+    last_updated = Column(Integer, nullable=False, default=lambda: int(time.time()))
 
     def to_json(self):
         return {

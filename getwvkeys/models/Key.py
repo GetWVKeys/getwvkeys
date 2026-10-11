@@ -29,7 +29,7 @@ class Key(Base):
         primary_key=True,
         nullable=False,
     )
-    added_at = Column(Integer, nullable=False, default=int(time.time()))
+    added_at = Column(Integer, nullable=False, default=lambda: int(time.time()))
     added_by = Column(
         String(255, collation="utf8mb4_general_ci"),
         ForeignKey("users.id"),
