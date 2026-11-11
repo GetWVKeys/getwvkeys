@@ -226,19 +226,20 @@ def log_request_info(response):
     except Exception:
         duration = None
 
-    if not request.path.startswith("/static") and not request.path in ["/favicon.ico"]:
-        log_entry = TrafficLog(
-            user_id=current_user.id if current_user.is_authenticated else None,
-            path=request.path,
-            timestamp=datetime.now(timezone.utc),
-            ip=real_ip,
-            user_agent=request.headers.get("User-Agent"),
-            status_code=response.status_code,
-            duration_ms=duration,
-        )
-
-        db.session.add(log_entry)
-        db.session.commit()
+    # Who knew this would take a lot of space if unchecked? lol
+    #if not request.path.startswith("/static") and not request.path in ["/favicon.ico"]:
+    #    log_entry = TrafficLog(
+    #        user_id=current_user.id if current_user.is_authenticated else None,
+    #        path=request.path,
+    #        timestamp=datetime.now(timezone.utc),
+    #        ip=real_ip,
+    #        user_agent=request.headers.get("User-Agent"),
+    #        status_code=response.status_code,
+    #        duration_ms=duration,
+    #    )
+    #
+    #    db.session.add(log_entry)
+    #    db.session.commit()
 
     user_id = current_user.id if current_user.is_authenticated else "N/A"
     l = f'{real_ip} - - [{log_date_time_string()}] "{request.method} {request.path}" {response.status_code} - {user_id}'
